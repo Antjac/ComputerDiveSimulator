@@ -475,6 +475,7 @@ window.addEventListener('keydown', (e) => {
   if ((e.target as HTMLElement).tagName === 'SELECT') return;
   if (e.key === 'ArrowDown') session.setTarget(Math.round(session.targetDepth) + 1);
   else if (e.key === 'ArrowUp') session.setTarget(Math.round(session.targetDepth) - 1);
+  else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && view === '3d' && scene3d) scene3d.steer(e.key === 'ArrowLeft' ? -2 : 2);
   else if (e.key === ' ') {
     paused = !paused;
     renderControls();

@@ -8,6 +8,14 @@ export type Environment = 'reef' | 'wreck' | 'wall';
 const PATH_R = 30;
 const SWIM_SPEED = 0.7; // m per real second (visual only, independent of the time speed)
 const WORLD = 240;
+// Sideways moves off the path (positive = outward, i.e. to the diver's left).
+const LANE = 12; // max offset from the path (m)
+const SIDE_SPEED = 0.6; // m per real second
+const FLOOR_CLEARANCE = 1.2; // keep this much water under the diver (m)
+// Wreck dimensions, shared by the model and the diver's collision test.
+const WRECK_L = 36;
+const WRECK_W = 7;
+const WRECK_H = 5;
 
 // ---------------------------------------------------------------------------
 // Deterministic noise and randomness (same scenery on every load)
@@ -164,6 +172,10 @@ export class Scene3D {
   private fins: THREE.Group[] = [];
   private finPhase = 0;
   private pathAngle = 0;
+  private lateral = 0;
+  private lateralTarget = 0;
+  private lateralVel = 0;
+  private wreck: THREE.Object3D | null = null;
 
   private surface!: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
   private rays: THREE.Mesh<THREE.CylinderGeometry, THREE.MeshBasicMaterial>[] = [];
@@ -179,7 +191,7 @@ export class Scene3D {
 
   private yaw = 0;
   private camPos = new THREE.Vector3();
-  private drag: { x: number; y: number; target: number; yaw: number } | null = null;
+  private drag: { x: number; y: number; target: number; lateral: number; yaw: number; orbit: boolean } | null = null;
   private time = 0;
   private dummy = new THREE.Object3D();
 
@@ -200,7 +212,23 @@ export class Scene3D {
   }
 
   // -------------------------------------------------------------------------
-  // Input: vertical drag = target depth, horizontal drag = orbit the camera.
+  // Input: vertical drag = target depth, horizontal drag = move left/right,
+  // right-button or Shift + drag = orbit the camera.
+
+  /** Moves the sideways target by `metres` to the right of the screen (negative = left). */
+  steer(metres: number): void {
+    this.setLateralTarget(this.lateralTarget + this.screenRightSign() * metres);
+    this.onInteract?.();
+  }
+
+  private setLateralTarget(v: number): void {
+    this.lateralTarget = Math.max(-LANE, Math.min(LANE, Math.round(v * 2) / 2));
+  }
+
+  /** Screen-right is inward (−) when the camera is behind the diver, outward once it looks back. */
+  private screenRightSign(): number {
+    return Math.cos(this.yaw) >= 0 ? -1 : 1;
+  }
 
   private bindInput(): void {
     const c = this.canvas;
@@ -210,16 +238,28 @@ export class Scene3D {
       } catch {
         /* pointer already released */
       }
-      this.drag = { x: e.clientX, y: e.clientY, target: this.session.targetDepth, yaw: this.yaw };
+      this.drag = {
+        x: e.clientX,
+        y: e.clientY,
+        target: this.session.targetDepth,
+        lateral: this.lateralTarget,
+        yaw: this.yaw,
+        orbit: e.button === 2 || e.shiftKey,
+      };
       this.onInteract?.();
     });
     c.addEventListener('pointermove', (e) => {
       if (!this.drag) return;
       const dy = e.clientY - this.drag.y;
       const dx = e.clientX - this.drag.x;
+      if (this.drag.orbit) {
+        this.yaw = this.drag.yaw - dx * 0.008;
+        return;
+      }
       if (Math.abs(dy) > 4) this.session.setTarget(Math.round((this.drag.target + dy * 0.08) * 2) / 2);
-      this.yaw = this.drag.yaw - dx * 0.008;
+      if (Math.abs(dx) > 4) this.setLateralTarget(this.drag.lateral + this.screenRightSign() * dx * 0.05);
     });
+    c.addEventListener('contextmenu', (e) => e.preventDefault());
     const end = () => (this.drag = null);
     c.addEventListener('pointerup', end);
     c.addEventListener('pointercancel', end);
@@ -365,6 +405,7 @@ export class Scene3D {
     });
     this.world.clear();
     this.schools = [];
+    this.wreck = null;
 
     const env = this.environment;
     const site = this.session.siteDepth;
@@ -374,7 +415,11 @@ export class Scene3D {
     this.world.add(this.buildTerrain(floor, site));
     this.world.add(this.buildRocks(floor, rnd));
     this.world.add(...this.buildCorals(floor, site, rnd));
-    if (env === 'wreck') this.world.add(this.buildWreck(site));
+    if (env === 'wreck') {
+      this.wreck = this.buildWreck(site);
+      this.world.add(this.wreck);
+      this.wreck.updateMatrixWorld(true);
+    }
 
     // Fish schools spread around the path so the diver swims through them.
     let k = 0;
@@ -520,9 +565,9 @@ export class Scene3D {
   }
 
   private buildWreck(site: number): THREE.Group {
-    const L = 36;
-    const W = 7;
-    const H = 5;
+    const L = WRECK_L;
+    const W = WRECK_W;
+    const H = WRECK_H;
     const rust = new THREE.MeshStandardMaterial({ color: 0x7a4b32, roughness: 0.95, flatShading: true });
     const paint = new THREE.MeshStandardMaterial({ color: 0x8c7462, roughness: 0.9, flatShading: true });
     const dark = new THREE.MeshStandardMaterial({ color: 0x120e0b, roughness: 1 });
@@ -661,13 +706,23 @@ export class Scene3D {
     const site = s.siteDepth;
     const floor = (x: number, z: number) => floorDepth(env, site, x, z);
 
-    // Diver on the path.
-    this.pathAngle += (SWIM_SPEED * dt) / PATH_R;
+    // Diver along the path, offset sideways towards the lateral target unless the seabed or the
+    // wreck is in the way; blocked on both counts, they slide back towards the path (always clear).
+    this.pathAngle += (SWIM_SPEED * dt) / (PATH_R + this.lateral);
     const a = this.pathAngle;
-    const pos = new THREE.Vector3(Math.cos(a) * PATH_R, -s.depth, Math.sin(a) * PATH_R);
+    const prevLateral = this.lateral;
+    const step = Math.max(-SIDE_SPEED, Math.min(SIDE_SPEED, (this.lateralTarget - this.lateral) * 1.5)) * dt;
+    if (this.isClear(a, this.lateral + step, s.depth, floor)) this.lateral += step;
+    else if (!this.isClear(a, this.lateral, s.depth, floor)) {
+      const back = SIDE_SPEED * 2 * dt;
+      this.lateral = Math.abs(this.lateral) <= back ? 0 : this.lateral - Math.sign(this.lateral) * back;
+    }
+    if (dt > 0) this.lateralVel += ((this.lateral - prevLateral) / dt - this.lateralVel) * Math.min(1, dt * 5);
+    const r = PATH_R + this.lateral;
+    const pos = new THREE.Vector3(Math.cos(a) * r, -s.depth, Math.sin(a) * r);
     const fwd = new THREE.Vector3(-Math.sin(a), 0, Math.cos(a));
     this.diver.position.copy(pos);
-    this.diver.rotation.y = -a;
+    this.diver.rotation.y = -a + Math.atan2(this.lateralVel, SWIM_SPEED);
     this.diverPitch.rotation.x = Math.max(-0.55, Math.min(0.55, s.velocity * 1.2));
     this.finPhase += dt * (3 + Math.abs(s.velocity) * 8);
     this.fins.forEach((f, i) => (f.rotation.x = Math.sin(this.finPhase + i * Math.PI) * 0.35));
@@ -690,14 +745,30 @@ export class Scene3D {
     this.updateTurtle(dt, floor);
 
     // Overlays around the diver.
-    this.targetRing.position.set(pos.x, -s.targetDepth, pos.z);
-    this.targetRing.visible = Math.abs(s.targetDepth - s.depth) > 0.3;
+    const rt = PATH_R + this.lateralTarget;
+    this.targetRing.position.set(Math.cos(a) * rt, -s.targetDepth, Math.sin(a) * rt);
+    this.targetRing.visible = Math.abs(s.targetDepth - s.depth) > 0.3 || Math.abs(this.lateralTarget - this.lateral) > 0.3;
     this.ceilingDisc.visible = this.ceiling > 0;
     this.ceilingDisc.position.set(pos.x, -this.ceiling, pos.z);
     this.safetyTube.visible = this.safetyBand;
     this.safetyTube.position.set(pos.x, -4.5, pos.z);
 
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /** Whether the diver fits at path angle `a`, sideways offset `lateral` and `depth`. */
+  private isClear(a: number, lateral: number, depth: number, floor: (x: number, z: number) => number): boolean {
+    if (lateral === 0) return true;
+    const r = PATH_R + lateral;
+    const p = new THREE.Vector3(Math.cos(a) * r, -depth, Math.sin(a) * r);
+    // On the path the floor can be as close as 0.4 m below the deepest allowed depth.
+    const margin = Math.min(FLOOR_CLEARANCE, this.session.siteDepth + 0.4 - depth);
+    if (floor(p.x, p.z) - depth < margin) return false;
+    if (this.wreck) {
+      const q = this.wreck.worldToLocal(p);
+      if (Math.abs(q.x) < WRECK_L / 2 + 1.5 && Math.abs(q.z) < WRECK_W / 2 + 2.5 && q.y < WRECK_H + 6) return false;
+    }
+    return true;
   }
 
   /** Light fades and turns blue with depth (reds are absorbed first); the torch takes over. */

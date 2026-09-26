@@ -50,7 +50,7 @@ npm run scenario  # rejoue un profil de plongée sur tous les ordinateurs
 
 ## Vue 3D
 
-Le bouton **2D | 3D** en haut de la zone de plongée bascule vers une vue 3D ludique, avec trois environnements : récif corallien, épave et tombant. Poissons, tortue, bulles et lumière qui s'assombrit avec la profondeur (une lampe prend le relais en profondeur). Glisser verticalement pour changer la profondeur visée, horizontalement pour tourner la vue, double-clic pour recentrer. La simulation est identique dans les deux vues ; three.js n'est chargé qu'à la première ouverture de la vue 3D.
+Le bouton **2D | 3D** en haut de la zone de plongée bascule vers une vue 3D ludique, avec trois environnements : récif corallien, épave et tombant. Poissons, tortue, bulles et lumière qui s'assombrit avec la profondeur (une lampe prend le relais en profondeur). Glisser verticalement pour changer la profondeur visée, horizontalement (ou flèches ◀ / ▶) pour se décaler à gauche ou à droite du trajet — le plongeur contourne le fond et l'épave s'ils sont sur son chemin. Clic droit ou Maj + glisser pour tourner la vue, double-clic pour recentrer. La simulation est identique dans les deux vues ; three.js n'est chargé qu'à la première ouverture de la vue 3D.
 
 ## Structure
 

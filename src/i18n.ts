@@ -19,8 +19,8 @@ const dict = {
   envWreck: { fr: 'Épave', en: 'Wreck' },
   envWall: { fr: 'Tombant', en: 'Wall' },
   hint3d: {
-    fr: 'Glisser ↕ : profondeur visée · glisser ↔ : tourner la vue · double-clic : recentrer',
-    en: 'Drag ↕: target depth · drag ↔: turn the view · double-click: recentre',
+    fr: 'Glisser ↕ : profondeur visée · glisser ↔ ou ◀/▶ : gauche/droite · clic droit ou Maj + glisser : tourner la vue · double-clic : recentrer',
+    en: 'Drag ↕: target depth · drag ↔ or ◀/▶: left/right · right-click or Shift + drag: turn the view · double-click: recentre',
   },
   view3dError: { fr: 'Vue 3D indisponible (WebGL non pris en charge)', en: '3D view unavailable (WebGL not supported)' },
   speed: { fr: 'Vitesse du temps', en: 'Time speed' },
