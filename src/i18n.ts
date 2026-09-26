@@ -73,8 +73,8 @@ const dict = {
   surfaceSince: { fr: 'Intervalle surface', en: 'Surface interval' },
   simClock: { fr: 'Horloge simulée', en: 'Simulated clock' },
   disclaimer: {
-    fr: 'Outil pédagogique uniquement. Ne l’utilisez jamais pour planifier une vraie plongée. Les interfaces sont inspirées des modèles cités, sans affiliation avec leurs fabricants.',
-    en: 'Educational tool only. Never use it to plan a real dive. Displays are inspired by the listed models, with no affiliation with their manufacturers.',
+    fr: 'Outil pédagogique uniquement. Ne l’utilisez jamais pour planifier une vraie plongée. Les interfaces sont inspirées des modèles cités et peuvent en différer (affichage, comportements, valeurs) ; aucune affiliation avec leurs fabricants.',
+    en: 'Educational tool only. Never use it to plan a real dive. Displays are inspired by the listed models and may differ from them (layout, behaviour, values); no affiliation with their manufacturers.',
   },
   target: { fr: 'Cible', en: 'Target' },
   ascentRate: { fr: 'Vitesse verticale', en: 'Vertical speed' },
