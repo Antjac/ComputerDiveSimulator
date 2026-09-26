@@ -1,0 +1,425 @@
+import {
+  COMPARTMENTS, DecoParams, ceilingDepth, equilibriumDepth, gfLowAnchor, ndl, planAscent,
+} from '../engine/buhlmann';
+import { remainingTime } from '../engine/gas';
+import type { DiveSession } from '../engine/session';
+import { depthInt, depthText, imperial, pressText, pressUnit, tempUnit, tempVal } from '../units';
+import type { Lang } from '../i18n';
+import { ComputerView, DiveComputer, SettingDef, clockOfDay, hmm, mmss } from './base';
+
+/** Ideal ascent rate by depth (G2 manual §3.7), in m/min. */
+const IDEAL_ASCENT: [number, number][] = [
+  [0, 3], [2.5, 5.5], [6, 7], [12, 7.7], [18, 8.2], [23, 8.6], [31, 8.9], [35, 9.1], [39, 9.4], [44, 9.6], [50, 9.8], [120, 10],
+];
+
+export function idealAscent(depth: number): number {
+  let v = IDEAL_ASCENT[0][1];
+  for (const [d, r] of IDEAL_ASCENT) if (depth >= d) v = r;
+  return v;
+}
+
+/** Microbubble level → gradient factors (approximation; L0 ≈ ZH-L16 ADT). */
+function levelParams(level: number): DecoParams {
+  return { gfLow: 0.98 - 0.06 * level, gfHigh: 0.98 - 0.04 * level, lastStop: 3, stopStep: 3, ascentRate: 10 };
+}
+
+type PdisState = 'none' | 'shown' | 'active' | 'ok' | 'no';
+
+const DU = () => (imperial() ? 'FEET' : 'METER');
+const DU1 = () => (imperial() ? 'FT' : 'M');
+const TU = () => tempUnit();
+
+/** Stop window content, as in the manual: "10:  3" with MINUTE / METER underneath. */
+function stopValue(minutes: number, depth: number): string {
+  return `<span>${minutes}:</span><span class="g2-gap">${depthInt(depth)}</span><em class="g2-sub l">MINUTE</em><em class="g2-sub r">${DU()}</em>`;
+}
+
+/**
+ * Scubapro Galileo 2 (G2), Scuba mode. Screens and rules follow the G2 user manual: Light / Classic
+ * screen configurations, pop-up warnings (yellow) and alarms (red), ideal ascent rate table, safety
+ * stop timer, MB levels and PDIS. ZH-L16 ADT MB itself has unpublished adjustments: approximated.
+ */
+export class ScubaproG2 extends DiveComputer {
+  readonly id = 'scubapro';
+  readonly name = 'Scubapro G2';
+  readonly algorithm = 'ZH-L16 ADT MB (≈)';
+  readonly exact = false;
+  readonly transmitter = 'Smart';
+  readonly gasTimeName = 'RBT';
+  readonly notes = {
+    fr: 'ZH-L16 ADT MB a des ajustements non publiés : approximation. Affichage et règles conformes au manuel : écran Light (Classic automatique en déco), vitesse de remontée idéale selon la profondeur (jaune > 110 %, alarme > 140 %), niveaux MB (réduits si le palier est ignoré de plus de 1,5 m), PDIS. Bouton MORE : informations alternatives.',
+    en: 'ZH-L16 ADT MB has unpublished adjustments: approximation. Display and rules as per the manual: Light screen (Classic automatically in deco), depth-dependent ideal ascent rate (yellow > 110 %, alarm > 140 %), MB levels (reduced if a stop is ignored by more than 1.5 m), PDIS. MORE button: alternate information.',
+  };
+  readonly settingDefs: SettingDef[] = [
+    {
+      key: 'level',
+      label: { fr: 'Niveau MB', en: 'MB level' },
+      options: Array.from({ length: 10 }, (_, i) => ({ value: String(i), label: `L${i}` })),
+      default: '0',
+    },
+    {
+      key: 'pdis',
+      label: { fr: 'PDIS', en: 'PDIS' },
+      options: [{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }],
+      default: 'on',
+    },
+    {
+      key: 'screen',
+      label: { fr: 'Configuration écran', en: 'Screen configuration' },
+      options: [
+        { value: 'light', label: 'Light' },
+        { value: 'classic', label: 'Classic' },
+        { value: 'full', label: 'Full' },
+        { value: 'graphical', label: 'Graphical' },
+      ],
+      default: 'light',
+    },
+  ];
+
+  activeLevel = 0;
+  levelAnchor = 0;
+  levelReducedAt = -1e9;
+  pdisState: PdisState = 'none';
+  pdisDepth = 0;
+  pdisRemaining = 120;
+
+  constructor() {
+    super();
+    // Safety stop timer: after 10 m, starts at 5 m, disappears below 6.5 m and restarts at 5 m.
+    this.safetyStop = { trigger: 10, start: 5, top: 2, bottom: 6.5, reset: 6.5 };
+    this.ceilingMargin = 0.5; // MISSED DECO STOP when 0.5 m above the stop
+    this.stopWindow = 1.5;
+    this.screenTimeout = 0;
+    this.init();
+  }
+
+  baseParams(): DecoParams {
+    return levelParams(0);
+  }
+
+  /** Yellow above 110 % of the ideal rate, ASCENT TOO FAST above 140 %. */
+  ascentLevel(rate: number, depth: number): 0 | 1 | 2 {
+    const pct = rate / idealAscent(depth);
+    return pct > 1.4 ? 2 : pct > 1.1 ? 1 : 0;
+  }
+
+  /**
+   * RBT (manual §2.8.3): time at the current depth that still leaves enough gas for a safe ascent at the
+   * ideal ascent rate, including decompression, reaching the surface with the tank reserve.
+   */
+  gasTime(s: DiveSession, p: DecoParams, sacBar: number): number | null {
+    return remainingTime({
+      tissues: s.tissues, depth: s.depth, gas: s.gas, tankPressure: s.tankPressure, reserve: s.tank.reserve,
+      sacBar, rate: idealAscent, deco: p, anchor: this.anchor,
+    });
+  }
+
+  onDiveStart(s: DiveSession): void {
+    super.onDiveStart(s);
+    this.activeLevel = Number(this.settings.level);
+    this.levelAnchor = 0;
+    this.pdisState = 'none';
+    this.pdisDepth = 0;
+    this.pdisRemaining = 120;
+    this.screen = 0;
+  }
+
+  tick(s: DiveSession, dt: number): void {
+    super.tick(s, dt);
+    if (!s.inDive) {
+      this.activeLevel = Number(this.settings.level);
+      return;
+    }
+    if (this.activeLevel > 0) {
+      const lp = levelParams(this.activeLevel);
+      this.levelAnchor = Math.max(this.levelAnchor, Math.min(gfLowAnchor(s.tissues, lp), Math.ceil(s.depth / 3) * 3));
+      const lc = ceilingDepth(s.tissues, this.levelAnchor, lp);
+      const deepestStop = lc > 0 ? Math.ceil(lc / 3 - 1e-6) * 3 : 0;
+      if (deepestStop > 0 && s.depth < deepestStop - 1.5) {
+        // MB level reduced to the next possible level.
+        let l = this.activeLevel - 1;
+        while (l > 0 && ceilingDepth(s.tissues, 0, levelParams(l)) > s.depth + 1.5) l--;
+        this.activeLevel = l;
+        this.levelAnchor = 0;
+        this.levelReducedAt = s.clock;
+      }
+    }
+    this.tickPdis(s, dt);
+  }
+
+  /** PDIS: 2-minute stop within 3 m above the depth where the leading compartment starts off-gassing. */
+  private tickPdis(s: DiveSession, dt: number): void {
+    if (this.settings.pdis !== 'on' || this.pdisState === 'ok' || this.pdisState === 'no') return;
+    if (this.pdisState !== 'active') {
+      const d = this.computePdis(s);
+      this.pdisDepth = d;
+      this.pdisState = d > 8 ? 'shown' : 'none';
+    }
+    if (this.pdisState === 'none') return;
+    const d = this.pdisDepth;
+    if (s.depth <= d && s.depth >= d - 3) {
+      this.pdisState = 'active';
+      this.pdisRemaining -= dt;
+      if (this.pdisRemaining <= 0) this.pdisState = 'ok';
+    } else if (s.depth > d + 0.5) {
+      this.pdisState = 'shown';
+      this.pdisRemaining = 120;
+    } else if (s.depth < d - 3 && this.pdisState === 'active') {
+      this.pdisState = 'no';
+    }
+  }
+
+  private computePdis(s: DiveSession): number {
+    // The 4 fastest compartments are not considered.
+    const g = s.tissues.gradientPercents(1.01325);
+    let lead = 4;
+    for (let i = 5; i < COMPARTMENTS; i++) if (g[i] > g[lead]) lead = i;
+    const d = equilibriumDepth(s.tissues, lead, s.gas);
+    return d > 8 && d < s.maxDepth ? Math.round(d) : 0;
+  }
+
+  press(button: string): boolean {
+    if (button === 'more') this.setScreen((this.screen + 1) % 8);
+    return true;
+  }
+
+  summary(v: ComputerView): { ndl: string; stop: string; tts: string } {
+    const b = super.summary(v);
+    return this.activeLevel > 0 ? { ...b, ndl: `${b.ndl} (L${this.activeLevel})` } : b;
+  }
+
+  render(el: HTMLElement, v: ComputerView, s: DiveSession, _lang: Lang): void {
+    const screen = this.currentScreen();
+    const ideal = idealAscent(v.depth);
+    const pct = Math.max(0, Math.round((v.ascentRate / ideal) * 100));
+
+    // MB level information (level stops are not mandatory).
+    let levelNdl = v.ndl;
+    let levelStop: { depth: number; min: number } | null = null;
+    let levelTat = v.tts;
+    if (v.inDive && this.activeLevel > 0 && !v.inDeco) {
+      const lp = levelParams(this.activeLevel);
+      levelNdl = ndl(s.tissues, v.depth, s.gas, lp.gfHigh);
+      if (levelNdl === 0) {
+        const lplan = planAscent(s.tissues, v.depth, s.gas, lp, this.levelAnchor);
+        if (lplan.stops[0]) levelStop = { depth: lplan.stops[0].depth, min: Math.ceil(lplan.stops[0].minutes) };
+        levelTat = lplan.tts;
+      }
+    }
+
+    // Pop-up bar: alarm (red) > warning (yellow) > button labels.
+    let bar = '<span>TIMER</span><span>MORE</span><span>DIM</span>';
+    let barCls = '';
+    if (v.inDive) {
+      if (this.ascentAlarm) [bar, barCls] = ['ASCENT TOO FAST', 'red'];
+      else if (v.ceilingViolation === 2) [bar, barCls] = ['MISSED DECO STOP!', 'red'];
+      else if (v.depth > v.mod) [bar, barCls] = ['MOD EXCEEDED', 'red'];
+      else if (v.cns >= 100) [bar, barCls] = ['CNS O2 = 100%', 'red'];
+      else if (v.tank.ai && v.tank.pressure < v.tank.reserve) [bar, barCls] = ['TANK RESERVE REACHED', 'red'];
+      else if (v.tank.ai && v.tank.gasTime === 0) [bar, barCls] = ['RBT = 0 MIN', 'red'];
+      else if (v.tank.ai && v.tank.gasTime !== null && v.tank.gasTime <= 3) [bar, barCls] = ['RBT = 3 MIN', 'yellow'];
+      else if (s.clock - this.levelReducedAt < 30) [bar, barCls] = [`MB LEVEL REDUCED L${this.activeLevel}`, 'yellow'];
+      else if (v.cns >= 75) [bar, barCls] = ['CNS O2 = 75%', 'yellow'];
+      else if (!v.inDeco && levelNdl <= 2 && levelNdl > 0) [bar, barCls] = ['NO STOP = 2 MIN', 'yellow'];
+    }
+
+    // Depth window colour follows the ascent speed (yellow > 110 %, red > 140 %).
+    const depthWin = v.ascentLevel === 2 ? 'red' : v.ascentLevel === 1 ? 'yellow' : '';
+    const depthTxt = v.depth < 0.8 ? '---' : depthText(v.depth);
+    const depthCls = v.depth > v.mod || v.ceilingViolation === 2 ? 'red blink' : '';
+
+    // Alternate information window (MORE button, Light configuration sequence without tank).
+    const alt = this.altInfo(screen, v, s, levelNdl);
+
+    // Main decompression window.
+    let mainLbl = 'NO STOP';
+    let mainUnit = 'MIN';
+    let mainVal = `${Math.min(99, this.activeLevel > 0 ? levelNdl : v.ndl)}:`;
+    let mainCls = '';
+    let tat: string | null = null;
+    if (!v.inDive) {
+      [mainLbl, mainUnit, mainVal] = ['DESAT', 'HR', v.desat > 0 ? hmm(v.desat) : '--'];
+    } else if (v.inDeco) {
+      [mainLbl, mainUnit] = ['DECO STOP', ''];
+      mainVal = stopValue(v.stopTime, v.stopDepth);
+      mainCls = v.ceilingViolation === 2 ? 'red' : 'deco';
+      tat = `${v.tts}:`;
+    } else if (levelStop) {
+      [mainLbl, mainUnit] = ['LEVEL STOP', ''];
+      mainVal = stopValue(levelStop.min, levelStop.depth);
+      mainCls = 'level';
+      tat = `${levelTat}:`;
+    } else if (v.safety.state === 'active' || v.safety.state === 'paused' || (v.safety.state === 'pending' && v.depth <= 5.5)) {
+      [mainLbl, mainUnit, mainVal] = ['SAFETY STOP', 'MIN', mmss(v.safety.remaining)];
+    } else if (this.pdisState === 'active') {
+      [mainLbl, mainUnit, mainVal] = [`PDIS ${depthInt(this.pdisDepth)}${DU1()}`, 'MIN', mmss(this.pdisRemaining)];
+    }
+    const noStopLow = mainLbl === 'NO STOP' && (this.activeLevel > 0 ? levelNdl : v.ndl) <= 2 ? 'yellow' : '';
+
+    // Light is the factory default; it switches to Classic automatically when decompression (or level
+    // stop) information must be shown. Classic, Full and Graphical keep their layout.
+    const layout = this.settings.screen === 'light' && tat !== null ? 'classic' : this.settings.screen;
+    const win = (lbl: string, unit: string, body: string, cls = '', extra = '') =>
+      `<div class="g2-win ${cls} ${extra}"><div class="g2-h"><span>${lbl}</span><span>${unit}</span></div><div class="g2-v">${body}</div></div>`;
+    const depthWinHtml = (extra: string) => win('DEPTH', DU(), `<span class="${depthCls}">${depthTxt}</span>`, depthWin, extra);
+    // Tank window (Smart transmitter) and RBT.
+    const tankCls = v.tank.pressure < v.tank.reserve ? 'red' : '';
+    const tankHtml = (extra: string, withO2 = true) => win('TANK', pressUnit().toUpperCase(),
+      `${pressText(v.tank.pressure)}${withO2 ? `<span class="g2-o2">${v.o2}%<small>O2</small></span>` : ''}`, tankCls, extra);
+    const rbt = v.tank.gasTime;
+    const rbtHtml = (extra: string) => win('RBT', 'MIN', rbt === null ? '--' : `${rbt}:`, rbt !== null && rbt <= 3 ? (rbt === 0 ? 'red' : 'yellow') : '', extra);
+    const ai = v.tank.ai;
+    const diveTimeHtml = (extra: string, colon = true) => win(v.inDive ? 'DIVE TIME' : 'SURF. INT.', v.inDive ? 'MIN' : 'HR',
+      v.inDive ? `${Math.floor(v.diveTime / 60)}${colon ? ':' : ''}` : v.surfaceInterval !== null ? hmm(v.surfaceInterval / 60) : '--', '', extra);
+    const mainHtml = (extra: string) => win(mainLbl, mainUnit, mainVal, `${mainCls} ${noStopLow}`, extra);
+    const tatHtml = (extra: string) => win('TAT', 'MIN', tat ?? `${v.tts}:`, '', extra);
+    const { h, m } = clockOfDay(s);
+    const clock = `${h}:${String(m).padStart(2, '0')}`;
+
+    let grid: string;
+    if (layout === 'classic') {
+      grid = `<div class="g2-grid classic">
+        ${depthWinHtml('c-depth')}
+        ${win('TEMP', '', `${Math.round(tempVal(v.temperature))}<small>${TU()}</small>`, '', 'c-temp')}
+        ${diveTimeHtml('c-time', false)}
+        ${win(alt.lbl, alt.unit, alt.val, '', 'c-alt')}
+        ${mainHtml('c-main')}
+        ${tatHtml('c-tat')}
+        ${ai ? tankHtml('c-o2', false) : win('O2', '', `${v.o2}<small>%</small>`, '', 'c-o2')}
+        ${ai ? win('O2', '', `${v.o2}<small>%</small>`, '', 'c-cns') : win('CNS', '%', String(Math.round(v.cns)), v.cns >= 75 ? 'yellow' : '', 'c-cns')}
+        ${ai ? rbtHtml('c-mb') : win('MB', '', `L${this.activeLevel}`, Number(this.settings.level) !== this.activeLevel ? 'yellow' : '', 'c-mb')}
+      </div>`;
+    } else if (layout === 'full') {
+      // Full: every parameter at once (no tank transmitter, no heart-rate belt in the simulator).
+      const sw = Math.floor(v.diveTime);
+      const fAlt = this.fullAlt(screen, v);
+      grid = `<div class="g2-grid full">
+        ${win('TEMP', '', `${Math.round(tempVal(v.temperature))}<small>${TU()}</small>`, '', 'f-temp')}
+        ${win('MB', '', `L${this.activeLevel}`, Number(this.settings.level) !== this.activeLevel ? 'yellow' : '', 'f-mb')}
+        ${win('STOP WATCH', '', `${Math.floor(sw / 3600)}:${String(Math.floor(sw / 60) % 60).padStart(2, '0')}.${String(sw % 60).padStart(2, '0')}`, '', 'f-sw')}
+        ${win('TIME', '', clock, '', 'f-clock')}
+        ${depthWinHtml('f-depth')}
+        ${diveTimeHtml('f-dtime')}
+        ${win('HEART', '', '---', '', 'f-heart')}
+        ${win('MAX', DU1(), depthText(v.maxDepth), '', 'f-max')}
+        ${mainHtml('f-main')}
+        ${tatHtml('f-tat')}
+        ${win('AVG', DU1(), depthText(v.avgDepth), '', 'f-avg')}
+        ${ai ? tankHtml('f-o2') : win(fAlt.lbl, fAlt.unit, fAlt.val, '', 'f-o2')}
+        ${win('CNS', '%', String(Math.round(v.cns)), v.cns >= 75 ? 'yellow' : '', 'f-cns')}
+        ${ai ? rbtHtml('f-ppo2') : win('PPO2', 'BAR', v.ppO2.toFixed(2), v.ppO2 > 1.4 ? 'yellow' : '', 'f-ppo2')}
+      </div>`;
+    } else if (layout === 'graphical') {
+      grid = `<div class="g2-grid graphical">
+        <div class="g2-graph">${this.profileGraph(v, s)}</div>
+        ${win('TEMP', '', `${Math.round(tempVal(v.temperature))}<small>${TU()}</small>`, '', 'g-temp')}
+        ${win('MAX', DU1(), depthText(v.maxDepth), '', 'g-max')}
+        ${ai ? rbtHtml('g-tat') : tatHtml('g-tat')}
+        ${depthWinHtml('g-depth')}
+        ${ai ? tankHtml('g-alt') : win(alt.lbl, alt.unit, `${alt.val}<span class="g2-o2">${v.o2}%<small>O2</small></span>`, '', 'g-alt')}
+        ${win('TIME', '', clock, '', 'g-clock')}
+        ${mainHtml('g-main')}
+        ${diveTimeHtml('g-dtime')}
+      </div>`;
+    } else {
+      grid = `<div class="g2-grid light">
+        ${depthWinHtml('big')}
+        ${diveTimeHtml('big', false)}
+        ${ai && screen === 0 ? tankHtml('big') : win(alt.lbl, alt.unit, `${alt.val}<span class="g2-o2">${v.o2}%<small>O2</small></span>`, '', 'big')}
+        ${mainHtml('big')}
+      </div>`;
+    }
+
+    // Side bar graphs: O2 (CNS) on the left, N2 (leading tissue) on the right.
+    const o2h = Math.min(100, v.cns);
+    const n2h = Math.min(100, v.n2Load);
+
+    el.innerHTML = `
+      <div class="dev g2">
+        <div class="g2-case">
+          <button class="g2-btn l" data-btn="timer" title="TIMER"></button>
+          <button class="g2-btn m" data-btn="more" title="MORE"></button>
+          <button class="g2-btn r" data-btn="dim" title="DIM"></button>
+          <div class="g2-screen">
+            <div class="g2-bar ${barCls} ${barCls === 'red' ? 'blink' : ''}">${bar}</div>
+            <div class="g2-side l"><span>O2</span><div><i style="height:${o2h}%"></i></div></div>
+            <div class="g2-side r"><span>N2</span><div><i style="height:${n2h}%" class="${v.inDeco ? 'red' : ''}"></i></div></div>
+            ${grid}
+            ${v.inDive && pct > 0 && v.ascentRate > 0.5 ? `<div class="g2-speed ${depthWin}">▲ ${pct}%</div>` : ''}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  /** Full screen: the MORE button cycles the lower-left window (manual §3.8.1). */
+  private fullAlt(screen: number, v: ComputerView): { lbl: string; unit: string; val: string } {
+    const pdis = this.pdisState === 'ok' ? 'OK' : this.pdisState === 'no' ? 'NO' : this.pdisDepth > 8 ? String(this.pdisDepth) : '--';
+    const seq = [
+      { lbl: 'O2', unit: '', val: `${v.o2}<small>%</small>` },
+      { lbl: 'PDIS', unit: DU(), val: pdis },
+      { lbl: 'AVG DEPTH', unit: DU1(), val: depthText(v.avgDepth) },
+      { lbl: 'BATTERY', unit: '%', val: '87' },
+      { lbl: 'CNS', unit: '%', val: String(Math.round(v.cns)) },
+      { lbl: 'PPO2', unit: 'BAR', val: v.ppO2.toFixed(2) },
+      { lbl: 'OTU', unit: '', val: String(Math.round(v.otu)) },
+    ];
+    return seq[screen % seq.length];
+  }
+
+  /**
+   * Graphical screen: the dive profile so far, the diver as a grey cursor line, and the projected
+   * ascent with its stops on the right of the cursor.
+   */
+  private profileGraph(v: ComputerView, s: DiveSession): string {
+    const past: [number, number][] = v.inDive ? [...s.profile.map((p) => [p.t, p.depth] as [number, number]), [v.diveTime, v.depth]] : [];
+    const now = v.inDive ? v.diveTime : 0;
+    // Projected ascent at 10 m/min with the planned stops (and the safety stop when pending).
+    const proj: [number, number][] = [[now, v.depth]];
+    let t = now;
+    let d = v.depth;
+    const stops = v.plan.stops.map((st) => ({ depth: st.depth, min: st.minutes }));
+    if (!stops.length && v.maxDepth > 10 && v.safety.state !== 'done' && v.depth > 5) stops.push({ depth: 5, min: v.safety.remaining / 60 });
+    for (const st of stops) {
+      t += ((d - st.depth) / 10) * 60;
+      d = st.depth;
+      proj.push([t, d]);
+      t += st.min * 60;
+      proj.push([t, d]);
+    }
+    t += (d / 10) * 60;
+    proj.push([t, 0]);
+
+    const tMax = Math.max(t, 600);
+    const dMax = Math.max(10, v.maxDepth) * 1.1;
+    const X = (x: number) => ((x / tMax) * 200).toFixed(1);
+    const Y = (y: number) => ((y / dMax) * 100).toFixed(1);
+    const area = past.length > 1 ? `M 0 0 ${past.map(([x, y]) => `L ${X(x)} ${Y(y)}`).join(' ')} L ${X(now)} 0 Z` : '';
+    const line = proj.map(([x, y], i) => `${i ? 'L' : 'M'} ${X(x)} ${Y(y)}`).join(' ');
+    return `<svg viewBox="0 0 200 100" preserveAspectRatio="none">
+      <path d="${area}" fill="#1f56c9" stroke="#6fa0ff" stroke-width="0.8" vector-effect="non-scaling-stroke"/>
+      <path d="${line}" fill="none" stroke="#36e036" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+      <line x1="${X(now)}" y1="0" x2="${X(now)}" y2="100" stroke="#9a9a9a" stroke-width="2" vector-effect="non-scaling-stroke"/>
+    </svg>`;
+  }
+
+  private altInfo(screen: number, v: ComputerView, s: DiveSession, _levelNdl: number): { lbl: string; unit: string; val: string } {
+    if (!v.inDive) return { lbl: 'NO FLY', unit: 'HR', val: v.noFly > 0 ? `${Math.ceil(v.noFly / 60)}` : '--' };
+    const pdis = this.settings.pdis === 'on'
+      ? { lbl: 'PDIS', unit: DU(), val: this.pdisState === 'ok' ? 'OK' : this.pdisState === 'no' ? 'NO' : this.pdisDepth > 8 ? String(depthInt(this.pdisDepth)) : '--' }
+      : { lbl: 'PDIS', unit: '', val: 'OFF' };
+    const { h, m } = clockOfDay(s);
+    const l0 = v.inDeco ? `${depthInt(v.stopDepth)}${DU1()} ${v.stopTime}'` : `${v.ndl}:`;
+    const seq = [
+      // Default window: PDIS when one is pending, otherwise max depth.
+      this.pdisState === 'shown' || this.pdisState === 'active' ? pdis : { lbl: 'MAX DEPTH', unit: DU(), val: depthText(v.maxDepth) },
+      { lbl: 'MAX DEPTH', unit: DU(), val: depthText(v.maxDepth) },
+      pdis,
+      { lbl: 'TEMP', unit: TU(), val: String(Math.round(tempVal(v.temperature))) },
+      { lbl: 'MB LEVEL', unit: '', val: `L${this.activeLevel}` },
+      { lbl: 'MB L0', unit: v.inDeco ? '' : 'NO STOP', val: l0 },
+      { lbl: 'TIME', unit: '', val: `${h}:${String(m).padStart(2, '0')}` },
+      { lbl: 'CNS', unit: '%', val: String(Math.round(v.cns)) },
+    ];
+    return seq[screen] ?? seq[0];
+  }
+}
