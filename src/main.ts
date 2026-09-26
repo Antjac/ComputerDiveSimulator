@@ -146,6 +146,11 @@ function renderControls(): void {
     .join('');
 
   $('device-hint').textContent = t('deviceHint');
+  $('about-models').innerHTML = `<tr><th>${t('aboutModel')}</th><th>${t('algorithm')}</th><th>${t('aboutFidelity')}</th></tr>`
+    + computers.map((c) => `<tr><td>${c.name}</td><td>${c.algorithm.replace(' (≈)', '')}</td>
+      <td><span class="badge small ${c.exact ? 'exact' : 'approx'}">${c.exact ? '✓ ' + t('exact') : '≈ ' + t('approx')}</span></td></tr>`).join('');
+  $('device-caption').innerHTML = `<span class="badge small ${active.exact ? 'exact' : 'approx'}">${active.exact ? '✓' : '≈'}</span>
+    <span>${active.name} · ${t(active.exact ? 'captionExact' : 'captionApprox')}</span>`;
   $('algo-info').innerHTML = `
     <div class="muted">${t('algorithm')} : ${active.algorithm}</div>
     <span class="badge ${active.exact ? 'exact' : 'approx'}">${active.exact ? '✓ ' + t('exact') : '≈ ' + t('approx')}</span>
@@ -261,6 +266,9 @@ $('tx-select').addEventListener('change', (e) => {
 document.querySelectorAll<HTMLButtonElement>('[data-move]').forEach((b) =>
   b.addEventListener('click', () => session.setTarget(Math.round(session.targetDepth) + Number(b.dataset.move))),
 );
+document.querySelectorAll<HTMLButtonElement>('[data-turn]').forEach((b) =>
+  b.addEventListener('click', () => scene3d?.steer(Number(b.dataset.turn), Math.PI / 4)),
+);
 
 // 2D water column / 3D view. Three.js is only loaded when the 3D view is first shown.
 let scene3d: Scene3D | null = null;
@@ -287,6 +295,9 @@ async function setView(v: '2d' | '3d'): Promise<void> {
   $('scene3d').hidden = v === '2d';
   $('env-select').hidden = v === '2d';
   $('scene-hint').hidden = v === '2d' || hintShown;
+  document.querySelectorAll<HTMLButtonElement>('[data-turn]').forEach((b) => (b.hidden = v === '2d'));
+  // Only the 3D view has a seabed under the diver.
+  if (v === '2d') session.seabed = Infinity;
   savePrefs();
   renderControls();
 }
@@ -306,6 +317,39 @@ $('speed-group').addEventListener('click', (e) => {
   if (!b) return;
   speed = Number(b.dataset.speed);
   renderControls();
+});
+
+// First-visit notice: educational use, approximated algorithms, no affiliation. Time is paused
+// while it is shown.
+const INTRO_KEY = 'divesim.intro.v1';
+function showIntro(): void {
+  try {
+    if (localStorage.getItem(INTRO_KEY)) return;
+  } catch {
+    /* storage unavailable: show it every time */
+  }
+  const dlg = $<HTMLDialogElement>('intro');
+  const wasPaused = paused;
+  paused = true;
+  renderControls();
+  dlg.addEventListener('cancel', (e) => e.preventDefault()); // must be acknowledged with the button
+  $('intro-ok').addEventListener('click', () => {
+    try {
+      localStorage.setItem(INTRO_KEY, '1');
+    } catch {
+      /* storage unavailable */
+    }
+    dlg.close();
+    paused = wasPaused;
+    renderControls();
+  });
+  dlg.showModal();
+}
+
+$('about-open').addEventListener('click', () => $<HTMLDialogElement>('about').showModal());
+// Close when clicking the backdrop.
+$('about').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) $<HTMLDialogElement>('about').close();
 });
 
 $('btn-pause').addEventListener('click', () => {
@@ -475,7 +519,7 @@ window.addEventListener('keydown', (e) => {
   if ((e.target as HTMLElement).tagName === 'SELECT') return;
   if (e.key === 'ArrowDown') session.setTarget(Math.round(session.targetDepth) + 1);
   else if (e.key === 'ArrowUp') session.setTarget(Math.round(session.targetDepth) - 1);
-  else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && view === '3d' && scene3d) scene3d.steer(e.key === 'ArrowLeft' ? -2 : 2);
+  else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && view === '3d' && scene3d) scene3d.steer(e.key === 'ArrowLeft' ? -1 : 1);
   else if (e.key === ' ') {
     paused = !paused;
     renderControls();
@@ -673,5 +717,6 @@ if (import.meta.env.DEV) {
 
 applyI18n();
 refresh(true);
+showIntro();
 if (view === '3d') void setView('3d');
 requestAnimationFrame(frame);

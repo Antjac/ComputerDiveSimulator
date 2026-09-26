@@ -59,6 +59,8 @@ export class DiveSession {
   targetDepth = 0;
   velocity = 0; // m/s, positive = descending
   siteDepth = 40;
+  /** Depth of whatever lies under the diver (seabed, wreck…), set by the 3D view; the diver rests on it. */
+  seabed = Infinity;
 
   inDive = false;
   diveNumber = 0;
@@ -134,14 +136,17 @@ export class DiveSession {
     const prevDepth = this.depth;
 
     // Diver kinematics: head toward the target depth with limited speed and acceleration.
-    const diff = this.targetDepth - this.depth;
+    const bottom = Math.min(this.siteDepth, this.seabed);
+    const diff = Math.min(this.targetDepth, bottom) - this.depth;
     const maxV = diff > 0 ? MAX_DESCENT / 60 : MAX_ASCENT / 60;
     // Braking curve v = sqrt(2·a·d) so the diver stops on the target without overshooting.
     const desired = Math.sign(diff) * Math.min(maxV, Math.sqrt(2 * ACCEL * 0.8 * Math.abs(diff)), Math.abs(diff) / Math.max(dt, 0.5));
     const dv = desired - this.velocity;
     this.velocity += Math.sign(dv) * Math.min(Math.abs(dv), ACCEL * dt);
-    this.depth = Math.min(this.siteDepth, Math.max(0, this.depth + this.velocity * dt));
+    // Never sink below the bottom; if it rose above the diver, the kinematics above bring them up.
+    this.depth = Math.min(Math.max(bottom, prevDepth), Math.max(0, this.depth + this.velocity * dt));
     if (this.depth === 0 && this.velocity < 0) this.velocity = 0;
+    if (this.depth >= bottom && this.velocity > 0) this.velocity = 0;
 
     const minutes = dt / 60;
     this.tissues.exposeLinear(depthToPressure(prevDepth), depthToPressure(this.depth), this.gas, minutes);

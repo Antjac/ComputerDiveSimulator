@@ -435,7 +435,7 @@ export abstract class DiveComputer {
 }
 
 /** Time until every compartment is within 0.05 bar of surface equilibrium. */
-function desaturationTime(tissues: Tissues): number {
+export function desaturationTime(tissues: Tissues): number {
   const t = tissues.clone();
   const eq = (SURFACE_PRESSURE - WATER_VAPOUR) * 0.79;
   const done = () => {

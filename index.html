@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Computer dive simulation</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;700&family=Roboto+Condensed:wght@400;700&family=Oswald:wght@400;500&family=Barlow+Condensed:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -19,6 +20,7 @@
           <span data-i18n="computer"></span>
           <select id="computer-select"></select>
         </label>
+        <button class="btn" id="about-open" data-i18n="about"></button>
         <div class="seg-toggle" role="group" aria-label="Language">
           <button data-lang="fr">FR</button><button data-lang="en">EN</button>
         </div>
@@ -38,6 +40,8 @@
         <p class="scene-hint" id="scene-hint" data-i18n="hint3d" hidden></p>
         <div class="scene-ctl">
           <button data-move="-1" aria-label="Up">▲</button>
+          <button data-turn="-1" aria-label="Turn left" hidden>◀</button>
+          <button data-turn="1" aria-label="Turn right" hidden>▶</button>
           <button data-move="1" aria-label="Down">▼</button>
         </div>
         <div class="scene-hud">
@@ -47,6 +51,7 @@
       </section>
 
       <section class="panel device-panel">
+        <p class="device-caption" id="device-caption"></p>
         <div id="device" class="device-host"></div>
         <div id="spg" class="spg" hidden></div>
         <div id="device-alarms" class="alarms" aria-live="polite"></div>
@@ -111,6 +116,26 @@
         </div>
       </section>
     </main>
+    <dialog class="modal intro" id="intro" aria-labelledby="intro-title">
+      <h2 id="intro-title" data-i18n="introTitle"></h2>
+      <p class="lead" data-i18n="introEdu"></p>
+      <p data-i18n="introApprox"></p>
+      <p data-i18n="introBrands"></p>
+      <button class="btn primary" id="intro-ok" data-i18n="introOk"></button>
+    </dialog>
+    <dialog class="modal about" id="about" aria-labelledby="about-title">
+      <h2 id="about-title" data-i18n="about"></h2>
+      <p class="lead" data-i18n="introEdu"></p>
+      <h3 data-i18n="aboutModels"></h3>
+      <table class="compare" id="about-models"></table>
+      <p data-i18n="aboutModelsNote"></p>
+      <h3 data-i18n="aboutBrandsTitle"></h3>
+      <p data-i18n="aboutBrands"></p>
+      <p><span data-i18n="aboutRemoval"></span> <a class="mail" href="mailto:antoalex@free.fr">antoalex@free.fr</a></p>
+      <h3 data-i18n="aboutLicenceTitle"></h3>
+      <p data-i18n="aboutLicence"></p>
+      <form method="dialog"><button class="btn primary" data-i18n="close" autofocus></button></form>
+    </dialog>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

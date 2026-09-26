@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#0e5a86"/>
+  <!-- Bubbles -->
+  <circle cx="16" cy="13" r="3" fill="none" stroke="#bfe9ff" stroke-width="2"/>
+  <circle cx="22" cy="6.5" r="2" fill="#bfe9ff"/>
+  <!-- Diver swimming to the left: tank, body, legs, fins, head and mask -->
+  <rect x="24" y="22" width="16" height="6" rx="3" fill="#ffd84a"/>
+  <path d="M16 31 C22 27 36 27 42 30 L52 29 L52 34 L42 36 C34 38 22 38 16 35 Z" fill="#e6edf3"/>
+  <path d="M51 28 L61 22 L60 29 L52 33 Z M51 32 L61 36 L58 41 L50 35 Z" fill="#4cc3ff"/>
+  <circle cx="13" cy="31" r="5.5" fill="#e6edf3"/>
+  <rect x="6" y="28" width="6" height="5" rx="1.5" fill="#0b2233"/>
+  <path d="M15 27 Q17 20 14 17" fill="none" stroke="#0b2233" stroke-width="1.8" stroke-linecap="round"/>
+</svg>

@@ -16,9 +16,13 @@ Interface disponible en français et en anglais, unités métriques ou impérial
 | Garmin Descent Mk3i | Bühlmann ZHL-16C + GF | Algorithme public, reproduit |
 | Suunto D5 | Fused RGBM 2 | Approximation (≈) |
 | Mares Puck Pro | Mares RGBM | Approximation (≈) |
+| Mares Quad Ci | Bühlmann ZH-L16C + GF | Algorithme public, reproduit (R1, R2, T1, T2 interpolés) |
 | Scubapro Galileo 2 (G2) | ZH-L16 ADT MB | Approximation (≈) |
+| Cressi Goa | Cressi RGBM | Approximation (≈) |
 
 Les algorithmes propriétaires (RGBM, ZH-L16 ADT MB) ne sont pas publiés : ils sont approchés à partir de Bühlmann ZHL-16C avec des facteurs de gradient et des pénalités calibrés sur des valeurs publiées. Les écrans et les règles (alarmes, paliers, verrouillages…) s'inspirent des manuels utilisateurs publics de chaque modèle.
+
+Dans l'application, un avertissement s'affiche à la première visite (usage pédagogique, algorithmes approchés, absence d'affiliation) et une légende ✓ / ≈ au-dessus de chaque ordinateur rappelle qu'il s'agit d'une interprétation non officielle.
 
 > [!NOTE]
 > **Les interfaces sont des interprétations, pas des reproductions.** Elles sont inspirées des modèles cités et peuvent en différer sur de nombreux points : disposition, couleurs, polices, textes, menus, comportements, alarmes, réglages disponibles ou valeurs calculées. Seule une partie des modes et des fonctions de chaque appareil est simulée, et les fabricants peuvent faire évoluer leurs produits (firmware, affichage) sans que ce simulateur soit mis à jour. En cas de doute, le manuel officiel et l'appareil réel font foi.
@@ -50,7 +54,7 @@ npm run scenario  # rejoue un profil de plongée sur tous les ordinateurs
 
 ## Vue 3D
 
-Le bouton **2D | 3D** en haut de la zone de plongée bascule vers une vue 3D ludique, avec trois environnements : récif corallien, épave et tombant. Poissons, tortue, bulles et lumière qui s'assombrit avec la profondeur (une lampe prend le relais en profondeur). Glisser verticalement pour changer la profondeur visée, horizontalement (ou flèches ◀ / ▶) pour se décaler à gauche ou à droite du trajet — le plongeur contourne le fond et l'épave s'ils sont sur son chemin. Clic droit ou Maj + glisser pour tourner la vue, double-clic pour recentrer. La simulation est identique dans les deux vues ; three.js n'est chargé qu'à la première ouverture de la vue 3D.
+Le bouton **2D | 3D** en haut de la zone de plongée bascule vers une vue 3D ludique, avec trois environnements : récif corallien (platier, tombant vers le sable et patates de corail), épave (colonisée par les coraux) et tombant (plateau et paroi plongeant dans le bleu). Le plongeur nage librement : glisser horizontalement, les flèches ◀ / ▶ du clavier ou les boutons à l'écran le font tourner (tour complet possible), glisser verticalement change la profondeur visée. Clic droit ou Maj + glisser pour pivoter la caméra, double-clic pour la recentrer. Le fond, l'épave, les rochers et les coraux sont solides : le plongeur les longe au lieu de les traverser et se pose dessus s'il descend ; ils ne le font jamais remonter, le profil reste entièrement sous le contrôle de l'utilisateur. Rendu : caustiques, lumière qui s'assombrit et bleuit avec la profondeur (une lampe prend le relais), fenêtre de Snell, poissons animés, coraux et herbiers ondulants. La simulation est identique dans les deux vues ; three.js n'est chargé qu'à la première ouverture de la vue 3D.
 
 ## Structure
 
@@ -63,7 +67,7 @@ scripts/         scripts de calibration et de scénarios
 
 ## Marques et affiliation
 
-Ce projet est indépendant et **n'est ni affilié, ni approuvé, ni sponsorisé** par les fabricants cités. Shearwater, Perdix, Garmin, Descent, Suunto, Mares, Puck, Scubapro et Galileo sont des marques de leurs propriétaires respectifs ; elles sont citées uniquement pour identifier les modèles dont les interfaces sont inspirées. Aucun logo, code ou élément graphique des fabricants n'est inclus.
+Ce projet est indépendant et **n'est ni affilié, ni approuvé, ni sponsorisé** par les fabricants cités. Shearwater, Perdix, Garmin, Descent, Suunto, Mares, Puck, Quad, Scubapro, Galileo, Cressi et Goa sont des marques de leurs propriétaires respectifs ; elles sont citées uniquement pour identifier les modèles dont les interfaces sont inspirées. Aucun logo, code ou élément graphique des fabricants n'est inclus.
 
 Si vous représentez l'un de ces fabricants et souhaitez qu'un élément soit modifié ou retiré, ouvrez une issue.
 
