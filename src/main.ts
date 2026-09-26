@@ -6,6 +6,7 @@ import { hmm, type ComputerView } from './computers/base';
 import { I18nKey, isI18nKey, lang, setLang, t } from './i18n';
 import { ProfileChart, TissueChart } from './ui/charts';
 import { Scene } from './ui/scene';
+import type { Environment, Scene3D } from './ui/scene3d';
 import { renderGauge } from './ui/gauge';
 import {
   UnitSystem, depthLabel, depthUnit, depthVal, imperial, pressText, pressUnit, rateLabel, setUnits, tankCapacityLabel,
@@ -30,6 +31,8 @@ interface Prefs {
   rmv: number;
   reserve: number;
   transmitter: boolean;
+  view: '2d' | '3d';
+  env: Environment;
 }
 
 function loadPrefs(): Partial<Prefs> {
@@ -51,6 +54,8 @@ function savePrefs(): void {
     rmv: session.rmv,
     reserve: session.tank.reserve,
     transmitter: session.transmitterOn,
+    view,
+    env,
   };
   try {
     localStorage.setItem('divesim.prefs', JSON.stringify(prefs));
@@ -113,6 +118,13 @@ let speed = 1;
 let paused = false;
 const GASES = [21, 28, 32, 36, 40];
 const SITES = [20, 30, 40, 60, 80];
+const ENVS: { id: Environment; key: I18nKey }[] = [
+  { id: 'reef', key: 'envReef' },
+  { id: 'wreck', key: 'envWreck' },
+  { id: 'wall', key: 'envWall' },
+];
+let view: '2d' | '3d' = prefs.view === '3d' ? '3d' : '2d';
+let env: Environment = ENVS.some((e) => e.id === prefs.env) ? prefs.env! : 'reef';
 
 function applyI18n(): void {
   document.documentElement.lang = lang();
@@ -174,6 +186,9 @@ function renderControls(): void {
   gasSel.title = session.inDive ? t('gasLocked') : '';
 
   $<HTMLSelectElement>('site-select').innerHTML = SITES.map((d) => `<option value="${d}" ${session.siteDepth === d ? 'selected' : ''}>${depthLabel(d, 0)}</option>`).join('');
+
+  $<HTMLSelectElement>('env-select').innerHTML = ENVS.map((e) => `<option value="${e.id}" ${e.id === env ? 'selected' : ''}>${t(e.key)}</option>`).join('');
+  document.querySelectorAll<HTMLButtonElement>('[data-view]').forEach((b) => b.classList.toggle('on', b.dataset.view === view));
 
   $('speed-group').innerHTML = SPEEDS.map((s) => `<button data-speed="${s}" class="${s === speed ? 'on' : ''}">×${s}</button>`).join('');
   $('btn-pause').textContent = paused ? `▶ ${t('play')}` : `❚❚ ${t('pause')}`;
@@ -246,6 +261,45 @@ $('tx-select').addEventListener('change', (e) => {
 document.querySelectorAll<HTMLButtonElement>('[data-move]').forEach((b) =>
   b.addEventListener('click', () => session.setTarget(Math.round(session.targetDepth) + Number(b.dataset.move))),
 );
+
+// 2D water column / 3D view. Three.js is only loaded when the 3D view is first shown.
+let scene3d: Scene3D | null = null;
+let hintShown = false;
+
+async function setView(v: '2d' | '3d'): Promise<void> {
+  if (v === '3d' && !scene3d) {
+    try {
+      const { Scene3D } = await import('./ui/scene3d');
+      scene3d = new Scene3D($<HTMLCanvasElement>('scene3d'), session);
+      scene3d.environment = env;
+      scene3d.onInteract = () => {
+        hintShown = true;
+        $('scene-hint').hidden = true;
+      };
+    } catch (err) {
+      console.warn(err);
+      $('hud-state').textContent = t('view3dError');
+      v = '2d';
+    }
+  }
+  view = v;
+  $('scene').hidden = v === '3d';
+  $('scene3d').hidden = v === '2d';
+  $('env-select').hidden = v === '2d';
+  $('scene-hint').hidden = v === '2d' || hintShown;
+  savePrefs();
+  renderControls();
+}
+
+document.querySelectorAll<HTMLButtonElement>('[data-view]').forEach((b) =>
+  b.addEventListener('click', () => void setView(b.dataset.view as '2d' | '3d')),
+);
+
+$('env-select').addEventListener('change', (e) => {
+  env = (e.target as HTMLSelectElement).value as Environment;
+  if (scene3d) scene3d.environment = env;
+  savePrefs();
+});
 
 $('speed-group').addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-speed]');
@@ -384,6 +438,12 @@ function refresh(full = false): void {
   scene.ceiling = v.inDive ? v.ceiling : 0;
   scene.safetyBand = v.inDive && (v.safety.state === 'pending' || v.safety.state === 'active') && !v.inDeco;
   scene.stopDepth = v.stopDepth;
+  if (scene3d) {
+    scene3d.ceiling = scene.ceiling;
+    scene3d.safetyBand = scene.safetyBand;
+    scene3d.stopDepth = scene.stopDepth;
+    scene3d.paused = paused;
+  }
 
   // HUD
   $('hud-clock').textContent = `${t('simClock')} ${fmtClock(session.clock)}`;
@@ -488,7 +548,8 @@ let lastFrame = performance.now();
 function frame(now: number): void {
   const realDt = Math.min(0.1, (now - lastFrame) / 1000);
   lastFrame = now;
-  scene.draw(pendingSimDt, realDt);
+  if (view === '3d' && scene3d) scene3d.draw(pendingSimDt, realDt);
+  else scene.draw(pendingSimDt, realDt);
   pendingSimDt = 0;
   requestAnimationFrame(frame);
 }
@@ -510,4 +571,5 @@ if (import.meta.env.DEV) {
 
 applyI18n();
 refresh(true);
+if (view === '3d') void setView('3d');
 requestAnimationFrame(frame);

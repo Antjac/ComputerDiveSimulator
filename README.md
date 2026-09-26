@@ -48,12 +48,16 @@ npm run scenario  # rejoue un profil de plongée sur tous les ordinateurs
 - `+` / `−` pour accélérer ou ralentir le temps, `Espace` pour mettre en pause.
 - Les boutons des ordinateurs sont cliquables (écrans d'information).
 
+## Vue 3D
+
+Le bouton **2D | 3D** en haut de la zone de plongée bascule vers une vue 3D ludique, avec trois environnements : récif corallien, épave et tombant. Poissons, tortue, bulles et lumière qui s'assombrit avec la profondeur (une lampe prend le relais en profondeur). Glisser verticalement pour changer la profondeur visée, horizontalement pour tourner la vue, double-clic pour recentrer. La simulation est identique dans les deux vues ; three.js n'est chargé qu'à la première ouverture de la vue 3D.
+
 ## Structure
 
 ```
 src/engine/      moteur : Bühlmann ZHL-16C + GF, gaz, toxicité O2 (CNS/OTU), session de plongée
 src/computers/   un fichier par ordinateur simulé (affichage + règles propres au modèle)
-src/ui/          scène (colonne d'eau), graphiques, jauges
+src/ui/          scène 2D (colonne d'eau), vue 3D (three.js), graphiques, jauges
 scripts/         scripts de calibration et de scénarios
 ```
 

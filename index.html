@@ -28,6 +28,14 @@
     <main class="app">
       <section class="panel scene-panel">
         <canvas id="scene" aria-label="Water column"></canvas>
+        <canvas id="scene3d" aria-label="3D dive view" hidden></canvas>
+        <div class="scene-top">
+          <div class="seg-toggle" role="group" aria-label="View">
+            <button data-view="2d">2D</button><button data-view="3d">3D</button>
+          </div>
+          <select id="env-select" hidden></select>
+        </div>
+        <p class="scene-hint" id="scene-hint" data-i18n="hint3d" hidden></p>
         <div class="scene-ctl">
           <button data-move="-1" aria-label="Up">▲</button>
           <button data-move="1" aria-label="Down">▼</button>

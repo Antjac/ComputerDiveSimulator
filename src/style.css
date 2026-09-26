@@ -71,6 +71,19 @@ h1 { font-size: 17px; margin: 0; white-space: nowrap; overflow: hidden; text-ove
 
 .scene-panel { position: relative; overflow: hidden; }
 #scene { width: 100%; height: 100%; display: block; cursor: ns-resize; touch-action: none; }
+#scene3d { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
+#scene3d:active { cursor: grabbing; }
+#scene[hidden], #scene3d[hidden] { display: none; }
+.scene-top { position: absolute; left: 8px; top: 6px; right: 60px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.scene-top .seg-toggle { background: rgba(5, 12, 20, 0.6); }
+.scene-top .seg-toggle button { padding: 3px 9px; font-size: 12px; }
+.scene-top select { font-size: 12px; padding: 3px 6px; background: rgba(5, 12, 20, 0.6); }
+.scene-top select[hidden] { display: none; }
+.scene-hint {
+  position: absolute; left: 8px; right: 60px; top: 40px; margin: 0; font-size: 11px; color: #fff;
+  background: rgba(5, 12, 20, 0.6); padding: 4px 8px; border-radius: 6px; pointer-events: none;
+}
+.scene-hint[hidden] { display: none; }
 .scene-hud {
   position: absolute; left: 8px; right: 8px; bottom: 8px;
   display: flex; justify-content: space-between; gap: 6px; flex-wrap: wrap;
