@@ -771,7 +771,7 @@ function frame(now: number): void {
 
 // Dev-only hook for scripted checks (stripped from production builds).
 if (import.meta.env.DEV) {
-  (window as unknown as Record<string, unknown>).__divesim = {
+  const hook = {
     session,
     computers,
     advance,
@@ -782,6 +782,18 @@ if (import.meta.env.DEV) {
       refresh(true);
     },
   };
+  // Layout checker (see CLAUDE.md): __divesim.layout.checkLayout(), .sweep([...states]), .show(state, id).
+  void import('./dev/layoutCheck').then((m) => {
+    Object.assign(hook, {
+      layout: {
+        checkLayout: m.checkLayout,
+        states: Object.keys(m.diveStates(hook)),
+        sweep: (states: string[], only?: string) => m.sweep(hook, states, only),
+        show: (state: string, id: string, opts?: Parameters<typeof m.show>[3]) => m.show(hook, state, id, opts),
+      },
+    });
+  });
+  (window as unknown as Record<string, unknown>).__divesim = hook;
 }
 
 applyI18n();

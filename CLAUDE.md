@@ -87,6 +87,11 @@ surface, pré-plongée, descente, sans palier, NDL faible, entrée en déco, app
 palier, au-dessus du palier, palier de sécurité (attente, en cours, en pause, terminé), remontée
 rapide, surface pendant la plongée (surfacing), après la plongée, ordinateur verrouillé.
 
+Pour **chaque mise en page** du modèle (ex. E-Z et FULL sur le Quad Ci), vérifier à l'écran que
+chaque valeur tient dans sa case, y compris combinée à une alarme ou un bandeau (ex. palier de
+sécurité + HALF TANK) : aucun texte ne doit déborder ni être coupé. Les tailles de police d'une mise
+en page ne valent pas forcément pour l'autre.
+
 ### 5. Écrans d'info / champs alternatifs
 - Ordre exact et contenu de chaque écran (comparer aux figures).
 - Écran par défaut ou écran personnalisé à configurer sur l'appareil (ex. GF99 sur Garmin) : le
@@ -144,9 +149,17 @@ par un bouton ou non.
 1. `npm run build`.
 2. `npm run stops -- <id>` : « ✓ stops OK », plus les réactions au-dessus du palier de 6 m
    conformes au manuel (niveau d'alarme, verrouillage ou non après 3 min).
-3. Dans le navigateur (`npm run dev`, hook `window.__divesim`), afficher chaque écran dans les états
-   de la section 4 (ex. 40 m / 25 min puis remontée) et **comparer aux figures du manuel**. Fermer les
-   onglets et arrêter le serveur ensuite.
-4. Mettre à jour le tableau des modèles du README si besoin.
-5. Compte rendu : ce qui a été vérifié (avec les sections du manuel), ce qui ne l'est pas, les écarts
+3. **Mise en page** (`npm run dev`, puis dans la console de la page, après avoir mis la simulation en
+   pause) : `__divesim.layout.sweep(['decoDeep', 'safetyActive'], '<id>')` passe l'ordinateur dans
+   chaque mise en page, métrique et impérial, et chaque écran accessible par ses boutons, et signale
+   tout texte qui déborde de sa case ou de l'écran, en chevauche un autre ou est recouvert.
+   Les situations disponibles sont dans `__divesim.layout.states` (`src/dev/layoutCheck.ts`) :
+   les balayer toutes, quelques-unes par appel (c'est lent). `__divesim.layout.show(state, id,
+   { layout, units, presses })` reproduit un cas pour le regarder. **Confirmer chaque signalement à
+   l'écran** : certains sont voulus (alerte en surimpression sur le Garmin, libellé « N2 » sous la
+   barre du Quad Ci, jambages des lettres).
+4. Dans le navigateur, afficher chaque écran dans les états de la section 4 (ex. 40 m / 25 min puis
+   remontée) et **comparer aux figures du manuel**. Fermer les onglets et arrêter le serveur ensuite.
+5. Mettre à jour le tableau des modèles du README si besoin.
+6. Compte rendu : ce qui a été vérifié (avec les sections du manuel), ce qui ne l'est pas, les écarts
    restants.

@@ -330,6 +330,7 @@ export class MaresQuadCi extends DiveComputer {
       layout = 'qc-surf';
     } else if (this.locked) {
       html = this.bottomTimer(v);
+      layout = 'qc-dive qc-bt';
     } else {
       if (this.settings.display !== this.appliedDisplay) {
         this.appliedDisplay = this.settings.display;
@@ -399,18 +400,19 @@ export class MaresQuadCi extends DiveComputer {
   }
 
   /** Magenta N2 divider (nitrogen bar graph), or the ascent speed graph while ascending. */
-  private n2Bar(v: ComputerView, forceN2 = false): string {
+  private n2Bar(v: ComputerView, forceN2 = false, label = true): string {
     if (!forceN2 && v.ascentRate > 0.5) {
       const pct = v.ascentRate / quadAscentLimit(v.depth);
       const cls = pct > 1 ? 'red' : pct > 0.8 ? 'yellow' : 'green';
       return `<div class="qc-bar speed ${cls}"><i style="width:${Math.min(100, pct * 100)}%"></i></div>`;
     }
-    return `<div class="qc-bar n2"><i style="width:${Math.min(100, v.n2Load)}%"></i><em>N2</em></div>`;
+    return `<div class="qc-bar n2"><i style="width:${Math.min(100, v.n2Load)}%"></i>${label ? '<em>N2</em>' : ''}</div>`;
   }
 
   /** Lower divider of FULL: tank pressure graph in the pressure range colour, battery at the end. */
   private tankBar(v: ComputerView): string {
-    if (!v.tank.ai) return this.n2Bar(v, true);
+    // No tank module: the lower divider replicates the upper one (§11), without a second N2 caption.
+    if (!v.tank.ai) return this.n2Bar(v, true, false);
     const fill = Math.max(0, Math.min(100, (v.tank.pressure / v.tank.fill) * 100));
     return `<div class="qc-bar tank ${this.tankColor(v)}"><i style="width:${fill}%"></i><span class="qc-batt"></span></div>`;
   }
@@ -418,8 +420,13 @@ export class MaresQuadCi extends DiveComputer {
   /** Right part of the dive time row: no deco, deco stop, safety or deep stop, or an alarm. */
   private stopCells(v: ComputerView, s: DiveSession, full: boolean): string {
     const du = depthUnit();
+    // FULL: the middle row is short, so timers sit beside their caption, as in the manual's figures
+    // (§11.1 "SAFETY STOP 0:40"); E-Z has room for the caption above a big figure.
+    const timer = (lbl: string, val: string) => full
+      ? `<div class="qc-c r nd"><em class="cy">${lbl}</em><b>${val}</b></div>`
+      : `<div class="qc-c r"><em class="cy">${lbl}</em><b>${val}</b></div>`;
     if (v.inDive && v.depth < 1.2) {
-      return `<div class="qc-c"><em class="cy">SURFACING</em><b>${mmss(Math.max(0, DIVE_END_TIMEOUT - s.surfaceTimer))}</b></div>`;
+      return timer('SURFACING', mmss(Math.max(0, DIVE_END_TIMEOUT - s.surfaceTimer)));
     }
     if (v.inDeco && v.stopDepth > 0) {
       const red = v.ceilingViolation === 2 ? 'red' : '';
@@ -429,13 +436,13 @@ export class MaresQuadCi extends DiveComputer {
     }
     const deep = this.deepStop(v, s);
     if (full && deep && deep.active) {
-      return `<div class="qc-c r"><em class="cy">DEEP STOP</em><b>${mmss(deep.remaining)}</b></div>`;
+      return timer('DEEP STOP', mmss(deep.remaining));
     }
     if (v.safety.state === 'active' || v.safety.state === 'paused') {
-      return `<div class="qc-c r"><em class="cy">SAFETY STOP</em><b>${mmss(v.safety.remaining)}</b></div>`;
+      return timer('SAFETY STOP', mmss(v.safety.remaining));
     }
     if (v.safety.state === 'done' && v.depth < 6) {
-      return `<div class="qc-c r"><em class="cy">SAFETY STOP</em><b>OK</b></div>`;
+      return timer('SAFETY STOP', 'OK');
     }
     return full
       ? `<div class="qc-c r nd"><em>NO<br>DECO</em><b>${Math.min(99, v.ndl)}:</b></div>`
@@ -611,7 +618,9 @@ export class MaresQuadCi extends DiveComputer {
       return `${top}<svg class="qc-prof" viewBox="-4 -4 308 128" preserveAspectRatio="none"><polyline points="${xy}"/></svg>`;
     }
     const stops = v.plan.stops;
-    return `${top}<div class="qc-stops">${stops.map((st) => `<div><span>${depthInt(st.depth)}<u>${depthUnit()}</u></span><span>${Math.ceil(st.minutes)}:</span></div>`).join('')}</div>`;
+    // Up to 5 stops at full size; more rows shrink so the whole list stays on the screen.
+    const size = Math.min(30, Math.floor(146 / Math.max(1, stops.length) / 1.05));
+    return `${top}<div class="qc-stops" style="font-size:${size}px">${stops.map((st) => `<div><span>${depthInt(st.depth)}<u>${depthUnit()}</u></span><span>${Math.ceil(st.minutes)}:</span></div>`).join('')}</div>`;
   }
 
   /** Bottom timer (manual §14): depth; average depth and temperature; dive time. */

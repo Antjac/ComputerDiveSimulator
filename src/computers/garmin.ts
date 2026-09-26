@@ -409,7 +409,7 @@ export class GarminDescent extends DiveComputer {
     }
     const h = 20 + lines.length * 22;
     const top = raise ? Math.max(70, 128 - h) : 150 - h / 2;
-    return `<g><rect x="40" y="${top}" width="220" height="${h}" rx="14" fill="${color}" opacity="0.95"/>
+    return `<g><rect x="40" y="${top}" width="220" height="${h}" rx="14" fill="${color}"/>
       ${lines.map((l, i) => `<text x="150" y="${top + 30 + i * 22}" class="gm-t gm-alert">${l}</text>`).join('')}</g>`;
   }
 }

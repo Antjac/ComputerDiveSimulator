@@ -287,8 +287,10 @@ export class ShearwaterPerdix extends DiveComputer {
   private infoScreen(id: InfoScreen, v: ComputerView, s: DiveSession): string {
     // Long values (e.g. "232/ 177" for @+5 / TTS on a deep dive) get a smaller font to stay in the cell.
     const cell = (lbl: string, val: string, cls = '') => {
-      const len = val.replace(/<[^>]*>/g, '').length;
-      const size = len > 7 ? 'xs' : len > 5 ? 'sm' : '';
+      // Only the big figures count (small units and captions do not); wide cells have more room.
+      const len = val.replace(/<small[^>]*>.*?<\/small>/g, '').replace(/<[^>]*>/g, '').trim().length;
+      const [sm, xs] = cls.includes('wide') ? [9, 11] : [5, 7];
+      const size = len > xs ? 'xs' : len > sm ? 'sm' : '';
       return `<div class="pd-cell ${cls}"><div class="pd-lbl">${lbl}</div><div class="pd-val ${size}">${val}</div></div>`;
     };
     const u = depthUnit();
@@ -297,7 +299,7 @@ export class ShearwaterPerdix extends DiveComputer {
         const d = s.log[s.log.length - 1];
         const sec = Math.round(d.duration);
         const hms = `${Math.floor(sec / 3600)}<small class="pd-blue">h</small>${String(Math.floor((sec % 3600) / 60)).padStart(2, '0')}<small class="pd-blue">m</small>${String(sec % 60).padStart(2, '0')}<small class="pd-blue">s</small>`;
-        return cell('LAST DIVE', `<small class="pd-blue">MAX</small>${depthText(d.maxDepth)}<small class="pd-blue">${u}</small>`) +
+        return cell('LAST DIVE', `<small class="pd-blue">MAX</small> ${depthText(d.maxDepth)}<small class="pd-blue">${u}</small>`) +
           cell(`#${d.number}`, hms, 'r');
       }
       case 'ai': {
@@ -337,11 +339,12 @@ export class ShearwaterPerdix extends DiveComputer {
         // Simulated reading (the Perdix 2 runs on one AA cell).
         return cell('BATTERY', `<small class="pd-blue">1.5V Alka</small> 1.52<small class="pd-blue">V</small>`, 'wide r');
       case 'pressure':
-        return cell('PRESSURE mBar', `<small class="pd-blue">SURF</small>1013 <small class="pd-blue">NOW</small>${Math.round(s.pressure * 1000)}`, 'wide');
+        return cell('PRESSURE mBar', `<small class="pd-blue">SURF</small> 1013`, 'wide') +
+          cell('&nbsp;', `<small class="pd-blue">NOW</small> ${Math.round(s.pressure * 1000)}`, 'r');
       case 'date': {
         const { h, m } = clockOfDay(s);
         const day = Math.floor((s.clock + 9 * 3600) / 86400) + 1;
-        return cell('DATE', `${String(day).padStart(2, '0')}-Sep-26`) + cell('CLOCK', `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')}`, 'r');
+        return cell('DATE', `${String(day).padStart(2, '0')}-Sep-26`, 'wide') + cell('CLOCK', `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')}`, 'r');
       }
       default:
         // Placeholder identifiers: this is a simulation, not a real unit.

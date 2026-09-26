@@ -312,6 +312,7 @@ td.deco { color: var(--warn); }
 .pd-small { font-size: 24px; line-height: 1.1; white-space: nowrap; }
 .pd-small.r { text-align: right; } .pd-small.c { font-size: 20px; }
 .pd-bottom.info .pd-cell { text-align: left; }
+.pd-bottom.info .pd-cell.r { text-align: right; }
 .pd-tissues { flex: 1; }
 .pd-tbars { position: relative; height: 40px; display: flex; align-items: flex-end; gap: 3px; border-bottom: 1px solid #444; }
 .pd-tbars i { flex: 1; }
@@ -484,7 +485,7 @@ td.deco { color: var(--warn); }
 .g2-grid.graphical .g2-v { font-size: 18px; }
 .g2-grid.graphical .g2-sub { display: none; }
 .g2-grid.graphical .g-depth .g2-v, .g2-grid.graphical .g-alt .g2-v { font-size: 32px; }
-.g2-grid.graphical .g-main .g2-h, .g2-grid.graphical .g-dtime .g2-h { font-size: 8px; letter-spacing: 0; padding: 1px 2px; }
+.g2-grid.graphical .g-main .g2-h, .g2-grid.graphical .g-dtime .g2-h { font-size: 7.5px; letter-spacing: 0; padding: 1px 2px; font-family: "Roboto Condensed", sans-serif; }
 /* Narrow windows: the label alone (the unit would not fit). */
 .g2-grid.graphical .g-main .g2-h span + span, .g2-grid.graphical .g-dtime .g2-h span + span { display: none; }
 .c-depth { grid-area: depth; } .c-temp { grid-area: temp; } .c-time { grid-area: time; }
@@ -497,6 +498,10 @@ td.deco { color: var(--warn); }
 .g2-win.big .g2-v { font-size: 52px; }
 .g2-win.c-depth .g2-v { font-size: 36px; }
 .g2-win.c-main .g2-v { font-size: 28px; }
+.g2-win.big.g2-long .g2-v { font-size: 34px; }
+.g2-grid.graphical .g-alt.g2-long .g2-v { font-size: 22px; }
+.g2-win.c-alt.g2-long .g2-v { font-size: 22px; }
+.g2-grid.full .f-o2.g2-long .g2-v { font-size: 16px; }
 .g2-win.c-main .g2-gap { margin-left: 8px; }
 /* O2 % under the tank pressure, bottom right; the value is lifted to leave it room. */
 .g2-o2 { position: absolute; right: 4px; bottom: 2px; font-size: 16px; }
@@ -679,7 +684,7 @@ td.deco { color: var(--warn); }
 .qc-prof { flex: 1; width: 100%; }
 .qc-prof polyline { fill: none; stroke: var(--qc-cyan); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .qc-stops { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 4px 30px; }
-.qc-stops div { display: flex; justify-content: space-between; font-size: 30px; font-weight: 700; }
+.qc-stops div { display: flex; justify-content: space-between; font-size: 1em; font-weight: 700; }
 /* Surface displays. */
 .qc-surf .qc-row.pd { flex: 0 0 50px; }
 .qc-surf .qc-row.pd .qc-f b { font-size: 30px; }
@@ -693,7 +698,15 @@ td.deco { color: var(--warn); }
 .qc-surf .qc-row.low { flex: 0 0 52px; }
 .qc-surf .qc-row.top.sm { flex: 0 0 62px !important; }
 .qc-surf .qc-row.mid.sm { flex: 1; }
-.qc-msg { position: absolute; left: 0; right: 0; bottom: 0; background: var(--qc-red); color: #fff; text-align: center; font-size: 14px; font-weight: 700; padding: 3px 0; }
+.qc-surf .qc-row.mid.sm .qc-c b { font-size: 54px; }
+/* Bottom timer (manual §14): AVG | TEMP side by side, centred captions, DTIME centred below. */
+.qc-bt .qc-row.mid .qc-c, .qc-bt .qc-row.low .qc-c { align-items: center; }
+.qc-bt .qc-c em { justify-content: center; }
+.qc-bt .qc-row.mid .qc-c b, .qc-bt .qc-row.low .qc-c b { font-size: 44px; }
+.qc-bt .qc-row.mid .qc-c + .qc-c { border-left: 2px solid var(--qc-cyan); }
+.qc-dive.qc-bt .qc-row.top.center { flex: 0 0 56px; }
+.qc-dive.qc-bt .qc-row.top.center .qc-depth { font-size: 50px; }
+.qc-msg { flex: none; background: var(--qc-red); color: #fff; text-align: center; font-size: 14px; font-weight: 700; padding: 3px 0; }
 
 /* Cressi Goa: round watch, monochrome segmented LCD, two buttons on the right. Every item sits at a
    fixed place on the LCD, as in the manual's figures. */

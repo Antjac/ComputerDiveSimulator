@@ -325,6 +325,8 @@ export class ScubaproG2 extends DiveComputer {
     const layout = this.settings.screen === 'light' && tat !== null ? 'classic' : this.settings.screen;
     const win = (lbl: string, unit: string, body: string, cls = '', extra = '') =>
       `<div class="g2-win ${cls} ${extra}"><div class="g2-h"><span>${lbl}</span><span>${unit}</span></div><div class="g2-v">${body}</div></div>`;
+    // Long alternate values (e.g. the L0 stop "40FT 1'") get a smaller font to stay inside the window.
+    const altCls = (val: string) => (val.length > 5 ? 'g2-long' : '');
     // While ascending, the ascent speed (% of the ideal rate) replaces the unit in the depth header.
     const speed = v.inDive && pct > 0 && v.ascentRate > 0.5 ? `▲ ${pct}%` : DU();
     const depthWinHtml = (extra: string) => win('DEPTH', speed, `<span class="${depthCls}">${depthTxt}</span>`, depthWin, extra);
@@ -350,7 +352,7 @@ export class ScubaproG2 extends DiveComputer {
         ${depthWinHtml('c-depth')}
         ${win('TEMP', '', `${Math.round(tempVal(v.temperature))}<small>${TU()}</small>`, '', 'c-temp')}
         ${diveTimeHtml('c-time', false)}
-        ${win(alt.lbl, alt.unit, alt.val, '', 'c-alt')}
+        ${win(alt.lbl, alt.unit, alt.val, altCls(alt.val), 'c-alt')}
         ${mainHtml('c-main')}
         ${tatHtml('c-tat')}
         ${ai ? tankHtml('c-o2', false) : win('O2', '', `${v.o2}<small>%</small>`, '', 'c-o2')}
@@ -373,7 +375,7 @@ export class ScubaproG2 extends DiveComputer {
         ${mainHtml('f-main')}
         ${tatHtml('f-tat')}
         ${win('AVG', DU1(), depthText(v.avgDepth), '', 'f-avg')}
-        ${ai ? tankHtml('f-o2', false) : win(fAlt.lbl, fAlt.unit, fAlt.val, '', 'f-o2')}
+        ${ai ? tankHtml('f-o2', false) : win(fAlt.lbl, fAlt.unit, fAlt.val, altCls(fAlt.val), 'f-o2')}
         ${win('CNS', '%', String(Math.round(v.cns)), v.cns >= 75 ? 'yellow' : '', 'f-cns')}
         ${ai ? rbtHtml('f-ppo2') : win('PPO2', 'BAR', v.ppO2.toFixed(2), v.ppO2 > 1.4 ? 'yellow' : '', 'f-ppo2')}
       </div>`;
@@ -384,7 +386,7 @@ export class ScubaproG2 extends DiveComputer {
         ${win('MAX', DU1(), depthText(v.maxDepth), '', 'g-max')}
         ${ai ? rbtHtml('g-tat') : tatHtml('g-tat')}
         ${depthWinHtml('g-depth')}
-        ${ai ? tankHtml('g-alt') : win(alt.lbl, alt.unit, `${alt.val}<span class="g2-o2">${v.o2}%<small>O2</small></span>`, '', 'g-alt')}
+        ${ai ? tankHtml('g-alt') : win(alt.lbl, (alt.lbl + alt.unit).length > 12 ? '' : alt.unit, `${alt.val}<span class="g2-o2">${v.o2}%<small>O2</small></span>`, altCls(alt.val), 'g-alt')}
         ${win('TIME', '', clock, '', 'g-clock')}
         ${mainHtml('g-main')}
         ${diveTimeHtml('g-dtime')}
@@ -393,7 +395,7 @@ export class ScubaproG2 extends DiveComputer {
       grid = `<div class="g2-grid light">
         ${depthWinHtml('big')}
         ${diveTimeHtml('big', false)}
-        ${ai && screen === 0 ? tankHtml('big') : win(alt.lbl, alt.unit, `${alt.val}<span class="g2-o2">${v.o2}%<small>O2</small></span>`, '', 'big')}
+        ${ai && screen === 0 ? tankHtml('big') : win(alt.lbl, alt.unit, `${alt.val}<span class="g2-o2">${v.o2}%<small>O2</small></span>`, altCls(alt.val), 'big')}
         ${mainHtml('big')}
       </div>`;
     }

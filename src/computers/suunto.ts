@@ -399,12 +399,12 @@ export class SuuntoD5 extends DiveComputer {
             ${ticks}${archPath}
             <text x="60" y="140" class="su-t su-wave">≈</text>
             ${bar}
-            <text x="98" y="84" class="su-t su-lbl">DEPTH, ${depthUnit()}</text>
+            <text x="98" y="81" class="su-t su-lbl">DEPTH, ${depthUnit()}</text>
             <text x="94" y="130" class="su-t su-depth ${po2Alarm ? 'su-red blink' : ''}"><tspan class="su-arrows">${depthArrows}</tspan>${di}${decimals}</text>
             <text x="98" y="152" class="su-t su-lbl">DIVE TIME</text>
             <text x="98" y="196" class="su-t su-time">${Math.floor(v.diveTime / 60)}′</text>
             ${decoTag ? `<rect x="182" y="150" width="46" height="15" rx="2" fill="${ORANGE}"/><text x="205" y="162" class="su-t su-tag">DECO</text>` : ''}
-            <text x="186" y="180" class="su-t su-lbl">${rightLbl}</text>
+            <text x="186" y="177" class="su-t su-lbl">${rightLbl}</text>
             <text x="186" y="203" class="su-t su-right ${rightCls}">${rightVal}</text>
             <text x="150" y="222" class="su-t su-lbl su-c">${bandLbl}</text>
             <g clip-path="url(#su-clip)">
