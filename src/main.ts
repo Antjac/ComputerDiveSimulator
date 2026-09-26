@@ -2,7 +2,7 @@ import './style.css';
 import { gasLabel, pressureToDepth } from './engine/buhlmann';
 import { DiveSession } from './engine/session';
 import { createComputers, type DiveComputer } from './computers';
-import { hmm, type ComputerView } from './computers/base';
+import { hmm, type ButtonAction, type ButtonHelp, type ComputerView } from './computers/base';
 import { I18nKey, isI18nKey, lang, setLang, t } from './i18n';
 import { ProfileChart, TissueChart } from './ui/charts';
 import { Scene } from './ui/scene';
@@ -350,12 +350,112 @@ document.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) =>
   }),
 );
 
-// Device buttons (pointerdown: the screen is re-rendered several times per second).
+// Device buttons. The device is re-rendered several times per second, so the pressed look and the
+// tooltip are tracked by button id and re-applied after each render (decorateButtons).
+const HOLD_MS = 700;
+let pressed: { id: string; held: boolean; timer: number } | null = null;
+let released: { id: string; until: number } | null = null;
+let hoverBtn: string | null = null;
+let touchTip: { id: string; until: number } | null = null;
+
+const isActive = (h: ButtonHelp | undefined) => !!h && (!!h.press?.simulated || !!h.hold?.simulated);
+
+function tipHtml(id: string): string {
+  const h = active.buttons()[id];
+  const L = lang();
+  if (!h) return `<div class="tip-off">${t('btnInactive')}</div>`;
+  const line = (label: string, a: ButtonAction) =>
+    `<div class="${a.simulated ? '' : 'tip-off'}"><b>${label} :</b> ${a.real[L]}${
+      a.simulated ? (a.note ? ` <em>(${a.note[L]})</em>` : '') : ` <span class="tip-tag">${t('notSimulated')}</span>`
+    }</div>`;
+  return [
+    `<div class="tip-name">${h.name}${isActive(h) ? '' : ` · <span class="tip-tag">${t('btnInactive')}</span>`}</div>`,
+    h.press ? line(t('btnPress'), h.press) : '',
+    h.hold ? line(t('btnHold'), h.hold) : '',
+  ].join('');
+}
+
+function updateTip(): void {
+  const tip = $('btn-tip');
+  const id = hoverBtn ?? (touchTip && performance.now() < touchTip.until ? touchTip.id : null);
+  const btn = id ? $('device').querySelector<HTMLElement>(`[data-btn="${id}"]`) : null;
+  if (!id || !btn) {
+    tip.hidden = true;
+    return;
+  }
+  const html = tipHtml(id);
+  if (tip.innerHTML !== html) tip.innerHTML = html;
+  tip.hidden = false;
+  // Beside the button, inside the device panel.
+  const panel = tip.parentElement!.getBoundingClientRect();
+  const r = btn.getBoundingClientRect();
+  const w = tip.offsetWidth;
+  const h = tip.offsetHeight;
+  const cx = r.left + r.width / 2 - panel.left;
+  const below = r.top + r.height / 2 - panel.top < panel.height / 2;
+  const top = below ? r.bottom - panel.top + 8 : r.top - panel.top - h - 8;
+  tip.style.left = `${Math.max(6, Math.min(panel.width - w - 6, cx - w / 2))}px`;
+  tip.style.top = `${Math.max(6, Math.min(panel.height - h - 6, top))}px`;
+}
+
+function decorateButtons(): void {
+  const help = active.buttons();
+  const now = performance.now();
+  $('device').querySelectorAll<HTMLElement>('[data-btn]').forEach((b) => {
+    const id = b.dataset.btn!;
+    b.classList.toggle('inactive', !isActive(help[id]));
+    b.classList.toggle('pressed', pressed?.id === id || (released?.id === id && now < released.until));
+    b.setAttribute('aria-label', help[id]?.name ?? id);
+  });
+  updateTip();
+}
+
 $('device').addEventListener('pointerdown', (e) => {
   const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-btn]');
   if (!btn) return;
   e.preventDefault();
-  if (active.press(btn.dataset.btn!, session)) refresh();
+  const id = btn.dataset.btn!;
+  if (e.pointerType !== 'mouse') touchTip = { id, until: performance.now() + 3000 };
+  // Buttons with a simulated long press act on release (or after HOLD_MS); the others at once.
+  const holdable = !!active.buttons()[id]?.hold?.simulated;
+  pressed = { id, held: false, timer: 0 };
+  if (holdable) {
+    pressed.timer = window.setTimeout(() => {
+      if (pressed?.id !== id) return;
+      pressed.held = true;
+      active.hold(id, session);
+      refresh();
+    }, HOLD_MS);
+  } else {
+    active.press(id, session);
+  }
+  refresh();
+});
+
+function releaseButton(): void {
+  if (!pressed) return;
+  const p = pressed;
+  window.clearTimeout(p.timer);
+  pressed = null;
+  if (active.buttons()[p.id]?.hold?.simulated && !p.held) active.press(p.id, session);
+  released = { id: p.id, until: performance.now() + 120 };
+  refresh();
+  window.setTimeout(decorateButtons, 140);
+}
+window.addEventListener('pointerup', releaseButton);
+window.addEventListener('pointercancel', releaseButton);
+
+$('device').addEventListener('pointermove', (e) => {
+  if (e.pointerType !== 'mouse') return;
+  const id = (e.target as HTMLElement).closest<HTMLElement>('[data-btn]')?.dataset.btn ?? null;
+  if (id !== hoverBtn) {
+    hoverBtn = id;
+    updateTip();
+  }
+});
+$('device').addEventListener('pointerleave', () => {
+  hoverBtn = null;
+  updateTip();
 });
 
 // Scale the device to the space available in its panel.
@@ -407,6 +507,7 @@ function refresh(full = false): void {
   const v = views.find(([c]) => c === active)![1];
   session.reportedCeiling = v.ceiling;
   active.render($('device'), v, session, lang());
+  decorateButtons();
   fitDevice();
   renderSpg(v);
 

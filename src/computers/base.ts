@@ -23,6 +23,22 @@ export type AlarmCode =
   | 'ASCENT' | 'ASCENT_WARN' | 'CEILING' | 'PPO2_HIGH' | 'CNS'
   | 'NDL_LOW' | 'DECO' | 'LOCKED' | 'LOW_GAS' | 'OUT_OF_GAS';
 
+export type Bi = { fr: string; en: string };
+
+/** What a button does on the real device (per its manual), and whether the simulator reproduces it. */
+export interface ButtonAction {
+  real: Bi;
+  simulated: boolean;
+  /** Extra detail on how the simulation differs from the device. */
+  note?: Bi;
+}
+
+export interface ButtonHelp {
+  name: string;
+  press: ButtonAction | null;
+  hold?: ButtonAction | null;
+}
+
 export type SafetyState = 'none' | 'pending' | 'active' | 'paused' | 'done';
 
 /** Safety stop behaviour, as documented in each manual. Depths in metres. */
@@ -185,6 +201,34 @@ export abstract class DiveComputer {
   /** A device button was pressed. Returns true if the screen changed. */
   press(_button: string, _s: DiveSession): boolean {
     return false;
+  }
+
+  /** A device button was held down (long press). Returns true if the screen changed. */
+  hold(_button: string, _s: DiveSession): boolean {
+    return false;
+  }
+
+  /** Button functions during the dive, from the manual; keyed by `data-btn`. */
+  buttons(): Record<string, ButtonHelp> {
+    return {};
+  }
+
+  // Short on-screen messages (bookmark set, timer started...) and backlight, in real time.
+  protected flashText = '';
+  protected flashUntil = 0;
+  backlightUntil = 0;
+
+  protected flash(text: string, ms = 2500): void {
+    this.flashText = text;
+    this.flashUntil = performance.now() + ms;
+  }
+
+  protected flashMessage(): string | null {
+    return performance.now() < this.flashUntil ? this.flashText : null;
+  }
+
+  get backlit(): boolean {
+    return performance.now() < this.backlightUntil;
   }
 
   protected setScreen(i: number): void {

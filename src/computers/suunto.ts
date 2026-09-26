@@ -3,7 +3,7 @@ import type { DiveSession } from '../engine/session';
 import type { Lang } from '../i18n';
 import { depthToPressure } from '../engine/buhlmann';
 import { depthInt, depthUnit, imperial, pressText, pressUnit, tempUnit, tempVal } from '../units';
-import { ComputerView, DiveComputer, SettingDef, depthStr, hmm } from './base';
+import { ButtonHelp, ComputerView, DiveComputer, SettingDef, depthStr, hmm } from './base';
 
 /** Stop / ceiling values: one decimal in metres, whole feet in imperial. */
 const stopDepth = (m: number) => (imperial() ? String(depthInt(m)) : m.toFixed(1));
@@ -54,8 +54,8 @@ export class SuuntoD5 extends DiveComputer {
   readonly transmitter = 'Tank POD';
   readonly gasTimeName = 'gas time';
   readonly notes = {
-    fr: 'Fused RGBM 2 est propriétaire : approximation (Bühlmann + réglage personnel, pénalités en successives et après remontée rapide). Affichage, deepstops, fenêtre de déco et verrouillage 48 h conformes au manuel. Bouton bas : fenêtre d’information.',
-    en: 'Fused RGBM 2 is proprietary: approximation (Bühlmann + personal setting, penalties for repetitive dives and fast ascents). Display, deepstops, deco window and 48 h lock as per the manual. Lower button: switch window.',
+    fr: 'Fused RGBM 2 est propriétaire : approximation (Bühlmann + réglage personnel, pénalités en successives et après remontée rapide). Affichage, deepstops, fenêtre de déco et verrouillage 48 h conformes au manuel. Bouton bas : fenêtre d’information (appui long : repère) ; bouton haut : chronomètre. Les vues du bouton central (boussole, pression) ne sont pas simulées.',
+    en: 'Fused RGBM 2 is proprietary: approximation (Bühlmann + personal setting, penalties for repetitive dives and fast ascents). Display, deepstops, deco window and 48 h lock as per the manual. Lower button: switch window (hold: bookmark); upper button: timer. The middle button views (compass, tank pressure) are not simulated.',
   };
   readonly settingDefs: SettingDef[] = [
     {
@@ -157,6 +157,7 @@ export class SuuntoD5 extends DiveComputer {
   }
 
   tick(s: DiveSession, dt: number): void {
+    if (this.timerRunning) this.timerSec += dt;
     super.tick(s, dt);
     if (!s.inDive || this.settings.deepstop !== 'on' || this.locked) return;
     // Deepstops: activated deeper than 20 m, at half the maximum depth; a second one at half of the
@@ -181,12 +182,57 @@ export class SuuntoD5 extends DiveComputer {
     }
   }
 
+  // User guide §3.2, §4.15.1, §4.32 and §5.12. Upper: timer start/pause (hold: reset). Middle: next
+  // view (hold: gas menu). Lower: switch window (hold: bookmark, or bearing lock in compass view).
+  private timerSec = 0;
+  private timerRunning = false;
+
   press(button: string): boolean {
     if (button === 'lower') this.setScreen((this.screen + 1) % (this.switchCount + 1));
+    else if (button === 'upper') {
+      this.timerRunning = !this.timerRunning;
+      this.showTimer = true;
+    } else return false;
     return true;
   }
 
+  hold(button: string): boolean {
+    if (button === 'upper') {
+      this.timerRunning = false;
+      this.timerSec = 0;
+      this.showTimer = true;
+    } else if (button === 'lower') this.flash('BOOKMARK');
+    else return false;
+    return true;
+  }
+
+  buttons(): Record<string, ButtonHelp> {
+    return {
+      upper: {
+        name: 'UPPER',
+        press: { real: { fr: 'Démarre / met en pause le chronomètre (affiché dans la fenêtre du bas)', en: 'Starts / pauses the timer (shown in the bottom window)' }, simulated: true },
+        hold: { real: { fr: 'Remet le chronomètre à zéro', en: 'Resets the timer' }, simulated: true },
+      },
+      middle: {
+        name: 'MIDDLE',
+        press: { real: { fr: 'Vue suivante : sans palier, boussole, pression bouteille', en: 'Next view: no deco, compass, tank pressure' }, simulated: false },
+        hold: { real: { fr: 'Options de gaz', en: 'Gas options' }, simulated: false },
+      },
+      lower: {
+        name: 'LOWER',
+        press: { real: { fr: 'Change le contenu de la fenêtre du bas', en: 'Changes the bottom (switch) window' }, simulated: true },
+        hold: {
+          real: { fr: 'Ajoute un repère (bookmark) au carnet', en: 'Adds a bookmark to the log' },
+          simulated: true,
+          note: { fr: 'confirmation affichée seulement', en: 'confirmation shown only' },
+        },
+      },
+    };
+  }
+
   private switchCount = 3;
+  /** Set by the upper button: jump the switch window to the timer once. */
+  private showTimer = false;
 
   /** Contents of the switch window (lower button), besides the default NO DECO. */
   private switchWindow(v: ComputerView): [string, string][] {
@@ -198,6 +244,11 @@ export class SuuntoD5 extends DiveComputer {
     list.push([`MAX DEPTH, ${depthUnit()}`, depthStr(v.maxDepth)]);
     list.push([`TEMP, ${tempUnit()}`, tempVal(v.temperature).toFixed(0)]);
     list.push(['CNS, %', Math.round(v.cns).toString()]);
+    if (this.timerRunning || this.timerSec > 0) {
+      list.push(['TIMER', `${Math.floor(this.timerSec / 60)}′${String(Math.floor(this.timerSec % 60)).padStart(2, '0')}`]);
+      if (this.showTimer) this.screen = list.length;
+    }
+    this.showTimer = false;
     this.switchCount = list.length;
     return list;
   }
@@ -213,7 +264,7 @@ export class SuuntoD5 extends DiveComputer {
   }
 
   render(el: HTMLElement, v: ComputerView, _s: DiveSession, _lang: Lang): void {
-    const screen = this.currentScreen();
+    this.currentScreen();
     const deep = this.deepstops.find((d) => d.state !== 'done');
     const deepActive = !!deep && v.inDive && deep.state === 'active';
     const deepPending = !!deep && v.inDive && deep.state === 'pending';
@@ -294,7 +345,7 @@ export class SuuntoD5 extends DiveComputer {
       // Tank pressure is forced onto the display below the reserve (yellow) and 50 bar (red).
       const forced = v.tank.ai && v.tank.pressure < v.tank.reserve;
       const alt = this.switchWindow(v);
-      const pick = forced ? alt.findIndex((a) => a[0].startsWith('TANK')) : screen - 1;
+      const pick = forced ? alt.findIndex((a) => a[0].startsWith('TANK')) : this.screen - 1;
       if (pick >= 0 && pick < alt.length) {
         [bandLbl, bandVal] = alt[pick];
         bandCol = arch = forced ? (v.tank.pressure < 50 ? RED : YELLOW) : CYAN;
@@ -302,6 +353,8 @@ export class SuuntoD5 extends DiveComputer {
       }
     }
     if (v.ndl <= 5 && !v.inDeco && v.inDive && bandLbl === 'NO DECO') bandCol = arch = YELLOW;
+    const note = this.flashMessage();
+    if (note && bandCol !== RED) [bandLbl, bandVal, bandCol] = [note, '✓', CYAN];
 
     // Ascent bar: one step per 2 m/min.
     const steps = v.inDive && v.ascentRate > 1 ? Math.min(6, Math.ceil(v.ascentRate / 2)) : 0;
@@ -332,9 +385,9 @@ export class SuuntoD5 extends DiveComputer {
       <div class="dev su">
         <div class="su-strap top"></div><div class="su-strap bottom"></div>
         <div class="su-case">
-          <button class="su-btn upper" data-btn="upper" title="Timer"></button>
-          <button class="su-btn middle" data-btn="middle" title="View"></button>
-          <button class="su-btn lower" data-btn="lower" title="Switch window"></button>
+          <button class="su-btn upper" data-btn="upper"></button>
+          <button class="su-btn middle" data-btn="middle"></button>
+          <button class="su-btn lower" data-btn="lower"></button>
           <svg class="su-screen" viewBox="0 0 300 300">
             <defs><clipPath id="su-clip"><circle cx="150" cy="150" r="148"/></clipPath></defs>
             <circle cx="150" cy="150" r="148" fill="#000"/>

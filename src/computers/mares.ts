@@ -2,7 +2,7 @@ import { ceilingDepth, depthToPressure, ndl, pressureToDepth, type DecoParams } 
 import { DIVE_END_TIMEOUT, type DiveSession } from '../engine/session';
 import type { Lang } from '../i18n';
 import { depthInt, depthText, depthVal, tempUnit, tempVal } from '../units';
-import { ComputerView, DiveComputer, SettingDef, clockOfDay } from './base';
+import { ButtonHelp, ComputerView, DiveComputer, SettingDef, clockOfDay } from './base';
 import { sevenSeg } from './segments';
 
 const PERSONAL: Record<string, number> = { P0: 0.9, P1: 0.83, P2: 0.76 };
@@ -18,8 +18,8 @@ export class MaresPuck extends DiveComputer {
   readonly algorithm = 'Mares RGBM (≈)';
   readonly exact = false;
   readonly notes = {
-    fr: 'Le RGBM Mares est propriétaire : approximation (Bühlmann + P0/P1/P2, pénalité en successives). Affichage et règles conformes au manuel : alarme à 10 m/min, remontée incontrôlée (> 12 m/min) ou palier manqué > 3 min = mode profondimètre pour les plongées suivantes. Bouton : informations alternatives.',
-    en: 'Mares RGBM is proprietary: approximation (Bühlmann + P0/P1/P2, repetitive-dive penalty). Display and rules as per the manual: alarm at 10 m/min, uncontrolled ascent (> 12 m/min) or missed stop > 3 min = bottom timer mode for the following dives. Button: alternate information.',
+    fr: 'Le RGBM Mares est propriétaire : approximation (Bühlmann + P0/P1/P2, pénalité en successives). Affichage et règles conformes au manuel : alarme à 10 m/min, remontée incontrôlée (> 12 m/min) ou palier manqué > 3 min = mode profondimètre pour les plongées suivantes. Bouton : informations alternatives (profondeur moyenne, O2 % et CNS en nitrox, heure) ; appui long : rétroéclairage.',
+    en: 'Mares RGBM is proprietary: approximation (Bühlmann + P0/P1/P2, repetitive-dive penalty). Display and rules as per the manual: alarm at 10 m/min, uncontrolled ascent (> 12 m/min) or missed stop > 3 min = bottom timer mode for the following dives. Button: alternate information (average depth, O2 % and CNS on nitrox, time of day); hold: backlight.',
   };
   readonly settingDefs: SettingDef[] = [
     {
@@ -136,12 +136,39 @@ export class MaresPuck extends DiveComputer {
     }
   }
 
-  press(): boolean {
-    this.setScreen((this.screen + 1) % 5);
+  // Manual §1.5 and §3.3: each press cycles average depth, O2 % and CNS (nitrox only), then time of
+  // day (4 s time-out back to dive time and temperature); press and hold switches the backlight on.
+  press(_button: string, s: DiveSession): boolean {
+    let next = this.screen + 1;
+    if (next === 2 && s.gas.o2 === 0.21) next = 4;
+    this.setScreen(next > 4 ? 0 : next);
     return true;
   }
 
+  hold(): boolean {
+    this.backlightUntil = performance.now() + 5000;
+    return true;
+  }
+
+  buttons(): Record<string, ButtonHelp> {
+    return {
+      main: {
+        name: 'BUTTON',
+        press: {
+          real: { fr: 'Informations alternatives : profondeur moyenne, O2 % et CNS (nitrox), heure (4 s)', en: 'Alternate information: average depth, O2 % and CNS (nitrox), time of day (4 s)' },
+          simulated: true,
+        },
+        hold: {
+          real: { fr: 'Rétroéclairage (durée réglée dans le menu LGHt)', en: 'Backlight (duration set in the LGHt menu)' },
+          simulated: true,
+          note: { fr: 'durée fixe de 5 s ici', en: 'fixed 5 s here' },
+        },
+      },
+    };
+  }
+
   render(el: HTMLElement, v: ComputerView, s: DiveSession, _lang: Lang): void {
+    if (this.screen === 4 && performance.now() - this.screenChangedAt > 4000) this.screen = 0;
     const screen = this.currentScreen();
     const bottomTimer = v.locked; // after a violation: depth gauge and timer only
     const surfacing = v.inDive && v.depth < 1.2;
@@ -221,8 +248,8 @@ export class MaresPuck extends DiveComputer {
     el.innerHTML = `
       <div class="dev mr">
         <div class="mr-case">
-          <button class="mr-btn" data-btn="main" title="Button"></button>
-          <div class="mr-lcd">
+          <button class="mr-btn" data-btn="main"></button>
+          <div class="mr-lcd ${this.backlit ? 'backlit' : ''}">
             <div class="mr-row mr-toprow">
               <div class="mr-depth"><div class="mr-lbl">depth</div><div class="${depthBlink}">${sevenSeg(depthTxt, 3, 'mr-big')}</div></div>
               <div class="mr-max"><div class="mr-lbl">${topRightLbl}</div>${sevenSeg(v.inDive || s.log.length ? topRightVal : '---', 3, 'mr-small')}</div>

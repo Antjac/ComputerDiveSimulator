@@ -3,7 +3,7 @@ import type { DiveSession } from '../engine/session';
 import type { Lang } from '../i18n';
 import { remainingTime } from '../engine/gas';
 import { depthInt, depthText, depthUnit, imperial, pressText, pressUnit, tempUnit, tempVal } from '../units';
-import { ComputerView, DiveComputer, SettingDef, clockOfDay } from './base';
+import { ButtonHelp, ComputerView, DiveComputer, SettingDef, clockOfDay } from './base';
 
 const SCREWS = [[14, 14], [194, 10], [374, 14], [10, 156], [378, 156], [14, 298], [194, 302], [374, 298]]
   .map(([x, y]) => `<i class="pd-screw" style="left:${x - 5}px;top:${y - 5}px"></i>`)
@@ -24,8 +24,8 @@ export class ShearwaterPerdix extends DiveComputer {
   readonly transmitter = 'Swift';
   readonly gasTimeName = 'GTR';
   readonly notes = {
-    fr: 'Mode Nitrox Recreational. Bouton droit : écrans d’info (MOD/MAX/PPO2, GF99/CEIL/TTS, tissus…), bouton gauche : retour. Aucun verrouillage en cas de palier manqué (conforme au manuel).',
-    en: 'Nitrox Recreational mode. Right button: info screens (MOD/MAX/PPO2, GF99/CEIL/TTS, tissues…), left button: back. No lock-out for missed stops (as per the manual).',
+    fr: 'Mode Nitrox Recreational. Bouton droit (SELECT) : écrans d’info (MOD/MAX/PPO2, GF99/CEIL/TTS, tissus…) ; bouton gauche (MENU) : retour à l’écran principal (le menu de plongée n’est pas simulé). Aucun verrouillage en cas de palier manqué (conforme au manuel).',
+    en: 'Nitrox Recreational mode. Right button (SELECT): info screens (MOD/MAX/PPO2, GF99/CEIL/TTS, tissues…); left button (MENU): back to the main screen (the dive menu is not simulated). No lock-out for missed stops (as per the manual).',
   };
   readonly settingDefs: SettingDef[] = [
     {
@@ -117,10 +117,30 @@ export class ShearwaterPerdix extends DiveComputer {
     super.tick(s, dt);
   }
 
+  // Recreational manual §2.2 and §4.6: SELECT steps through the info screens (stepping past the last
+  // one returns to the main screen, 10 s time-out); MENU returns to the main screen from an info
+  // screen, and opens the menu from the main screen. Single presses only, no long press.
   press(button: string): boolean {
     if (button === 'right') this.setScreen((this.screen + 1) % 7);
     else if (button === 'left') this.setScreen(0);
     return true;
+  }
+
+  buttons(): Record<string, ButtonHelp> {
+    return {
+      left: {
+        name: 'MENU',
+        press: {
+          real: { fr: 'Écran d’info → retour à l’écran principal. Écran principal → menu de plongée', en: 'Info screen → back to the main screen. Main screen → dive menu' },
+          simulated: true,
+          note: { fr: 'le menu de plongée n’est pas simulé', en: 'the dive menu is not simulated' },
+        },
+      },
+      right: {
+        name: 'SELECT',
+        press: { real: { fr: 'Écran d’info suivant (retour à l’écran principal après le dernier, ou après 10 s)', en: 'Next info screen (back to the main screen after the last one, or after 10 s)' }, simulated: true },
+      },
+    };
   }
 
   render(el: HTMLElement, v: ComputerView, s: DiveSession, _lang: Lang): void {
@@ -154,7 +174,10 @@ export class ShearwaterPerdix extends DiveComputer {
       const viol = v.ceilingViolation > 0;
       const cls = viol ? 'red blink' : v.atStop ? 'green' : 'red';
       title = `<div class="pd-title ${cls}">DECO STOP${v.atStop && !viol ? ' ✓' : ''}</div>`;
-      stopBody = `<div class="pd-stop ${viol ? 'red blink' : ''}">${viol ? '<span class="pd-down">▼</span>' : ''}${depthInt(v.stopDepth)}<small>${du}</small> ${v.stopTime}<small>min</small></div>`;
+      // One line, shrunk when the digits (and the ▼ hint) would not fit the column.
+      const chars = String(depthInt(v.stopDepth)).length + String(v.stopTime).length + (viol ? 2 : 0) + (du === 'ft' ? 1 : 0);
+      const size = chars >= 7 ? 'xs' : chars >= 5 ? 'sm' : '';
+      stopBody = `<div class="pd-stop ${size} ${viol ? 'red blink' : ''}">${viol ? '<span class="pd-down">▼</span>' : ''}${depthInt(v.stopDepth)}<small>${du}</small> ${v.stopTime}<small>min</small></div>`;
     } else if (v.inDive && stopState !== 'none') {
       if (stopState === 'done') {
         title = '<div class="pd-title">SAFETY STOP</div>';
@@ -212,8 +235,8 @@ export class ShearwaterPerdix extends DiveComputer {
       <div class="dev pd">
         <div class="pd-body">
           ${SCREWS}
-          <button class="pd-btn l" data-btn="left" title="MENU"></button>
-          <button class="pd-btn r" data-btn="right" title="CONFIRM (info)"></button>
+          <button class="pd-btn l" data-btn="left"></button>
+          <button class="pd-btn r" data-btn="right"></button>
           <div class="pd-screen">
             <div class="pd-top">
               <div class="pd-left">
@@ -240,7 +263,12 @@ export class ShearwaterPerdix extends DiveComputer {
 
   /** Info screens (§5), replacing the bottom row. */
   private infoScreen(i: number, v: ComputerView, s: DiveSession): string {
-    const cell = (lbl: string, val: string, cls = '') => `<div class="pd-cell ${cls}"><div class="pd-lbl">${lbl}</div><div class="pd-val">${val}</div></div>`;
+    // Long values (e.g. "232/ 177" for @+5 / TTS on a deep dive) get a smaller font to stay in the cell.
+    const cell = (lbl: string, val: string, cls = '') => {
+      const len = val.replace(/<[^>]*>/g, '').length;
+      const size = len > 7 ? 'xs' : len > 5 ? 'sm' : '';
+      return `<div class="pd-cell ${cls}"><div class="pd-lbl">${lbl}</div><div class="pd-val ${size}">${val}</div></div>`;
+    };
     switch (i) {
       case 1:
         return cell('MOD', `${depthInt(v.mod)}<small class="pd-blue">${depthUnit()}</small>`, v.depth > v.mod ? 'red blink' : '') +

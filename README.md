@@ -46,7 +46,7 @@ npm run scenario  # rejoue un profil de plongée sur tous les ordinateurs
 - Toucher ou cliquer (et glisser) dans l'eau pour fixer la profondeur visée.
 - ▲ / ▼, molette ou flèches du clavier pour ajuster.
 - `+` / `−` pour accélérer ou ralentir le temps, `Espace` pour mettre en pause.
-- Les boutons des ordinateurs sont cliquables (écrans d'information).
+- Les boutons des ordinateurs sont cliquables, avec appui long quand le modèle en a un. Une info-bulle indique la fonction réelle de chaque bouton pendant la plongée (d'après le manuel du fabricant) et précise ce qui n'est pas simulé ; les boutons sans aucune fonction simulée apparaissent grisés.
 
 ## Vue 3D
 

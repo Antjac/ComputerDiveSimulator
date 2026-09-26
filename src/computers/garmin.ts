@@ -3,7 +3,7 @@ import type { DiveSession } from '../engine/session';
 import type { Lang } from '../i18n';
 import { remainingTime } from '../engine/gas';
 import { depthInt, depthUnit, pressText, pressUnit, tempUnit, tempVal } from '../units';
-import { ComputerView, DiveComputer, SettingDef, clockOfDay, depthStr, hmm, mmss } from './base';
+import { ButtonHelp, ComputerView, DiveComputer, SettingDef, clockOfDay, depthStr, hmm, mmss } from './base';
 
 // Garmin conservatism presets (gradient factors).
 const PRESETS: Record<string, [number, number]> = { low: [45, 95], medium: [40, 85], high: [35, 70] };
@@ -47,8 +47,8 @@ export class GarminDescent extends DiveComputer {
   readonly transmitter = 'Descent T2';
   readonly gasTimeName = 'ATR';
   readonly notes = {
-    fr: 'Bühlmann ZHL-16C avec facteurs de gradient. Boutons gauche UP/DOWN : écrans de données ; BACK (bas droite) : retour. Verrouillage de déco après 3 min au-dessus du plafond.',
-    en: 'Bühlmann ZHL-16C with gradient factors. Left UP/DOWN buttons: data screens; BACK (bottom right): return. Decompression lockout after 3 min above the ceiling.',
+    fr: 'Bühlmann ZHL-16C avec facteurs de gradient. DOWN (et UP en sens inverse) : écrans de données ; LIGHT, START et BACK ne sont pas simulés. Verrouillage de déco après 3 min au-dessus du plafond.',
+    en: 'Bühlmann ZHL-16C with gradient factors. DOWN (and UP backwards): data screens; LIGHT, START and BACK are not simulated. Decompression lockout after 3 min above the ceiling.',
   };
   readonly settingDefs: SettingDef[] = [
     {
@@ -124,12 +124,48 @@ export class GarminDescent extends DiveComputer {
 
   private screenCount = 4;
 
+  // Owner's manual, "Going Diving" and "Device Overview": DOWN scrolls through the data screens and
+  // the dive compass, START opens the in-dive menu, LIGHT lights the screen (hold: controls menu).
   press(button: string): boolean {
     const n = this.screenCount;
     if (button === 'down') this.setScreen((this.screen + 1) % n);
     else if (button === 'up') this.setScreen((this.screen + n - 1) % n);
-    else if (button === 'back') this.setScreen(0);
+    else return false;
     return true;
+  }
+
+  buttons(): Record<string, ButtonHelp> {
+    return {
+      light: {
+        name: 'LIGHT',
+        press: { real: { fr: 'Éclaire l’écran', en: 'Lights the screen' }, simulated: false },
+        hold: { real: { fr: 'Menu des commandes', en: 'Controls menu' }, simulated: false },
+      },
+      up: {
+        name: 'UP · MENU',
+        press: {
+          real: { fr: 'Fait défiler les écrans de données', en: 'Scrolls through the data screens' },
+          simulated: true,
+          note: { fr: 'sens inverse de DOWN ; peut être désactivé en plongée (réglage « UP Key »)', en: 'opposite direction to DOWN; can be disabled while diving (“UP Key” setting)' },
+        },
+      },
+      down: {
+        name: 'DOWN',
+        press: {
+          real: { fr: 'Écran de données suivant (et boussole)', en: 'Next data screen (and compass)' },
+          simulated: true,
+          note: { fr: 'la boussole n’est pas simulée', en: 'the compass is not simulated' },
+        },
+      },
+      start: {
+        name: 'START · STOP',
+        press: { real: { fr: 'Menu de plongée (gaz, réglages…)', en: 'In-dive menu (gases, settings…)' }, simulated: false },
+      },
+      back: {
+        name: 'BACK · LAP',
+        press: { real: { fr: 'Retour à l’écran précédent (pas de fonction décrite en plongée bouteille)', en: 'Back to the previous screen (no function described for scuba dives)' }, simulated: false },
+      },
+    };
   }
 
   render(el: HTMLElement, v: ComputerView, s: DiveSession, _lang: Lang): void {
@@ -144,15 +180,15 @@ export class GarminDescent extends DiveComputer {
     el.innerHTML = `
       <div class="dev gm">
         <div class="gm-case">
-          <button class="gm-btn light" data-btn="light" title="LIGHT"></button>
-          <button class="gm-btn up" data-btn="up" title="UP"></button>
-          <button class="gm-btn down" data-btn="down" title="DOWN"></button>
-          <button class="gm-btn start" data-btn="start" title="START"></button>
-          <button class="gm-btn back" data-btn="back" title="BACK"></button>
+          <button class="gm-btn light" data-btn="light"></button>
+          <button class="gm-btn up" data-btn="up"></button>
+          <button class="gm-btn down" data-btn="down"></button>
+          <button class="gm-btn start" data-btn="start"></button>
+          <button class="gm-btn back" data-btn="back"></button>
           <div class="gm-bezel"><svg class="gm-screen" viewBox="0 0 300 300">
             <circle cx="150" cy="150" r="150" fill="#000"/>
             ${content}
-            ${this.banner(v)}
+            ${this.banner(v, v.inDive && screen === 0 && this.settings.layout === 'std')}
           </svg></div>
         </div>
       </div>`;
@@ -256,11 +292,15 @@ export class GarminDescent extends DiveComputer {
       .join('');
     const sec = Math.floor(v.diveTime);
     const [di, dd] = depthStr(v.depth).split('.');
+    // Bottom row: NDL / stop right-aligned on the left half, dive time left-aligned on the right half,
+    // with a smaller font for three digits so both fit inside the round dial.
+    const fit = (n: string | number) => (String(n).length >= 3 ? 'gm-bignum3' : 'gm-bignum2');
+    const mins = Math.floor(sec / 60);
     const bottomLeft = stop
-      ? `<text x="90" y="236" class="gm-t gm-vert" transform="rotate(-90 90 236)">STOP</text>
-         <text x="135" y="254" class="gm-t gm-bignum2 ${stop.cls}">${stop.depth}<tspan class="gm-unit">${depthUnit()}</tspan></text>`
-      : `<text x="90" y="236" class="gm-t gm-vert" transform="rotate(-90 90 236)">NDL</text>
-         <text x="138" y="254" class="gm-t gm-bignum2">${Math.min(99, v.ndl)}${v.ndl >= 99 ? '<tspan class="gm-sup" dy="-26">+</tspan>' : ''}</text>`;
+      ? `<text x="76" y="226" class="gm-t gm-vert" transform="rotate(-90 76 226)">STOP</text>
+         <text x="160" y="244" class="gm-t gm-end ${fit(stop.depth)} ${stop.cls}">${stop.depth}<tspan class="gm-unit">${depthUnit()}</tspan></text>`
+      : `<text x="76" y="226" class="gm-t gm-vert" transform="rotate(-90 76 226)">NDL</text>
+         <text x="160" y="244" class="gm-t gm-end gm-bignum2">${Math.min(99, v.ndl)}${v.ndl >= 99 ? '<tspan class="gm-sup" dy="-24">+</tspan>' : ''}</text>`;
     const top = stop
       ? `<text x="150" y="78" class="gm-t gm-mid ${stop.cls}">${v.inDeco ? 'DECO' : 'SAFETY'} ${stop.time}</text>`
       : v.tank.ai
@@ -269,12 +309,12 @@ export class GarminDescent extends DiveComputer {
     return `
       ${top}
       <rect x="38" y="128" width="62" height="34" rx="8" fill="none" stroke="#fff" stroke-width="2.5"/>
-      <text x="69" y="153" class="gm-t gm-pill">${v.gas === 'AIR' ? 'Air' : v.gas}</text>
-      <text x="160" y="180" class="gm-t gm-bignum">${di}${dd !== undefined ? `<tspan class="gm-bigdec">.${dd}</tspan>` : ''}<tspan class="gm-unit2">${depthUnit()}</tspan></text>
+      <text x="69" y="153" class="gm-t gm-pill" ${v.gas.length > 3 ? 'textLength="52" lengthAdjust="spacingAndGlyphs"' : ''}>${v.gas === 'AIR' ? 'Air' : v.gas}</text>
+      <text x="172" y="180" class="gm-t gm-bignum">${di}${dd !== undefined ? `<tspan class="gm-bigdec">.${dd}</tspan>` : ''}<tspan class="gm-unit2">${depthUnit()}</tspan></text>
       ${chev}
       <rect x="244" y="170" width="24" height="5" rx="1" fill="#fff"/>
       ${bottomLeft}
-      <text x="222" y="254" class="gm-t gm-bignum2">${String(Math.floor(sec / 60)).padStart(2, '0')}<tspan class="gm-sup" dy="-26">:${String(sec % 60).padStart(2, '0')}</tspan></text>`;
+      <text x="184" y="244" class="gm-t gm-start ${fit(mins)}">${String(mins).padStart(2, '0')}<tspan class="gm-sup" dy="-24">:${String(sec % 60).padStart(2, '0')}</tspan></text>`;
   }
 
   private dataScreen(i: number, v: ComputerView, s: DiveSession): string {
@@ -311,7 +351,8 @@ export class GarminDescent extends DiveComputer {
   }
 
   /** Alert pop-ups, worded as in the manual's alert table. */
-  private banner(v: ComputerView): string {
+  /** Alert pop-up; on the standard layout it sits higher so the depth stays fully visible. */
+  private banner(v: ComputerView, raise = false): string {
     if (!v.inDive) return '';
     let msg = '';
     let color = '#1c1c1e';
@@ -330,7 +371,8 @@ export class GarminDescent extends DiveComputer {
       else lines.push(w);
     }
     const h = 20 + lines.length * 22;
-    return `<g><rect x="40" y="${150 - h / 2}" width="220" height="${h}" rx="14" fill="${color}" opacity="0.95"/>
-      ${lines.map((l, i) => `<text x="150" y="${150 - h / 2 + 30 + i * 22}" class="gm-t gm-alert">${l}</text>`).join('')}</g>`;
+    const top = raise ? Math.max(70, 128 - h) : 150 - h / 2;
+    return `<g><rect x="40" y="${top}" width="220" height="${h}" rx="14" fill="${color}" opacity="0.95"/>
+      ${lines.map((l, i) => `<text x="150" y="${top + 30 + i * 22}" class="gm-t gm-alert">${l}</text>`).join('')}</g>`;
   }
 }

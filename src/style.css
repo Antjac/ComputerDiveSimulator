@@ -253,7 +253,8 @@ td.deco { color: var(--warn); }
 .pd-stopzone { height: 82px; text-align: center; }
 .pd-title { font-size: 20px; color: var(--pd-blue); letter-spacing: 0.5px; }
 .pd-title.red { color: #ff2a1f; } .pd-title.green { color: #2fdb4a; }
-.pd-stop { font-size: 48px; margin-top: 4px; }
+.pd-stop { font-size: 48px; margin-top: 4px; white-space: nowrap; }
+.pd-stop.sm { font-size: 40px; } .pd-stop.xs { font-size: 34px; }
 .pd-stop.green { font-size: 32px; color: #2fdb4a; margin-top: 14px; }
 .pd-down { font-size: 26px; margin-right: 4px; vertical-align: middle; }
 .pd-ndlrow { flex: 1; display: flex; align-items: flex-end; gap: 6px; }
@@ -269,8 +270,9 @@ td.deco { color: var(--warn); }
 .pd-cell { flex: 1; text-align: center; }
 .pd-cell.r { text-align: right; }
 .pd-cell.wide { flex: 3; }
-.pd-val { font-size: 34px; }
-.pd-small { font-size: 24px; line-height: 1.1; }
+.pd-val { font-size: 34px; white-space: nowrap; }
+.pd-val.sm { font-size: 26px; } .pd-val.xs { font-size: 20px; }
+.pd-small { font-size: 24px; line-height: 1.1; white-space: nowrap; }
 .pd-small.r { text-align: right; } .pd-small.c { font-size: 20px; }
 .pd-bottom.info .pd-cell { text-align: left; }
 .pd-tissues { flex: 1; }
@@ -300,9 +302,11 @@ td.deco { color: var(--warn); }
 .gm-top { font-size: 27px; font-weight: 500; }
 .gm-unit { font-size: 20px; font-weight: 700; }
 .gm-unit2 { font-size: 24px; font-weight: 700; }
-.gm-bignum { font-size: 84px; font-weight: 700; letter-spacing: -2px; }
-.gm-bigdec { font-size: 44px; }
-.gm-bignum2 { font-size: 62px; font-weight: 700; letter-spacing: -1px; }
+.gm-bignum { font-size: 70px; font-weight: 700; letter-spacing: -2px; }
+.gm-bigdec { font-size: 40px; }
+.gm-bignum2 { font-size: 54px; font-weight: 700; letter-spacing: -1px; }
+.gm-bignum3 { font-size: 42px; font-weight: 700; letter-spacing: -1px; }
+.gm-t.gm-end { text-anchor: end; } .gm-t.gm-start { text-anchor: start; }
 .gm-sup { font-size: 24px; }
 .gm-vert { font-size: 17px; font-weight: 700; }
 .gm-pill { font-size: 22px; font-weight: 700; }
@@ -368,6 +372,7 @@ td.deco { color: var(--warn); }
 .mr-lbl.stack { display: inline-block; font-size: 9px; margin-right: 3px; vertical-align: bottom; }
 .mr-row { position: absolute; left: 0; right: 0; display: flex; align-items: flex-end; }
 .mr-toprow { top: 34px; padding: 0 30px 0 36px; justify-content: space-between; }
+.mr-depth .mr-lbl { margin-left: 12px; } /* keep the caption inside the round LCD */
 .mr-max { text-align: right; }
 .mr-midrow { top: 106px; padding: 0 22px; }
 .mr-left { width: 44px; text-align: left; }
@@ -442,7 +447,9 @@ td.deco { color: var(--warn); }
 .g2-grid.graphical .g2-v { font-size: 18px; }
 .g2-grid.graphical .g2-sub { display: none; }
 .g2-grid.graphical .g-depth .g2-v, .g2-grid.graphical .g-alt .g2-v { font-size: 32px; }
-.g2-grid.graphical .g-main .g2-h, .g2-grid.graphical .g-dtime .g2-h { font-size: 8px; }
+.g2-grid.graphical .g-main .g2-h, .g2-grid.graphical .g-dtime .g2-h { font-size: 8px; letter-spacing: 0; padding: 1px 2px; }
+/* Narrow windows: the label alone (the unit would not fit). */
+.g2-grid.graphical .g-main .g2-h span + span, .g2-grid.graphical .g-dtime .g2-h span + span { display: none; }
 .c-depth { grid-area: depth; } .c-temp { grid-area: temp; } .c-time { grid-area: time; }
 .c-alt { grid-area: alt; } .c-main { grid-area: main; } .c-tat { grid-area: tat; }
 .c-o2 { grid-area: o2; } .c-cns { grid-area: cns; } .c-mb { grid-area: mb; }
@@ -451,8 +458,14 @@ td.deco { color: var(--warn); }
 .g2-v { flex: 1; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 30px; gap: 4px; position: relative; white-space: nowrap; }
 .g2-v small { font-size: 0.4em; color: inherit; }
 .g2-win.big .g2-v { font-size: 52px; }
-.g2-win.c-main .g2-v, .g2-win.c-depth .g2-v { font-size: 36px; }
-.g2-o2 { position: absolute; right: 4px; bottom: 3px; font-size: 16px; }
+.g2-win.c-depth .g2-v { font-size: 36px; }
+.g2-win.c-main .g2-v { font-size: 28px; }
+.g2-win.c-main .g2-gap { margin-left: 8px; }
+/* O2 % under the tank pressure, bottom right; the value is lifted to leave it room. */
+.g2-o2 { position: absolute; right: 4px; bottom: 2px; font-size: 16px; }
+.g2-v:has(.g2-o2) { padding-bottom: 16px; }
+.g2-grid.graphical .g2-o2 { font-size: 12px; }
+.g2-grid.graphical .g2-v:has(.g2-o2) { padding-bottom: 11px; }
 .g2-o2 small { font-size: 9px; margin-left: 2px; }
 .g2-win.yellow { border-color: #ffd400; } .g2-win.yellow .g2-h { background: #ffd400; } .g2-win.yellow .g2-v { color: #ffd400; }
 .g2-win.red { border-color: #ff2a1f; } .g2-win.red .g2-h { background: #ff2a1f; } .g2-win.red .g2-v { color: #ff2a1f; }
@@ -462,8 +475,12 @@ td.deco { color: var(--warn); }
 .g2-gap { margin-left: 14px; }
 .g2-sub { position: absolute; bottom: 1px; font-size: 8px; font-style: normal; letter-spacing: 0.5px; }
 .g2-sub.l { left: 4px; } .g2-sub.r { right: 4px; }
-.g2-speed { position: absolute; left: 22px; top: 66px; font-size: 12px; font-weight: 700; color: #36e036; }
-.g2-speed.yellow { color: #ffd400; } .g2-speed.red { color: #ff2a1f; }
+/* Keep the digits above the MINUTE / METER captions. */
+.g2-v:has(.g2-sub) { padding: 0 4px 9px; }
+.g2-grid.full .f-main .g2-v:has(.g2-sub) { font-size: 22px; }
+.g2-win.c-main .g2-v:has(.g2-sub) { font-size: 24px; }
+.g2-grid.graphical .g-main .g2-v:has(.g2-sub) { font-size: 15px; }
+.g2-grid.graphical .g-main .g2-gap { margin-left: 4px; }
 
 /* Pressure gauge beside the computer. */
 .spg { position: absolute; left: 10px; top: 10px; width: 112px; text-align: center; z-index: 1; pointer-events: none; }
@@ -491,3 +508,29 @@ td.deco { color: var(--warn); }
   .spg-lbl { display: none; }
   .scene-ctl button { width: 38px; height: 38px; }
 }
+
+/* Device buttons: pressed look, inactive buttons, tooltip. */
+.dev button[data-btn] { cursor: pointer; transition: filter 0.08s; }
+.dev button[data-btn].pressed { filter: brightness(0.6); scale: 0.9; }
+.pd-btn.l.pressed { translate: 3px 0; }
+.pd-btn.r.pressed { translate: -3px 0; }
+.g2-btn.pressed { translate: 0 3px; }
+.mr-btn.pressed { translate: 0 2px; box-shadow: inset 0 1px 2px #6f7880; }
+.dev button[data-btn].inactive { cursor: not-allowed; opacity: 0.55; }
+.btn-tip {
+  position: absolute; z-index: 5; max-width: min(320px, calc(100% - 12px)); pointer-events: none;
+  background: rgba(5, 12, 20, 0.95); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px;
+  font-size: 12px; line-height: 1.4; color: var(--ink); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+.btn-tip[hidden] { display: none; }
+.btn-tip .tip-name { font-weight: 700; margin-bottom: 3px; }
+.btn-tip em { color: var(--muted); font-style: normal; }
+.btn-tip .tip-off { color: var(--muted); }
+.btn-tip .tip-tag { color: var(--warn); font-weight: 600; }
+
+/* Backlight (Mares LCD, G2 screen). */
+.mr-lcd.backlit {
+  background: radial-gradient(circle at 45% 35%, #d9f7ff, #8fd6ec);
+  box-shadow: inset 0 3px 12px rgba(0, 0, 0, 0.3), 0 0 18px rgba(120, 220, 255, 0.55);
+}
+.g2-screen.backlit { filter: brightness(1.35) saturate(1.1); }

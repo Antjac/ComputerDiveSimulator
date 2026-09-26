@@ -5,7 +5,7 @@ import { remainingTime } from '../engine/gas';
 import type { DiveSession } from '../engine/session';
 import { depthInt, depthText, imperial, pressText, pressUnit, tempUnit, tempVal } from '../units';
 import type { Lang } from '../i18n';
-import { ComputerView, DiveComputer, SettingDef, clockOfDay, hmm, mmss } from './base';
+import { ButtonHelp, ComputerView, DiveComputer, SettingDef, clockOfDay, hmm, mmss } from './base';
 
 /** Ideal ascent rate by depth (G2 manual §3.7), in m/min. */
 const IDEAL_ASCENT: [number, number][] = [
@@ -47,8 +47,8 @@ export class ScubaproG2 extends DiveComputer {
   readonly transmitter = 'Smart';
   readonly gasTimeName = 'RBT';
   readonly notes = {
-    fr: 'ZH-L16 ADT MB a des ajustements non publiés : approximation. Affichage et règles conformes au manuel : écran Light (Classic automatique en déco), vitesse de remontée idéale selon la profondeur (jaune > 110 %, alarme > 140 %), niveaux MB (réduits si le palier est ignoré de plus de 1,5 m), PDIS. Bouton MORE : informations alternatives.',
-    en: 'ZH-L16 ADT MB has unpublished adjustments: approximation. Display and rules as per the manual: Light screen (Classic automatically in deco), depth-dependent ideal ascent rate (yellow > 110 %, alarm > 140 %), MB levels (reduced if a stop is ignored by more than 1.5 m), PDIS. MORE button: alternate information.',
+    fr: 'ZH-L16 ADT MB a des ajustements non publiés : approximation. Affichage et règles conformes au manuel : écran Light (Classic automatique en déco), vitesse de remontée idéale selon la profondeur (jaune > 110 %, alarme > 140 %), niveaux MB (réduits si le palier est ignoré de plus de 1,5 m), PDIS. Bouton MORE : informations alternatives ; TIMER : repère (et relance du palier de sécurité) ; LIGHT : rétroéclairage. Boussole et écrans de profil non simulés.',
+    en: 'ZH-L16 ADT MB has unpublished adjustments: approximation. Display and rules as per the manual: Light screen (Classic automatically in deco), depth-dependent ideal ascent rate (yellow > 110 %, alarm > 140 %), MB levels (reduced if a stop is ignored by more than 1.5 m), PDIS. MORE button: alternate information; TIMER: bookmark (and safety stop restart); LIGHT: backlight. Compass and profile displays are not simulated.',
   };
   readonly settingDefs: SettingDef[] = [
     {
@@ -178,9 +178,47 @@ export class ScubaproG2 extends DiveComputer {
     return d > 8 && d < s.maxDepth ? Math.round(d) : 0;
   }
 
+  // User manual §3.2 (button functions while diving) and §3.7.2–3.7.6: left sets a bookmark (and
+  // restarts the safety stop timer), middle steps through the alternate window, right brightens the
+  // backlight; holding middle shows the profile, holding right shows the compass.
   press(button: string): boolean {
-    if (button === 'more') this.setScreen((this.screen + 1) % 8);
+    if (button === 'more') this.setScreen((this.screen + 1) % this.altCount);
+    else if (button === 'timer') {
+      if (this.safetyState === 'active' || this.safetyState === 'paused') this.safetyRemaining = this.safetyTotal;
+      this.flash('BOOKMARK SET');
+    } else if (button === 'dim') this.backlightUntil = performance.now() + 6000;
+    else return false;
     return true;
+  }
+
+  private altCount = 8;
+
+  buttons(): Record<string, ButtonHelp> {
+    return {
+      timer: {
+        name: 'TIMER · BOOK',
+        press: {
+          real: { fr: 'Pose un repère (bookmark) ; relance le palier de sécurité ; remet le chronomètre à zéro (Classic/Full/Graphical)', en: 'Sets a bookmark; restarts the safety stop timer; resets the stopwatch (Classic/Full/Graphical)' },
+          simulated: true,
+          note: { fr: 'chronomètre non simulé', en: 'stopwatch not simulated' },
+        },
+        hold: { real: { fr: 'Changement de gaz manuel (multigaz uniquement)', en: 'Manual gas switch (multi-gas only)' }, simulated: false },
+      },
+      more: {
+        name: 'MORE',
+        press: {
+          real: { fr: 'Fenêtre d’information suivante (profondeur max, PDIS, température, niveau MB, heure, CNS…)', en: 'Next alternate window (max depth, PDIS, temperature, MB level, time, CNS…)' },
+          simulated: true,
+          note: { fr: 'séquence de l’écran Light pour toutes les configurations ; fréquence cardiaque, température cutanée et batterie absentes', en: 'Light-screen sequence for every layout; heart rate, skin temperature and battery omitted' },
+        },
+        hold: { real: { fr: 'Profil de plongée, saturation des compartiments, images', en: 'Dive profile, compartment saturation, pictures' }, simulated: false },
+      },
+      dim: {
+        name: 'LIGHT · DIM',
+        press: { real: { fr: 'Augmente le rétroéclairage', en: 'Brightens the backlight' }, simulated: true },
+        hold: { real: { fr: 'Boussole', en: 'Compass' }, simulated: false },
+      },
+    };
   }
 
   summary(v: ComputerView): { ndl: string; stop: string; tts: string } {
@@ -222,6 +260,8 @@ export class ScubaproG2 extends DiveComputer {
       else if (v.cns >= 75) [bar, barCls] = ['CNS O2 = 75%', 'yellow'];
       else if (!v.inDeco && levelNdl <= 2 && levelNdl > 0) [bar, barCls] = ['NO STOP = 2 MIN', 'yellow'];
     }
+    const note = this.flashMessage();
+    if (note && barCls !== 'red') [bar, barCls] = [note, ''];
 
     // Depth window colour follows the ascent speed (yellow > 110 %, red > 140 %).
     const depthWin = v.ascentLevel === 2 ? 'red' : v.ascentLevel === 1 ? 'yellow' : '';
@@ -261,7 +301,9 @@ export class ScubaproG2 extends DiveComputer {
     const layout = this.settings.screen === 'light' && tat !== null ? 'classic' : this.settings.screen;
     const win = (lbl: string, unit: string, body: string, cls = '', extra = '') =>
       `<div class="g2-win ${cls} ${extra}"><div class="g2-h"><span>${lbl}</span><span>${unit}</span></div><div class="g2-v">${body}</div></div>`;
-    const depthWinHtml = (extra: string) => win('DEPTH', DU(), `<span class="${depthCls}">${depthTxt}</span>`, depthWin, extra);
+    // While ascending, the ascent speed (% of the ideal rate) replaces the unit in the depth header.
+    const speed = v.inDive && pct > 0 && v.ascentRate > 0.5 ? `▲ ${pct}%` : DU();
+    const depthWinHtml = (extra: string) => win('DEPTH', speed, `<span class="${depthCls}">${depthTxt}</span>`, depthWin, extra);
     // Tank window (Smart transmitter) and RBT.
     const tankCls = v.tank.pressure < v.tank.reserve ? 'red' : '';
     const tankHtml = (extra: string, withO2 = true) => win('TANK', pressUnit().toUpperCase(),
@@ -271,7 +313,9 @@ export class ScubaproG2 extends DiveComputer {
     const ai = v.tank.ai;
     const diveTimeHtml = (extra: string, colon = true) => win(v.inDive ? 'DIVE TIME' : 'SURF. INT.', v.inDive ? 'MIN' : 'HR',
       v.inDive ? `${Math.floor(v.diveTime / 60)}${colon ? ':' : ''}` : v.surfaceInterval !== null ? hmm(v.surfaceInterval / 60) : '--', '', extra);
-    const mainHtml = (extra: string) => win(mainLbl, mainUnit, mainVal, `${mainCls} ${noStopLow}`, extra);
+    // The Classic main window is narrow: long labels (SAFETY STOP, LEVEL STOP) drop the unit.
+    const mainHtml = (extra: string) =>
+      win(mainLbl, extra === 'c-main' && mainLbl.length > 9 ? '' : mainUnit, mainVal, `${mainCls} ${noStopLow}`, extra);
     const tatHtml = (extra: string) => win('TAT', 'MIN', tat ?? `${v.tts}:`, '', extra);
     const { h, m } = clockOfDay(s);
     const clock = `${h}:${String(m).padStart(2, '0')}`;
@@ -305,7 +349,7 @@ export class ScubaproG2 extends DiveComputer {
         ${mainHtml('f-main')}
         ${tatHtml('f-tat')}
         ${win('AVG', DU1(), depthText(v.avgDepth), '', 'f-avg')}
-        ${ai ? tankHtml('f-o2') : win(fAlt.lbl, fAlt.unit, fAlt.val, '', 'f-o2')}
+        ${ai ? tankHtml('f-o2', false) : win(fAlt.lbl, fAlt.unit, fAlt.val, '', 'f-o2')}
         ${win('CNS', '%', String(Math.round(v.cns)), v.cns >= 75 ? 'yellow' : '', 'f-cns')}
         ${ai ? rbtHtml('f-ppo2') : win('PPO2', 'BAR', v.ppO2.toFixed(2), v.ppO2 > 1.4 ? 'yellow' : '', 'f-ppo2')}
       </div>`;
@@ -337,15 +381,14 @@ export class ScubaproG2 extends DiveComputer {
     el.innerHTML = `
       <div class="dev g2">
         <div class="g2-case">
-          <button class="g2-btn l" data-btn="timer" title="TIMER"></button>
-          <button class="g2-btn m" data-btn="more" title="MORE"></button>
-          <button class="g2-btn r" data-btn="dim" title="DIM"></button>
-          <div class="g2-screen">
+          <button class="g2-btn l" data-btn="timer"></button>
+          <button class="g2-btn m" data-btn="more"></button>
+          <button class="g2-btn r" data-btn="dim"></button>
+          <div class="g2-screen ${this.backlit ? 'backlit' : ''}">
             <div class="g2-bar ${barCls} ${barCls === 'red' ? 'blink' : ''}">${bar}</div>
             <div class="g2-side l"><span>O2</span><div><i style="height:${o2h}%"></i></div></div>
             <div class="g2-side r"><span>N2</span><div><i style="height:${n2h}%" class="${v.inDeco ? 'red' : ''}"></i></div></div>
             ${grid}
-            ${v.inDive && pct > 0 && v.ascentRate > 0.5 ? `<div class="g2-speed ${depthWin}">▲ ${pct}%</div>` : ''}
           </div>
         </div>
       </div>`;
@@ -415,11 +458,13 @@ export class ScubaproG2 extends DiveComputer {
       { lbl: 'MAX DEPTH', unit: DU(), val: depthText(v.maxDepth) },
       pdis,
       { lbl: 'TEMP', unit: TU(), val: String(Math.round(tempVal(v.temperature))) },
-      { lbl: 'MB LEVEL', unit: '', val: `L${this.activeLevel}` },
+      this.activeLevel > 0 ? { lbl: 'MB LEVEL', unit: '', val: `L${this.activeLevel}` } : null,
       { lbl: 'MB L0', unit: v.inDeco ? '' : 'NO STOP', val: l0 },
       { lbl: 'TIME', unit: '', val: `${h}:${String(m).padStart(2, '0')}` },
       { lbl: 'CNS', unit: '%', val: String(Math.round(v.cns)) },
     ];
-    return seq[screen] ?? seq[0];
+    const list = seq.filter((x) => x !== null);
+    this.altCount = list.length;
+    return list[screen] ?? list[0];
   }
 }
