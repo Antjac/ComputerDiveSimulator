@@ -2,6 +2,9 @@ import { DiveSession } from '../src/engine/session';
 import { createComputers } from '../src/computers';
 
 const s = new DiveSession();
+// Full speed toward targets, as the timings below assume.
+s.ascentSpeed = 22;
+s.descentSpeed = 25;
 const cs = createComputers();
 s.on((e) => cs.forEach((c) => (e === 'start' ? c.onDiveStart(s) : c.onDiveEnd(s))));
 const run = (sec: number) => { for (let i = 0; i < sec * 2; i++) { s.step(0.5); cs.forEach((c) => c.tick(s, 0.5)); } };

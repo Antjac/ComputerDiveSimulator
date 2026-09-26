@@ -201,6 +201,13 @@ select:disabled { opacity: 0.55; }
 .badge.exact { color: var(--ok); border-color: var(--ok); }
 .badge.approx { color: var(--warn); border-color: var(--warn); }
 .badge.small { padding: 0 5px; }
+.contents { display: contents; }
+.advanced { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+.advanced[open] { padding-bottom: 10px; }
+.advanced summary { cursor: pointer; color: var(--ink-2); font-size: 13px; }
+.advanced[open] summary { margin-bottom: 8px; }
+.advanced[open] .adv-sum { display: none; }
+.adv-sum { display: block; margin-top: 2px; font-size: 11px; color: var(--muted); }
 .help summary { cursor: pointer; color: var(--ink-2); font-size: 13px; }
 .help p { font-size: 12px; color: var(--ink-2); }
 .help a.mail { color: var(--accent); }
@@ -219,6 +226,14 @@ td.deco { color: var(--warn); }
 
 /* Charts */
 .chart-wrap { position: relative; }
+.gf-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.gf-stat { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; cursor: help; }
+.gf-stat span { display: block; font-size: 11px; color: var(--muted); }
+.gf-stat b { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.gf-stat b.warn { color: var(--warn); }
+.gf-stat b.crit { color: var(--crit); }
+#tissue-mode { align-self: flex-start; }
+#lead-val { font-size: 16px; white-space: nowrap; }
 .chart-wrap.grow { flex: 1; min-height: 160px; }
 #tissues { width: 100%; height: 100%; display: block; }
 .tooltip {
@@ -336,7 +351,7 @@ td.deco { color: var(--warn); }
 .gm-alert { font-size: 18px; font-weight: 700; }
 .gm-n2 { font-size: 13px; font-weight: 700; }
 .gm-wave { fill: #0a84ff; font-size: 22px; font-weight: 700; }
-.gm-red { fill: #ff3b30; } .gm-yellow { fill: #ffcc00; }
+.gm-red { fill: #ff3b30; } .gm-yellow { fill: #ffcc00; } .gm-blue { fill: #0a84ff; }
 
 /* Suunto D5: round colour display in a steel bezel. */
 .su { position: relative; padding: 26px 0; }
@@ -509,7 +524,7 @@ td.deco { color: var(--warn); }
 .spg[hidden] { display: none; }
 .spg svg { width: 100%; display: block; filter: drop-shadow(0 6px 10px rgba(0,0,0,0.5)); }
 .spg-lbl { font-size: 11px; color: var(--muted); }
-.tx-hint { grid-column: 2; align-self: end; margin: 0; }
+.tx-hint { grid-column: 1 / -1; margin: 0; }
 
 /* Depth buttons over the water column (touch screens have no wheel). */
 .scene-ctl { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 8px; }
@@ -518,7 +533,9 @@ td.deco { color: var(--warn); }
   background: rgba(5, 12, 20, 0.55); color: #fff; font-size: 16px; cursor: pointer;
 }
 .scene-ctl button:active { background: rgba(76, 195, 255, 0.45); }
-.scene-ctl button[hidden] { display: none; }
+.scene-ctl[hidden] { display: none; }
+/* 3D steering: a horizontal pair at the bottom, apart from the vertical speed controls. */
+.scene-ctl.turn { top: auto; right: auto; left: 50%; bottom: 40px; transform: translateX(-50%); flex-direction: row; gap: 14px; }
 
 /* Larger hit areas for the device buttons (fingers). */
 .dev button::after { content: ''; position: absolute; inset: -14px; }
@@ -631,6 +648,8 @@ td.deco { color: var(--warn); }
 .qc-f { flex: 1; padding: 3px 8px; text-align: right; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; white-space: nowrap; }
 .qc-f b { font-size: 40px; font-weight: 700; }
 .qc-f.red { background: var(--qc-red); }
+/* GF RATE digits: yellow while GF @SURF rises, blue while it falls. */
+.qc-f b.yel { color: var(--qc-yellow); } .qc-f b.blu { color: #4d7bff; }
 .qc-f.red em { color: #fff; }
 /* Alarm / warning block, bottom right. */
 .qc-alarm { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-size: 26px; font-weight: 700; padding: 2px 6px; line-height: 1.05; }

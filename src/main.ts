@@ -1,8 +1,8 @@
 import './style.css';
-import { gasLabel, pressureToDepth } from './engine/buhlmann';
+import { N2_HALF, SURFACE_PRESSURE, gasLabel, pressureToDepth } from './engine/buhlmann';
 import { DiveSession } from './engine/session';
 import { createComputers, type DiveComputer } from './computers';
-import { hmm, type ButtonAction, type ButtonHelp, type ComputerView } from './computers/base';
+import { hmm, type ButtonAction, type ButtonHelp, type ComputerView, type SettingDef } from './computers/base';
 import { I18nKey, isI18nKey, lang, setLang, t } from './i18n';
 import { ProfileChart, TissueChart } from './ui/charts';
 import { Scene } from './ui/scene';
@@ -33,6 +33,7 @@ interface Prefs {
   transmitter: boolean;
   view: '2d' | '3d';
   env: Environment;
+  advanced: boolean;
 }
 
 function loadPrefs(): Partial<Prefs> {
@@ -56,6 +57,7 @@ function savePrefs(): void {
     transmitter: session.transmitterOn,
     view,
     env,
+    advanced: $<HTMLDetailsElement>('advanced').open,
   };
   try {
     localStorage.setItem('divesim.prefs', JSON.stringify(prefs));
@@ -84,6 +86,10 @@ const TANKS: { id: string; volume: number; fill: number; name?: string }[] = [
   { id: 'hp100', volume: 12.9, fill: 237, name: 'HP100' },
   { id: 'd12-232', volume: 24, fill: 232, name: '2×12 L' },
 ];
+function tankLabel(k: (typeof TANKS)[number]): string {
+  const cap = tankCapacityLabel(k.volume, k.fill);
+  return k.name ? `${k.name} · ${cap}` : cap;
+}
 const RMVS = [12, 14, 16, 18, 20, 22, 25, 28, 32];
 const RESERVES = [30, 50, 70];
 let tankId = TANKS.some((k) => k.id === prefs.tank) ? prefs.tank! : '12-200';
@@ -132,6 +138,13 @@ function applyI18n(): void {
     const key = el.dataset.i18n!;
     if (isI18nKey(key)) el.textContent = t(key);
   });
+  document.querySelectorAll<HTMLElement>('[data-i18n-title]').forEach((el) => {
+    const key = el.dataset.i18nTitle!;
+    if (isI18nKey(key)) {
+      el.title = t(key);
+      el.setAttribute('aria-label', t(key));
+    }
+  });
   document.querySelectorAll<HTMLButtonElement>('[data-lang]').forEach((b) => b.classList.toggle('on', b.dataset.lang === lang()));
   profileChart.labels = { time: t('time'), depth: t('depth'), ceiling: t('ceiling') };
   tissueChart.labels = lang() === 'fr' ? { compartment: 'Compartiment', halfTime: 'Période' } : { compartment: 'Compartment', halfTime: 'Half-time' };
@@ -156,14 +169,22 @@ function renderControls(): void {
     <span class="badge ${active.exact ? 'exact' : 'approx'}">${active.exact ? '✓ ' + t('exact') : '≈ ' + t('approx')}</span>
     <p>${active.notes[lang()]}</p>`;
 
-  $('computer-settings').innerHTML = active.settingDefs
-    .map(
-      (def) => `<label class="field"><span>${def.label[lang()]}</span>
-        <select data-setting="${def.key}">${def.options
-          .map((o) => `<option value="${o.value}" ${active.settings[def.key] === o.value ? 'selected' : ''}>${o.label}</option>`)
-          .join('')}</select></label>`,
-    )
-    .join('');
+  // Essential settings (screen layout) are always shown, the others only in the advanced section.
+  const settingField = (def: SettingDef) => `<label class="field"><span>${def.label[lang()]}</span>
+    <select data-setting="${def.key}">${def.options
+      .map((o) => `<option value="${o.value}" ${active.settings[def.key] === o.value ? 'selected' : ''}>${o.label}</option>`)
+      .join('')}</select></label>`;
+  const advDefs = active.settingDefs.filter((d) => !d.essential);
+  $('computer-settings').innerHTML = active.settingDefs.filter((d) => d.essential).map(settingField).join('');
+  $('computer-settings-adv').innerHTML = advDefs.map(settingField).join('');
+  // Collapsed: remind the values in use, so a changed setting is not forgotten.
+  const optLabel = (def: SettingDef) => `${def.label[lang()]} ${def.options.find((o) => o.value === active.settings[def.key])?.label ?? ''}`;
+  $('adv-summary').textContent = [
+    ...advDefs.map(optLabel),
+    tankLabel(TANKS.find((k) => k.id === tankId)!),
+    imperial() ? `${(session.rmv / 28.3168).toFixed(2)} cuft/min` : `${session.rmv} L/min`,
+    units() === 'imperial' ? t('imperialShort') : '',
+  ].filter(Boolean).join(' · ');
 
   const gasSel = $<HTMLSelectElement>('gas-select');
   gasSel.innerHTML = GASES.map((o2) => {
@@ -175,10 +196,7 @@ function renderControls(): void {
   $<HTMLSelectElement>('units-select').innerHTML = (['metric', 'imperial'] as const)
     .map((u) => `<option value="${u}" ${units() === u ? 'selected' : ''}>${t(u)}</option>`).join('');
   const tankSel = $<HTMLSelectElement>('tank-select');
-  tankSel.innerHTML = TANKS.map((k) => {
-    const cap = tankCapacityLabel(k.volume, k.fill);
-    return `<option value="${k.id}" ${k.id === tankId ? 'selected' : ''}>${k.name ? `${k.name} · ${cap}` : cap}</option>`;
-  }).join('');
+  tankSel.innerHTML = TANKS.map((k) => `<option value="${k.id}" ${k.id === tankId ? 'selected' : ''}>${tankLabel(k)}</option>`).join('');
   tankSel.disabled = session.inDive;
   $<HTMLSelectElement>('rmv-select').innerHTML = RMVS.map((l) =>
     `<option value="${l}" ${session.rmv === l ? 'selected' : ''}>${imperial() ? `${(l / 28.3168).toFixed(2)} cuft/min` : `${l} L/min`}</option>`).join('');
@@ -207,14 +225,19 @@ $('computer-select').addEventListener('change', (e) => {
   refresh(true);
 });
 
-$('computer-settings').addEventListener('change', (e) => {
-  const el = e.target as HTMLSelectElement;
-  if (el.dataset.setting) {
-    active.settings[el.dataset.setting] = el.value;
-    savePrefs();
-    refresh(true);
-  }
-});
+for (const id of ['computer-settings', 'computer-settings-adv']) {
+  $(id).addEventListener('change', (e) => {
+    const el = e.target as HTMLSelectElement;
+    if (el.dataset.setting) {
+      active.settings[el.dataset.setting] = el.value;
+      savePrefs();
+      refresh(true);
+    }
+  });
+}
+
+$<HTMLDetailsElement>('advanced').open = prefs.advanced === true;
+$('advanced').addEventListener('toggle', savePrefs);
 
 $('gas-select').addEventListener('change', (e) => {
   if (session.inDive) return;
@@ -225,7 +248,7 @@ $('gas-select').addEventListener('change', (e) => {
 
 $('site-select').addEventListener('change', (e) => {
   session.siteDepth = Number((e.target as HTMLSelectElement).value);
-  session.setTarget(session.targetDepth);
+  if (session.control === 'target') session.setTarget(session.targetDepth);
   savePrefs();
 });
 
@@ -262,10 +285,24 @@ $('tx-select').addEventListener('change', (e) => {
   refresh(true);
 });
 
-// Touch-friendly depth controls (replace the mouse wheel on tablets and phones).
-document.querySelectorAll<HTMLButtonElement>('[data-move]').forEach((b) =>
-  b.addEventListener('click', () => session.setTarget(Math.round(session.targetDepth) + Number(b.dataset.move))),
-);
+// Vertical speed controls: each step changes the speed by 1 m/min (▲ = faster up / slower down).
+// Keeping a button pressed repeats the step.
+let rateRepeat = 0;
+const stopRateRepeat = () => window.clearTimeout(rateRepeat);
+document.querySelectorAll<HTMLButtonElement>('[data-move]').forEach((b) => {
+  b.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    const step = Number(b.dataset.move);
+    const repeat = (delay: number) => {
+      session.nudgeRate(step);
+      rateRepeat = window.setTimeout(() => repeat(120), delay);
+    };
+    stopRateRepeat();
+    repeat(400);
+  });
+  for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, stopRateRepeat);
+});
+document.querySelector('[data-stop]')!.addEventListener('click', () => session.setRate(0));
 document.querySelectorAll<HTMLButtonElement>('[data-turn]').forEach((b) =>
   b.addEventListener('click', () => scene3d?.steer(Number(b.dataset.turn), Math.PI / 4)),
 );
@@ -295,7 +332,7 @@ async function setView(v: '2d' | '3d'): Promise<void> {
   $('scene3d').hidden = v === '2d';
   $('env-select').hidden = v === '2d';
   $('scene-hint').hidden = v === '2d' || hintShown;
-  document.querySelectorAll<HTMLButtonElement>('[data-turn]').forEach((b) => (b.hidden = v === '2d'));
+  $('turn-ctl').hidden = v === '2d';
   // Only the 3D view has a seabed under the diver.
   if (v === '2d') session.seabed = Infinity;
   savePrefs();
@@ -517,8 +554,9 @@ new ResizeObserver(() => fitDevice()).observe($('device'));
 
 window.addEventListener('keydown', (e) => {
   if ((e.target as HTMLElement).tagName === 'SELECT') return;
-  if (e.key === 'ArrowDown') session.setTarget(Math.round(session.targetDepth) + 1);
-  else if (e.key === 'ArrowUp') session.setTarget(Math.round(session.targetDepth) - 1);
+  if (e.key === 'ArrowDown') session.nudgeRate(1);
+  else if (e.key === 'ArrowUp') session.nudgeRate(-1);
+  else if (e.key === '0' || e.key === 'Enter') session.setRate(0);
   else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && view === '3d' && scene3d) scene3d.steer(e.key === 'ArrowLeft' ? -1 : 1);
   else if (e.key === ' ') {
     paused = !paused;
@@ -594,7 +632,12 @@ function refresh(full = false): void {
   // HUD
   $('hud-clock').textContent = `${t('simClock')} ${fmtClock(session.clock)}`;
   $('hud-state').textContent = session.inDive
-    ? `${t('diving')} · ${depthLabel(session.depth)} · ${session.ascentRate > 0.5 ? '↑' : session.ascentRate < -0.5 ? '↓' : '·'} ${rateLabel(Math.abs(session.ascentRate))}`
+    ? `${t('diving')} · ${depthLabel(session.depth)} · ${session.ascentRate > 0.5 ? '↑' : session.ascentRate < -0.5 ? '↓' : '·'} ${rateLabel(Math.abs(session.ascentRate))}${
+      session.control === 'rate'
+        ? ` · ${t('rateCmd')} ${session.commandRate < 0 ? '↑' : session.commandRate > 0 ? '↓' : ''} ${rateLabel(Math.abs(session.commandRate))}`
+        : Math.abs(session.targetDepth - session.depth) > 0.3
+          ? ` · ${t('rateTarget')} ${depthLabel(session.targetDepth)} ${session.targetDepth < session.depth ? `↑ ${rateLabel(session.ascentSpeed)}` : `↓ ${rateLabel(session.descentSpeed)}`}`
+          : ''}`
     : `${t('atSurface')}${session.surfaceInterval !== null ? ` · ${t('surfaceSince')} ${hmm(session.surfaceInterval / 60)}` : ''}`;
 
   // Charts
@@ -606,8 +649,34 @@ function refresh(full = false): void {
   profileChart.unit = depthUnit();
   const shown = samples.map((p) => ({ t: p.t, depth: depthVal(p.depth), ceiling: depthVal(p.ceiling) }));
   if ($('profile').clientWidth > 0) profileChart.draw(shown);
-  if (activeTab === 'tissues') tissueChart.draw(session.tissues.gradientPercents(session.pressure), v.gfHigh);
+  if (activeTab === 'tissues') renderTissues(v);
   if (full) renderControls();
+}
+
+// Tissues tab: GF99 / SurfGF for every computer (they share the diver's tissues), and the
+// compartment chart either at the current depth or at the surface.
+let tissueMode: 'now' | 'surf' = 'now';
+$('tissue-mode').addEventListener('click', (e) => {
+  const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-tmode]');
+  if (!b) return;
+  tissueMode = b.dataset.tmode as 'now' | 'surf';
+  refresh();
+});
+
+function renderTissues(v: ComputerView): void {
+  const gfCls = (gf: number) => (gf > 100 ? 'crit' : gf > v.gfHigh ? 'warn' : '');
+  const setStat = (id: string, gf: number) => {
+    $(id).textContent = `${Math.round(gf)} %`;
+    $(id).className = gfCls(gf);
+  };
+  setStat('gf99-val', v.gf99);
+  setStat('surfgf-val', v.surfGf);
+  const values = session.tissues.gradientPercents(tissueMode === 'surf' ? SURFACE_PRESSURE : session.pressure);
+  const lead = values.indexOf(Math.max(...values));
+  $('lead-val').textContent = `${lead + 1} · ${N2_HALF[lead]} min`;
+  document.querySelectorAll<HTMLButtonElement>('[data-tmode]').forEach((b) => b.classList.toggle('on', b.dataset.tmode === tissueMode));
+  $('tissues-help').textContent = t(tissueMode === 'surf' ? 'tissuesHelpSurf' : 'tissuesHelp');
+  tissueChart.draw(values, v.gfHigh);
 }
 
 /** Analog pressure gauge next to the computer when the tank data is not shown on it. */

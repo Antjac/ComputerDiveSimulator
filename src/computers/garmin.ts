@@ -3,7 +3,7 @@ import type { DiveSession } from '../engine/session';
 import type { Lang } from '../i18n';
 import { remainingTime } from '../engine/gas';
 import { depthInt, depthUnit, pressText, pressUnit, tempUnit, tempVal } from '../units';
-import { ButtonHelp, ComputerView, DiveComputer, SettingDef, clockOfDay, depthStr, hmm, mmss } from './base';
+import { ButtonHelp, ComputerView, DiveComputer, SettingDef, clockOfDay, depthStr, hmm, leadingOnGas, mmss } from './base';
 
 // Garmin conservatism presets (gradient factors).
 const PRESETS: Record<string, [number, number]> = { low: [45, 95], medium: [40, 85], high: [35, 70] };
@@ -47,8 +47,8 @@ export class GarminDescent extends DiveComputer {
   readonly transmitter = 'Descent T2';
   readonly gasTimeName = 'ATR';
   readonly notes = {
-    fr: 'Bühlmann ZHL-16C avec facteurs de gradient. DOWN (et UP en sens inverse) : écrans de données ; LIGHT, START et BACK ne sont pas simulés. Verrouillage de déco après 3 min au-dessus du plafond.',
-    en: 'Bühlmann ZHL-16C with gradient factors. DOWN (and UP backwards): data screens; LIGHT, START and BACK are not simulated. Decompression lockout after 3 min above the ceiling.',
+    fr: 'Bühlmann ZHL-16C avec facteurs de gradient. DOWN (et UP en sens inverse) : écrans de données ; LIGHT, START et BACK ne sont pas simulés. Verrouillage de déco après 3 min au-dessus du plafond. L’écran TTS / plafond / GF99 / Surface GF est un écran personnalisé : sur la montre, ces champs s’ajoutent via Dive Setup > Display Settings > Data Screens.',
+    en: 'Bühlmann ZHL-16C with gradient factors. DOWN (and UP backwards): data screens; LIGHT, START and BACK are not simulated. Decompression lockout after 3 min above the ceiling. The TTS / ceiling / GF99 / Surface GF screen is a custom one: on the watch, these fields are added via Dive Setup > Display Settings > Data Screens.',
   };
   readonly settingDefs: SettingDef[] = [
     {
@@ -63,6 +63,7 @@ export class GarminDescent extends DiveComputer {
     },
     {
       key: 'layout',
+      essential: true,
       label: { fr: 'Affichage', en: 'Display' },
       options: [{ value: 'big', label: 'Big Numbers' }, { value: 'std', label: 'Standard' }],
       default: 'big',
@@ -124,6 +125,40 @@ export class GarminDescent extends DiveComputer {
 
   private screenCount = 4;
 
+  // Deco stop behaviour ("Performing a Decompression Stop" and alert table): the stop timer pauses
+  // while more than 0.6 m above the stop; a cleared stop flashes blue for 5 s; "Approaching Deco
+  // Stop" within one stop interval (3 m) of the stop, "Decompression Cleared" once all are done.
+  private pausedStop: { depth: number; sec: number } | null = null;
+  private lastStop = 0;
+  private stopDoneUntil = 0;
+  private approachedStop = 0;
+  private toast: { msg: string; until: number } | null = null;
+
+  onDiveStart(s: DiveSession): void {
+    super.onDiveStart(s);
+    this.pausedStop = null;
+    this.lastStop = this.approachedStop = 0;
+    this.stopDoneUntil = 0;
+    this.toast = null;
+  }
+
+  private trackStops(v: ComputerView): void {
+    const now = performance.now();
+    const stop = v.inDive && v.inDeco ? v.stopDepth : 0;
+    if (this.lastStop > 0 && stop < this.lastStop) {
+      this.stopDoneUntil = now + 5000;
+      if (stop === 0 && v.inDive) this.toast = { msg: 'Decompression Cleared', until: now + 5000 };
+    }
+    if (stop > 0 && stop !== this.approachedStop && v.depth > stop + this.stopWindow && v.depth <= stop + 3) {
+      this.approachedStop = stop;
+      this.toast = { msg: 'Approaching Deco Stop', until: now + 5000 };
+    }
+    this.lastStop = stop;
+    this.pausedStop = v.ceilingViolation === 2
+      ? this.pausedStop && this.pausedStop.depth === v.stopDepth ? this.pausedStop : { depth: v.stopDepth, sec: v.stopTimeSec }
+      : null;
+  }
+
   // Owner's manual, "Going Diving" and "Device Overview": DOWN scrolls through the data screens and
   // the dive compass, START opens the in-dive menu, LIGHT lights the screen (hold: controls menu).
   press(button: string): boolean {
@@ -171,6 +206,7 @@ export class GarminDescent extends DiveComputer {
   render(el: HTMLElement, v: ComputerView, s: DiveSession, _lang: Lang): void {
     this.screenCount = v.tank.ai ? 5 : 4;
     if (this.screen >= this.screenCount) this.screen = 0;
+    this.trackStops(v);
     const screen = this.currentScreen();
     let content: string;
     if (!v.inDive) content = this.surfaceScreen(v, s);
@@ -197,8 +233,8 @@ export class GarminDescent extends DiveComputer {
   /** Is a stop (safety or deco) currently guiding the diver? */
   private stopInfo(v: ComputerView): { depth: number; time: string; cls: string } | null {
     if (v.inDeco) {
-      const cls = v.ceilingViolation === 2 ? 'gm-red blink' : '';
-      return { depth: depthInt(v.stopDepth), time: mmss(v.stopTimeSec), cls };
+      const cls = v.ceilingViolation === 2 ? 'gm-red blink' : performance.now() < this.stopDoneUntil ? 'gm-blue blink' : '';
+      return { depth: depthInt(v.stopDepth), time: mmss(this.pausedStop ? this.pausedStop.sec : v.stopTimeSec), cls };
     }
     const st = v.safety.state;
     if (st === 'active' || st === 'paused' || (st === 'pending' && v.depth < 7)) {
@@ -319,7 +355,7 @@ export class GarminDescent extends DiveComputer {
 
   private dataScreen(i: number, v: ComputerView, s: DiveSession): string {
     const fields: [string, string][] =
-      i === 1 ? [['TTS', `${v.tts}`], ['CEILING', v.ceiling > 0 ? `${depthInt(v.ceiling)}${depthUnit()}` : '--'], ['GF', `${Math.round(v.gf99)}%`], ['SURF. GF', `${Math.round(v.surfGf)}%`]]
+      i === 1 ? [['TTS', `${v.tts}`], ['CEILING', v.ceiling > 0 ? `${depthInt(v.ceiling)}${depthUnit()}` : '--'], ['GF99', leadingOnGas(s) ? 'On-Gassing' : `${Math.round(v.gf99)}%`], ['SURF. GF', `${Math.round(v.surfGf)}%`]]
       : i === 2 ? [['MAX DEPTH', `${depthStr(v.maxDepth)}${depthUnit()}`], ['AVG. DEPTH', `${depthStr(v.avgDepth)}${depthUnit()}`], ['CNS', `${Math.round(v.cns)}%`], ['OTU', `${Math.round(v.otu)}`]]
       : i === 4 ? [['T1', `${pressText(v.tank.pressure)}`], ['ATR', v.tank.gasTime === null ? '--' : `${v.tank.gasTime}`],
           ['SAC', `${(v.tank.sacBar * (pressUnit() === 'psi' ? 14.5038 : 1)).toFixed(pressUnit() === 'psi' ? 0 : 1)}`], ['RESERVE', `${pressText(v.tank.reserve)}`]]
@@ -333,7 +369,7 @@ export class GarminDescent extends DiveComputer {
       <text x="150" y="52" class="gm-t gm-lbl">${depthStr(v.depth)}${depthUnit()} · ${mmss(v.diveTime)}</text>
       <line x1="40" y1="150" x2="260" y2="150" stroke="#3a3a3c"/>
       <line x1="150" y1="72" x2="150" y2="240" stroke="#3a3a3c"/>
-      ${fields.map(([l, val], k) => `<text x="${pos[k][0]}" y="${pos[k][1]}" class="gm-t gm-lbl">${l}</text><text x="${pos[k][0]}" y="${pos[k][1] + 34}" class="gm-t gm-mid">${val}</text>`).join('')}
+      ${fields.map(([l, val], k) => `<text x="${pos[k][0]}" y="${pos[k][1]}" class="gm-t gm-lbl">${l}</text><text x="${pos[k][0]}" y="${pos[k][1] + 34}" class="gm-t gm-mid" ${val.length > 7 ? 'textLength="96" lengthAdjust="spacingAndGlyphs"' : ''}>${val}</text>`).join('')}
       <text x="150" y="268" class="gm-t gm-small">${i}/${this.screenCount - 1}</text>`;
   }
 
@@ -362,6 +398,7 @@ export class GarminDescent extends DiveComputer {
     else if (v.tank.ai && v.tank.pressure < Math.max(v.tank.reserve / 2, 21)) [msg, color] = ['Critical tank pressure. End your dive now.', RED];
     else if (v.tank.ai && v.tank.pressure < v.tank.reserve) [msg, color] = ['Reserve pressure reached.', ORANGE];
     else if (v.safety.state === 'paused' && v.depth < this.safetyStop.top) [msg, color] = ['Descend to complete safety stop.', ORANGE];
+    else if (this.toast && performance.now() < this.toast.until) msg = this.toast.msg;
     else if (!v.inDeco && (v.ndl === 10 || v.ndl === 5)) msg = 'Approaching NDL';
     if (!msg) return '';
     const words = msg.split(' ');

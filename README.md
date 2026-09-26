@@ -43,12 +43,13 @@ Scripts d'analyse en ligne de commande :
 ```bash
 npm run calib     # tables de NDL par profondeur et par GF (calibration)
 npm run scenario  # rejoue un profil de plongée sur tous les ordinateurs
+npm run stops     # contrôle le comportement aux paliers de déco de chaque ordinateur
 ```
 
 ## Commandes
 
-- Toucher ou cliquer (et glisser) dans l'eau pour fixer la profondeur visée.
-- ▲ / ▼, molette ou flèches du clavier pour ajuster.
+- Toucher ou cliquer (et glisser) dans l'eau, ou la molette, pour aller à une profondeur (à la dernière vitesse choisie ; 9 m/min en montée et 18 m/min en descente par défaut).
+- ▲ / ▼ (boutons ou flèches du clavier) pour régler la vitesse de montée ou de descente par pas de 1 m/min ; ■ ou `0` pour se stabiliser.
 - `+` / `−` pour accélérer ou ralentir le temps, `Espace` pour mettre en pause.
 - Les boutons des ordinateurs sont cliquables, avec appui long quand le modèle en a un. Une info-bulle indique la fonction réelle de chaque bouton pendant la plongée (d'après le manuel du fabricant) et précise ce qui n'est pas simulé ; les boutons sans aucune fonction simulée apparaissent grisés.
 

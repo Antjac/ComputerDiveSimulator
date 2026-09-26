@@ -1,6 +1,6 @@
 import {
   AIR, COMPARTMENTS, DecoParams, DecoPlan, SURFACE_PRESSURE, Tissues, WATER_VAPOUR, ceilingDepth, gasLabel,
-  gfLowAnchor, ndl, planAscent, pressureToDepth, timeToTolerate,
+  firstStop, ndl, planAscent, pressureToDepth, timeToTolerate,
 } from '../engine/buhlmann';
 import { sacBarPerMin } from '../engine/gas';
 import { DiveSession } from '../engine/session';
@@ -17,6 +17,8 @@ export interface SettingDef {
   label: { fr: string; en: string };
   options: SettingOption[];
   default: string;
+  /** Shown without the advanced mode (e.g. the screen layout). */
+  essential?: boolean;
 }
 
 export type AlarmCode =
@@ -123,8 +125,13 @@ export abstract class DiveComputer {
   safetyStop: SafetyStopDef = { trigger: 10, start: 6, top: 3, bottom: 6, reset: 10 };
   /** Seconds the ascent-rate alarm condition must last before it is raised. */
   ascentAlarmDelay = 0;
-  /** Metres above the ceiling tolerated before the violation alarm. */
+  /** Metres above the stop (or ceiling, see violationRef) tolerated before the violation alarm. */
   ceilingMargin = 0.3;
+  /**
+   * What "above the stop" is measured against: the displayed stop depth (most manuals: "ascend above
+   * the stop depth") or the continuous ceiling (Suunto's deco window).
+   */
+  violationRef: 'stop' | 'ceiling' = 'stop';
   /** Seconds beyond the margin before the algorithm locks (null = never locks). */
   lockAfter: number | null = null;
   lockHours = 24;
@@ -256,7 +263,8 @@ export abstract class DiveComputer {
     if (this.locked && s.clock > this.lockedUntil) this.locked = false;
     if (!s.inDive) return;
     const p = this.decoParams(s);
-    this.anchor = Math.max(this.anchor, Math.min(gfLowAnchor(s.tissues, p), Math.ceil(s.depth / p.stopStep) * p.stopStep));
+    // GF low anchor: the deepest first stop seen during the dive (kept once the diver is above it).
+    this.anchor = Math.max(this.anchor, firstStop(s.tissues, s.depth, s.gas, p));
 
     if (this.ascentAlarmCondition(s.ascentRate, s.depth)) {
       this.ascentAlarmSec += dt;
@@ -271,7 +279,7 @@ export abstract class DiveComputer {
     }
 
     const ceil = ceilingDepth(s.tissues, this.anchor, p);
-    if (ceil > 0 && s.depth < ceil - this.ceilingMargin) {
+    if (ceil > 0 && s.depth < this.violationDepth(ceil, p) - Math.max(this.ceilingMargin, 0.05)) {
       this.ceilingViolationSec += dt;
       s.diveAlarms.add('CEILING');
       if (this.lockAfter !== null && this.ceilingViolationSec >= this.lockAfter) this.lock(s);
@@ -280,6 +288,26 @@ export abstract class DiveComputer {
     }
 
     this.tickSafetyStop(s, dt, ceil > 0);
+  }
+
+  /** Depth the diver must stay below: the stop the ceiling rounds up to, or the ceiling itself. */
+  protected violationDepth(ceil: number, p: DecoParams): number {
+    if (this.violationRef === 'ceiling' || ceil <= 0) return ceil;
+    return Math.max(p.lastStop, Math.ceil(ceil / p.stopStep - 1e-6) * p.stopStep);
+  }
+
+  private pausedDeco: Pick<ComputerView, 'ceiling' | 'stopTimeSec' | 'stopTime' | 'tts'> | null = null;
+
+  /**
+   * For models whose manual says the decompression calculation (or the desaturation) is halted while
+   * the diver is beyond the violation margin: the ceiling, stop time and TTS stay frozen until the
+   * diver is back below it.
+   */
+  protected withPausedDeco(v: ComputerView): ComputerView {
+    this.pausedDeco = v.inDive && v.ceilingViolation === 2
+      ? this.pausedDeco ?? { ceiling: v.ceiling, stopTimeSec: v.stopTimeSec, stopTime: v.stopTime, tts: v.tts }
+      : null;
+    return this.pausedDeco ? { ...v, ...this.pausedDeco } : v;
   }
 
   /** Hook called once when an ascent-rate violation starts. */
@@ -341,7 +369,8 @@ export abstract class DiveComputer {
     const first = plan.stops[0];
     const rate = s.ascentRate;
     const ascentLevel = s.inDive ? this.ascentLevel(rate, depth) : 0;
-    const ceilingViolation: 0 | 1 | 2 = !inDeco || depth >= ceil ? 0 : depth >= ceil - this.ceilingMargin ? 1 : 2;
+    const ref = this.violationDepth(ceil, p);
+    const ceilingViolation: 0 | 1 | 2 = !inDeco || depth >= ref - 0.05 ? 0 : depth >= ref - this.ceilingMargin ? 1 : 2;
 
     const alarms: AlarmCode[] = [];
     if (this.locked) alarms.push('LOCKED');
@@ -432,6 +461,14 @@ export abstract class DiveComputer {
       tts: String(v.tts),
     };
   }
+}
+
+/** True while the leading compartment (highest GF99) is below the inspired inert gas pressure. */
+export function leadingOnGas(s: DiveSession): boolean {
+  const g = s.tissues.gradientPercents(s.pressure);
+  const i = g.indexOf(Math.max(...g));
+  const inspired = (s.pressure - WATER_VAPOUR) * (1 - s.gas.o2);
+  return s.tissues.n2[i] + s.tissues.he[i] < inspired;
 }
 
 /** Time until every compartment is within 0.05 bar of surface equilibrium. */

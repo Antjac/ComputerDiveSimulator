@@ -6,6 +6,8 @@ export const DIVE_END_TIMEOUT = 180; // s spent at the surface before the dive i
 const MAX_DESCENT = 25; // m/min the diver can physically reach
 const MAX_ASCENT = 22; // m/min (deliberately above computer limits so alarms can be triggered)
 const ACCEL = 0.15; // m/s²
+const DEFAULT_ASCENT = 9; // m/min, within every computer's ascent limit
+const DEFAULT_DESCENT = 18; // m/min
 
 export interface ProfileSample {
   t: number; // s since dive start
@@ -58,6 +60,15 @@ export class DiveSession {
   depth = 0;
   targetDepth = 0;
   velocity = 0; // m/s, positive = descending
+  /**
+   * 'target': head for targetDepth at full speed (click in the water). 'rate': hold the vertical
+   * speed chosen with ▲/▼ until it is changed or the surface / bottom is reached.
+   */
+  control: 'target' | 'rate' = 'target';
+  commandRate = 0; // m/min, positive = descending
+  /** Speeds used to reach a target depth: the last ones chosen with ▲/▼ (m/min). */
+  ascentSpeed = DEFAULT_ASCENT;
+  descentSpeed = DEFAULT_DESCENT;
   siteDepth = 40;
   /** Depth of whatever lies under the diver (seabed, wreck…), set by the 3D view; the diver rests on it. */
   seabed = Infinity;
@@ -124,7 +135,21 @@ export class DiveSession {
   }
 
   setTarget(depth: number): void {
+    this.control = 'target';
     this.targetDepth = Math.min(this.siteDepth, Math.max(0, depth));
+  }
+
+  /** Vertical speed command in m/min, positive when descending. */
+  setRate(rate: number): void {
+    this.control = 'rate';
+    this.commandRate = Math.min(MAX_DESCENT, Math.max(-MAX_ASCENT, Math.round(rate)));
+    if (this.commandRate < 0) this.ascentSpeed = -this.commandRate;
+    else if (this.commandRate > 0) this.descentSpeed = this.commandRate;
+  }
+
+  /** Changes the speed command; starts from the current speed when coming from target mode. */
+  nudgeRate(delta: number): void {
+    this.setRate((this.control === 'rate' ? this.commandRate : Math.round(this.velocity * 60)) + delta);
   }
 
   canChangeGas(): boolean {
@@ -135,18 +160,33 @@ export class DiveSession {
   step(dt: number): void {
     const prevDepth = this.depth;
 
-    // Diver kinematics: head toward the target depth with limited speed and acceleration.
+    // Diver kinematics: head toward the target depth (or hold the commanded speed) with limited
+    // speed and acceleration.
     const bottom = Math.min(this.siteDepth, this.seabed);
-    const diff = Math.min(this.targetDepth, bottom) - this.depth;
-    const maxV = diff > 0 ? MAX_DESCENT / 60 : MAX_ASCENT / 60;
     // Braking curve v = sqrt(2·a·d) so the diver stops on the target without overshooting.
-    const desired = Math.sign(diff) * Math.min(maxV, Math.sqrt(2 * ACCEL * 0.8 * Math.abs(diff)), Math.abs(diff) / Math.max(dt, 0.5));
+    const brake = (d: number) => Math.min(Math.sqrt(2 * ACCEL * 0.8 * d), d / Math.max(dt, 0.5));
+    let desired: number;
+    if (this.control === 'rate') {
+      const v = this.commandRate / 60;
+      desired = v > 0 ? Math.min(v, brake(Math.max(0, bottom - this.depth))) : -Math.min(-v, brake(this.depth));
+      // The seabed rose above the diver (3D view): lifted like in target mode.
+      if (this.depth > bottom) desired = Math.min(desired, -Math.min(MAX_ASCENT / 60, brake(this.depth - bottom)));
+    } else {
+      const diff = Math.min(this.targetDepth, bottom) - this.depth;
+      const maxV = (diff > 0 ? this.descentSpeed : this.ascentSpeed) / 60;
+      desired = Math.sign(diff) * Math.min(maxV, brake(Math.abs(diff)));
+    }
     const dv = desired - this.velocity;
     this.velocity += Math.sign(dv) * Math.min(Math.abs(dv), ACCEL * dt);
     // Never sink below the bottom; if it rose above the diver, the kinematics above bring them up.
     this.depth = Math.min(Math.max(bottom, prevDepth), Math.max(0, this.depth + this.velocity * dt));
     if (this.depth === 0 && this.velocity < 0) this.velocity = 0;
     if (this.depth >= bottom && this.velocity > 0) this.velocity = 0;
+    if (this.control === 'rate') {
+      this.targetDepth = this.depth;
+      // Stop the command once the surface or the bottom is reached.
+      if ((this.commandRate < 0 && this.depth <= 0.01) || (this.commandRate > 0 && this.depth >= bottom - 0.01)) this.commandRate = 0;
+    }
 
     const minutes = dt / 60;
     this.tissues.exposeLinear(depthToPressure(prevDepth), depthToPressure(this.depth), this.gas, minutes);
@@ -253,6 +293,10 @@ export class DiveSession {
     this.depth = 0;
     this.targetDepth = 0;
     this.velocity = 0;
+    this.control = 'target';
+    this.commandRate = 0;
+    this.ascentSpeed = DEFAULT_ASCENT;
+    this.descentSpeed = DEFAULT_DESCENT;
     this.inDive = false;
     this.diveNumber = 0;
     this.diveTime = 0;

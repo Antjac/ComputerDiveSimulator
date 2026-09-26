@@ -1,4 +1,4 @@
-import { ceilingDepth, depthToPressure, ndl, planAscent, pressureToDepth, type DecoParams } from '../engine/buhlmann';
+import { WATER_VAPOUR, ceilingDepth, depthToPressure, ndl, planAscent, pressureToDepth, type DecoParams } from '../engine/buhlmann';
 import { DIVE_END_TIMEOUT, type DiveSession } from '../engine/session';
 import type { Lang } from '../i18n';
 import { depthInt, depthText, depthUnit, imperial, pressText, pressUnit, tempUnit, tempVal } from '../units';
@@ -56,6 +56,7 @@ export class MaresQuadCi extends DiveComputer {
     },
     {
       key: 'display',
+      essential: true,
       label: { fr: 'Écran de plongée', en: 'Dive screen' },
       options: [{ value: 'ez', label: 'E-Z' }, { value: 'full', label: 'FULL' }],
       default: 'ez',
@@ -99,8 +100,6 @@ export class MaresQuadCi extends DiveComputer {
   private deepDepth = 0;
   private deepRemaining = 120;
   /** GF @SURF change per minute, and the sample it is computed from. */
-  private gfRate = 0;
-  private gfSample: [number, number] | null = null;
 
   constructor() {
     super();
@@ -166,8 +165,6 @@ export class MaresQuadCi extends DiveComputer {
     this.ezTop = this.ezBottom = null;
     this.deepState = 'none';
     this.deepRemaining = 120;
-    this.gfRate = 0;
-    this.gfSample = null;
     this.appliedDisplay = this.settings.display;
     this.screen = SCREENS.indexOf(this.appliedDisplay === 'full' ? 'full' : 'ez');
   }
@@ -205,14 +202,6 @@ export class MaresQuadCi extends DiveComputer {
       if (this.missedNear > 180 || this.missedFar > 60) this.violation = 'deco';
     } else {
       this.missedNear = this.missedFar = 0;
-    }
-
-    // GF @SURF rate, per minute.
-    const surf = s.tissues.maxGradientPercent(depthToPressure(0));
-    if (!this.gfSample) this.gfSample = [s.diveTime, surf];
-    else if (s.diveTime - this.gfSample[0] >= 60) {
-      this.gfRate = ((surf - this.gfSample[1]) * 60) / (s.diveTime - this.gfSample[0]);
-      this.gfSample = [s.diveTime, surf];
     }
 
     // Deep stop (manual §4.5): depth at which the 5th tissue (27 min) switches from ongassing to
@@ -379,7 +368,8 @@ export class MaresQuadCi extends DiveComputer {
     const ai = v.tank.ai;
     if (v.ascentLevel === 2) {
       a = { text: 'SLOW!', cls: 'red', sub: `SPEED ${Math.round(imperial() ? v.ascentRate * 3.28084 : v.ascentRate)}` };
-    } else if (v.ceilingViolation > 0 && !this.violation) {
+    } else if (v.ceilingViolation === 2 && !this.violation) {
+      // §10.3.4: DECO STOP! once more than 0.3 m above the stop depth.
       a = { text: 'DECO STOP!', cls: 'red', full: true };
     } else if (this.violation === 'deco') {
       a = { text: 'DECO VIOLATION!', cls: 'red' };
@@ -432,7 +422,7 @@ export class MaresQuadCi extends DiveComputer {
       return `<div class="qc-c"><em class="cy">SURFACING</em><b>${mmss(Math.max(0, DIVE_END_TIMEOUT - s.surfaceTimer))}</b></div>`;
     }
     if (v.inDeco && v.stopDepth > 0) {
-      const red = v.ceilingViolation > 0 ? 'red' : '';
+      const red = v.ceilingViolation === 2 ? 'red' : '';
       return `<div class="qc-c sm ${red}"><em>DECO</em><b>${depthInt(v.stopDepth)}<u>${du}</u></b></div>
         <div class="qc-c sm"><em>STOP</em><b>${v.stopTime}:</b></div>
         <div class="qc-c sm r"><em>TTS</em><b>${v.tts}:</b></div>`;
@@ -464,7 +454,7 @@ export class MaresQuadCi extends DiveComputer {
     const du = depthUnit();
     const now = performance.now();
     const surfacing = v.depth < 1.2;
-    const depthRed = v.depth > v.mod || v.ceilingViolation > 0 ? 'red' : '';
+    const depthRed = v.depth > v.mod || v.ceilingViolation === 2 ? 'red' : '';
     const depth = surfacing ? '--.-' : depthText(v.depth);
     const alarmBlock = alarm
       ? `<div class="qc-alarm ${alarm.cls}">${alarm.text}${alarm.sub ? `<small>${alarm.sub} <u>${du}/min</u></small>` : ''}</div>`
@@ -510,6 +500,19 @@ export class MaresQuadCi extends DiveComputer {
       <div class="qc-row mid">${ai ? this.dtime(v, true) : ''}<div class="qc-right">${mid}</div></div>
       ${this.tankBar(v)}
       <div class="qc-row low">${bottomLeft}${bottomRight}</div>`;
+  }
+
+  /**
+   * GF RATE (glossary): how much GF @SURF will rise (yellow digits) or fall (blue digits) over the
+   * next minute at the current depth. One decimal below 10, as in the figures ("77/1.6", "163/1").
+   */
+  private gfRate(v: ComputerView, s: DiveSession): { text: string; cls: string } {
+    const t = s.tissues.clone();
+    t.expose(depthToPressure(v.depth), s.gas, 1);
+    const r = t.maxGradientPercent(depthToPressure(0)) - s.tissues.maxGradientPercent(depthToPressure(0));
+    const a = Math.abs(r);
+    const text = a < 9.95 ? a.toFixed(1).replace(/\.0$/, '') : String(Math.round(a));
+    return { text, cls: text === '0' ? '' : r > 0 ? 'yel' : 'blu' };
   }
 
   private gfAt3(v: ComputerView, s: DiveSession): number {
@@ -562,7 +565,10 @@ export class MaresQuadCi extends DiveComputer {
     switch (fields[this.brField % fields.length]) {
       case 'gf': return f('MAIN GF', `${v.gfLow}/${v.gfHigh}`);
       case 'gfnow': return f('GF NOW/@SURF', `${Math.round(v.gf99)}/${Math.round(v.surfGf)}`);
-      case 'gfrate': return f('GF@SURF/RATE', `${Math.round(v.surfGf)}/${Math.max(0, Math.round(this.gfRate))}`);
+      case 'gfrate': {
+        const r = this.gfRate(v, s);
+        return `<div class="qc-f"><em class="cy">GF@SURF/RATE</em><b class="${r.cls}">${Math.round(v.surfGf)}/${r.text}</b></div>`;
+      }
       case 'o2': return f('O2', String(v.o2), '%');
       case 'cns': return f('CNS', String(Math.round(v.cns)), '%', v.cns > 75 ? 'red' : '');
       case 'ppo2': return f('PPO2', v.ppO2.toFixed(2));
@@ -585,12 +591,17 @@ export class MaresQuadCi extends DiveComputer {
   private graphScreen(screen: Screen, v: ComputerView, s: DiveSession): string {
     const top = this.graphTop(v);
     if (screen === 'tissue') {
-      const g = s.tissues.gradientPercents(s.pressure);
+      // Bars: GF @SURF of each tissue (the highest equals the GF @SURF value below). In the manual's
+      // figures (§11.1.2, §11.3) off-gassing tissues are blue and on-gassing ones yellow.
+      const g = s.tissues.gradientPercents(depthToPressure(0));
+      const inspired = (s.pressure - WATER_VAPOUR) * (1 - s.gas.o2);
       const gfHigh = v.gfHigh;
-      const bars = g.map((x, i) => `<i class="${x > gfHigh ? 'red' : x > 0 ? 'yellow' : 'blue'}" style="height:${Math.max(2, Math.min(100, (Math.max(0, x) / 120) * 100))}%" title="${i + 1}"></i>`).join('');
+      const scale = Math.max(120, ...g);
+      const rate = this.gfRate(v, s);
+      const bars = g.map((x, i) => `<i class="${s.tissues.n2[i] + s.tissues.he[i] < inspired ? 'yellow' : 'blue'}" style="height:${Math.max(2, (Math.max(0, x) / scale) * 100)}%" title="${i + 1}"></i>`).join('');
       const tank = v.tank.ai ? `<div class="qc-f"><em class="cy">G1</em><b>${pressText(v.tank.pressure)}<u>${pressUnit().toUpperCase()}</u></b></div>` : '';
-      return `${top}<div class="qc-tissue">${bars}<b style="bottom:${(gfHigh / 120) * 100}%"></b><em style="bottom:${(gfHigh / 120) * 100}%">${gfHigh}</em></div>
-        <div class="qc-row low sm">${`<div class="qc-f"><em class="cy">DTIME</em><b>${mmss(v.diveTime)}</b></div>`}${tank}<div class="qc-f"><em class="cy">GF@SURF / RATE</em><b>${Math.round(v.surfGf)}/${Math.max(0, Math.round(this.gfRate))}</b></div></div>`;
+      return `${top}<div class="qc-tissue">${bars}<b style="bottom:${(gfHigh / scale) * 100}%"></b><em style="bottom:${(gfHigh / scale) * 100}%">${gfHigh}</em></div>
+        <div class="qc-row low sm">${`<div class="qc-f"><em class="cy">DTIME</em><b>${mmss(v.diveTime)}</b></div>`}${tank}<div class="qc-f"><em class="cy">GF@SURF / RATE</em><b class="${rate.cls}">${Math.round(v.surfGf)}/${rate.text}</b></div></div>`;
     }
     if (screen === 'profile') {
       const pts = [...s.profile.map((p) => [p.t, p.depth] as const), [v.diveTime, v.depth] as const];

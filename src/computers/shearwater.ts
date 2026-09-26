@@ -3,7 +3,7 @@ import type { DiveSession } from '../engine/session';
 import type { Lang } from '../i18n';
 import { remainingTime } from '../engine/gas';
 import { depthInt, depthText, depthUnit, imperial, pressText, pressUnit, tempUnit, tempVal } from '../units';
-import { ButtonHelp, ComputerView, DiveComputer, SettingDef, clockOfDay } from './base';
+import { ButtonHelp, ComputerView, DiveComputer, SettingDef, clockOfDay, leadingOnGas } from './base';
 
 const SCREWS = [[14, 14], [194, 10], [374, 14], [10, 156], [378, 156], [14, 298], [194, 302], [374, 298]]
   .map(([x, y]) => `<i class="pd-screw" style="left:${x - 5}px;top:${y - 5}px"></i>`)
@@ -24,8 +24,8 @@ export class ShearwaterPerdix extends DiveComputer {
   readonly transmitter = 'Swift';
   readonly gasTimeName = 'GTR';
   readonly notes = {
-    fr: 'Mode Nitrox Recreational. Bouton droit (SELECT) : écrans d’info (MOD/MAX/PPO2, GF99/CEIL/TTS, tissus…) ; bouton gauche (MENU) : retour à l’écran principal (le menu de plongée n’est pas simulé). Aucun verrouillage en cas de palier manqué (conforme au manuel).',
-    en: 'Nitrox Recreational mode. Right button (SELECT): info screens (MOD/MAX/PPO2, GF99/CEIL/TTS, tissues…); left button (MENU): back to the main screen (the dive menu is not simulated). No lock-out for missed stops (as per the manual).',
+    fr: 'Mode Nitrox Recreational. Bouton droit (SELECT) : écrans d’info (MOD/MAX/PPO2, GF99/SurGF/CEIL, tissus, DET/Δ+5/@+5…) ; bouton gauche (MENU) : retour à l’écran principal (le menu de plongée n’est pas simulé). Aucun verrouillage en cas de palier manqué (conforme au manuel).',
+    en: 'Nitrox Recreational mode. Right button (SELECT): info screens (MOD/MAX/PPO2, GF99/SurGF/CEIL, tissues, DET/Δ+5/@+5…); left button (MENU): back to the main screen (the dive menu is not simulated). No lock-out for missed stops (as per the manual).',
   };
   readonly settingDefs: SettingDef[] = [
     {
@@ -49,6 +49,7 @@ export class ShearwaterPerdix extends DiveComputer {
     },
     {
       key: 'bottom',
+      essential: true,
       label: { fr: 'Ligne du bas', en: 'Bottom row' },
       options: [
         { value: 't1gtr', label: 'T1 & GTR (AI)' },
@@ -70,7 +71,7 @@ export class ShearwaterPerdix extends DiveComputer {
     this.safetyStop = { trigger: 11, start: 6, top: 2.4, bottom: 7.0, reset: 11 };
     this.stopWindow = 1.5; // §6.2: "at the stop depth or up to 1.5 m deeper"
     this.ceilingMargin = 0;
-    this.screenTimeout = 10_000; // §5: info screens time out after 10 s
+    this.screenTimeout = 10_000; // §4.6: info screens time out after 10 s (except tissues and AI)
     this.init();
   }
 
@@ -120,10 +121,22 @@ export class ShearwaterPerdix extends DiveComputer {
   // Recreational manual §2.2 and §4.6: SELECT steps through the info screens (stepping past the last
   // one returns to the main screen, 10 s time-out); MENU returns to the main screen from an info
   // screen, and opens the menu from the main screen. Single presses only, no long press.
-  press(button: string): boolean {
-    if (button === 'right') this.setScreen((this.screen + 1) % 7);
+  press(button: string, s: DiveSession): boolean {
+    if (button === 'right') this.setScreen((this.screen + 1) % (this.infoScreens(s).length + 1));
     else if (button === 'left') this.setScreen(0);
     return true;
+  }
+
+  /**
+   * Info screens in the order of the Perdix 2 manual (§4.6). Last dive: surface only; AI: with a
+   * transmitter. The compass screen is left out (compass not simulated).
+   */
+  private infoScreens(s: DiveSession): InfoScreen[] {
+    return [
+      ...(!s.inDive && s.log.length ? ['last' as const] : []),
+      ...(this.airIntegrated(s) ? ['ai' as const] : []),
+      'mod', 'temp', 'gf', 'tissues', 'det', 'battery', 'pressure', 'date', 'serial',
+    ];
   }
 
   buttons(): Record<string, ButtonHelp> {
@@ -145,6 +158,11 @@ export class ShearwaterPerdix extends DiveComputer {
 
   render(el: HTMLElement, v: ComputerView, s: DiveSession, _lang: Lang): void {
     if (v.inDive && v.ndl < 5 && !v.inDeco) this.adaptLong = true;
+    const screens = this.infoScreens(s);
+    if (this.screen > screens.length) this.screen = 0; // the list shrank (dive started, AI off)
+    // Tissues and AI screens do not time out (§4.6).
+    const shown = screens[this.screen - 1];
+    if (shown === 'tissues' || shown === 'ai') this.screenChangedAt = performance.now();
     const screen = this.currentScreen();
 
     // --- Basic dive info (left) ---
@@ -171,13 +189,17 @@ export class ShearwaterPerdix extends DiveComputer {
     let stopBody = '';
     const stopState = v.safety.state;
     if (v.inDeco && v.inDive) {
+      // §5.2: red title; yellow with a flashing up-arrow within 5.1 m of the stop; green with a check
+      // mark at the stop (up to 1.5 m deeper); flashing red when shallower than the stop.
       const viol = v.ceilingViolation > 0;
-      const cls = viol ? 'red blink' : v.atStop ? 'green' : 'red';
+      const approach = !viol && !v.atStop && v.depth > v.stopDepth && v.depth <= v.stopDepth + 5.1;
+      const cls = viol ? 'red blink' : v.atStop ? 'green' : approach ? 'yellow' : 'red';
       title = `<div class="pd-title ${cls}">DECO STOP${v.atStop && !viol ? ' ✓' : ''}</div>`;
-      // One line, shrunk when the digits (and the ▼ hint) would not fit the column.
-      const chars = String(depthInt(v.stopDepth)).length + String(v.stopTime).length + (viol ? 2 : 0) + (du === 'ft' ? 1 : 0);
+      // One line, shrunk when the digits (and the ▼ / ▲ hint) would not fit the column.
+      const hint = viol ? '<span class="pd-down">▼</span>' : approach ? '<span class="pd-down yellow blink">▲</span>' : '';
+      const chars = String(depthInt(v.stopDepth)).length + String(v.stopTime).length + (hint ? 2 : 0) + (du === 'ft' ? 1 : 0);
       const size = chars >= 7 ? 'xs' : chars >= 5 ? 'sm' : '';
-      stopBody = `<div class="pd-stop ${size} ${viol ? 'red blink' : ''}">${viol ? '<span class="pd-down">▼</span>' : ''}${depthInt(v.stopDepth)}<small>${du}</small> ${v.stopTime}<small>min</small></div>`;
+      stopBody = `<div class="pd-stop ${size} ${viol ? 'red blink' : ''}">${hint}${depthInt(v.stopDepth)}<small>${du}</small> ${v.stopTime}<small>min</small></div>`;
     } else if (v.inDive && stopState !== 'none') {
       if (stopState === 'done') {
         title = '<div class="pd-title">SAFETY STOP</div>';
@@ -228,7 +250,7 @@ export class ShearwaterPerdix extends DiveComputer {
       }
       bottom = `<div class="pd-gas ${gasCls}">${gasTxt}</div>${right}`;
     } else {
-      bottom = this.infoScreen(screen, v, s);
+      bottom = this.infoScreen(screens[screen - 1], v, s);
     }
 
     el.innerHTML = `
@@ -262,46 +284,73 @@ export class ShearwaterPerdix extends DiveComputer {
   }
 
   /** Info screens (§5), replacing the bottom row. */
-  private infoScreen(i: number, v: ComputerView, s: DiveSession): string {
+  private infoScreen(id: InfoScreen, v: ComputerView, s: DiveSession): string {
     // Long values (e.g. "232/ 177" for @+5 / TTS on a deep dive) get a smaller font to stay in the cell.
     const cell = (lbl: string, val: string, cls = '') => {
       const len = val.replace(/<[^>]*>/g, '').length;
       const size = len > 7 ? 'xs' : len > 5 ? 'sm' : '';
       return `<div class="pd-cell ${cls}"><div class="pd-lbl">${lbl}</div><div class="pd-val ${size}">${val}</div></div>`;
     };
-    switch (i) {
-      case 1:
-        return cell('MOD', `${depthInt(v.mod)}<small class="pd-blue">${depthUnit()}</small>`, v.depth > v.mod ? 'red blink' : '') +
-          cell('MAX', `${depthInt(v.maxDepth)}<small class="pd-blue">${depthUnit()}</small>`) +
+    const u = depthUnit();
+    switch (id) {
+      case 'last': {
+        const d = s.log[s.log.length - 1];
+        const sec = Math.round(d.duration);
+        const hms = `${Math.floor(sec / 3600)}<small class="pd-blue">h</small>${String(Math.floor((sec % 3600) / 60)).padStart(2, '0')}<small class="pd-blue">m</small>${String(sec % 60).padStart(2, '0')}<small class="pd-blue">s</small>`;
+        return cell('LAST DIVE', `<small class="pd-blue">MAX</small>${depthText(d.maxDepth)}<small class="pd-blue">${u}</small>`) +
+          cell(`#${d.number}`, hms, 'r');
+      }
+      case 'ai': {
+        const sac = imperial() ? `${Math.round(v.tank.sacBar * 14.5038)}<small class="pd-blue">psi/m</small>` : `${v.tank.sacBar.toFixed(1)}<small class="pd-blue">bar/m</small>`;
+        return cell(`T1 ${pressUnit()}`, pressText(v.tank.pressure)) + cell('GTR', this.gtrText(v)) + cell('SAC', v.inDive && v.diveTime >= 120 ? sac : '---');
+      }
+      case 'mod':
+        return cell('MOD', `${depthInt(v.mod)}<small class="pd-blue">${u}</small>`, v.depth > v.mod ? 'red blink' : '') +
+          cell('MAX', `${depthInt(v.maxDepth)}<small class="pd-blue">${u}</small>`) +
           cell('PPO2', v.ppO2.toFixed(2).replace(/^0/, ''), v.ppO2 > 1.4 ? 'red blink' : '');
-      case 2:
+      case 'temp':
+        // CNS: yellow above 90 %, red above 150 % (§4.7).
         return cell('TEMP', `${Math.round(tempVal(v.temperature))}<small class="pd-blue">${tempUnit()}</small>`) +
           `<div class="pd-cell"><div class="pd-lbl">CONSERV</div><div class="pd-small c">${({ low: 'Low', med: 'Med', high: 'High' } as Record<string, string>)[this.settings.gf]}<br>${v.gfLow}/${v.gfHigh}</div></div>` +
-          cell('CNS', String(Math.round(v.cns)));
-      case 3: {
+          cell('CNS', `${Math.round(v.cns)}<small class="pd-blue">%</small>`, v.cns > 150 ? 'red' : v.cns > 90 ? 'yellow' : '');
+      case 'gf': {
+        // §4.7: GF99 yellow above GF high, red above 100 %; SurGF takes the colour of GF99. "On Gas"
+        // while the leading tissue is still loading.
+        const gfCls = v.gf99 > 100 ? 'red' : v.gf99 > v.gfHigh ? 'yellow' : '';
+        const gf99 = leadingOnGas(s) ? '<small>On Gas</small>' : `${Math.round(v.gf99)}<small class="pd-blue">%</small>`;
+        return cell('GF99', gf99, gfCls) +
+          cell('SurGF', `${Math.round(v.surfGf)}<small class="pd-blue">%</small>`, gfCls) +
+          cell('CEIL', String(Math.ceil(v.ceiling)));
+      }
+      case 'tissues':
+        return `<div class="pd-tissues"><div class="pd-lbl">TISSUES</div>${tissueBars(s.tissues, s.pressure)}</div>`;
+      case 'det': {
+        // DET: time of day at the surface if leaving now. @+5: TTS after 5 more minutes here; Δ+5 = @+5 − TTS.
         const t = s.tissues.clone();
         t.expose(depthToPressure(v.depth), s.gas, 5);
         const at5 = planAscent(t, v.depth, s.gas, this.decoParams(s), this.anchor).tts;
-        return cell('GF99', `${Math.round(v.gf99)}<small class="pd-blue">%</small>`) +
-          cell('CEIL', String(Math.ceil(v.ceiling))) +
-          cell('@+5 / TTS', `${at5}/ ${v.tts}`);
+        const end = (s.clock + v.tts * 60 + 9 * 3600) % 86400;
+        const det = `${((Math.floor(end / 3600) + 11) % 12) + 1}:${String(Math.floor((end % 3600) / 60)).padStart(2, '0')}`;
+        return cell('DET', det) + cell('Δ+5', String(at5 - v.tts)) + cell('@+5/TTS', `${at5}/ ${v.tts}`);
       }
-      case 4:
-        return `<div class="pd-tissues"><div class="pd-lbl">TISSUES</div>${tissueBars(s.tissues, s.pressure)}</div>`;
-      case 5:
-        if (v.tank.ai) {
-          const sac = imperial() ? `${Math.round(v.tank.sacBar * 14.5038)}<small class="pd-blue">psi/m</small>` : `${v.tank.sacBar.toFixed(1)}<small class="pd-blue">bar/m</small>`;
-          return cell(`T1 ${pressUnit()}`, pressText(v.tank.pressure)) + cell('GTR', this.gtrText(v)) + cell('SAC', v.inDive && v.diveTime >= 120 ? sac : '---');
-        }
+      case 'battery':
+        // Simulated reading (the Perdix 2 runs on one AA cell).
+        return cell('BATTERY', `<small class="pd-blue">1.5V Alka</small> 1.52<small class="pd-blue">V</small>`, 'wide r');
+      case 'pressure':
         return cell('PRESSURE mBar', `<small class="pd-blue">SURF</small>1013 <small class="pd-blue">NOW</small>${Math.round(s.pressure * 1000)}`, 'wide');
-      default: {
+      case 'date': {
         const { h, m } = clockOfDay(s);
         const day = Math.floor((s.clock + 9 * 3600) / 86400) + 1;
-        return cell('DATE', `${String(day).padStart(2, '0')}-Sep-26`) + cell('TIME', `${h}:${String(m).padStart(2, '0')}`, 'r');
+        return cell('DATE', `${String(day).padStart(2, '0')}-Sep-26`) + cell('CLOCK', `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')}`, 'r');
       }
+      default:
+        // Placeholder identifiers: this is a simulation, not a real unit.
+        return cell('SERIAL NO', 'SIMUL') + cell('VERSION', '---', 'r');
     }
   }
 }
+
+type InfoScreen = 'last' | 'ai' | 'mod' | 'temp' | 'gf' | 'tissues' | 'det' | 'battery' | 'pressure' | 'date' | 'serial';
 
 /** Shearwater-style tissue graph: fastest compartment on the left, colour by loading. */
 function tissueBars(t: Tissues, pAmb: number): string {

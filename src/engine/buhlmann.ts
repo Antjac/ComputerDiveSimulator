@@ -186,6 +186,27 @@ export function gfLowAnchor(t: Tissues, p: DecoParams): number {
   return roundUpToStop(Math.max(0, ceil), p.stopStep);
 }
 
+/**
+ * First stop according to GF low (Baker's method): ascend from `depth` at the planning rate, one stop
+ * grid depth at a time, until the next one is not tolerated with GF low. The tissues keep off-gassing
+ * during that ascent, so this is usually shallower than the GF low ceiling at the bottom.
+ * 0 when there is no decompression obligation.
+ */
+export function firstStop(tissues: Tissues, depth: number, gas: Gas, p: DecoParams): number {
+  if (tissues.tolerates(SURFACE_PRESSURE, p.gfHigh)) return 0;
+  const t = tissues.clone();
+  let d = depth;
+  while (d > 0) {
+    const grid = roundUpToStop(d, p.stopStep);
+    let next = Math.max(0, grid >= d - 1e-6 ? grid - p.stopStep : grid);
+    if (next < p.lastStop) next = 0;
+    if (!t.tolerates(depthToPressure(next), p.gfLow)) return roundUpToStop(d, p.stopStep);
+    t.exposeLinear(depthToPressure(d), depthToPressure(next), gas, (d - next) / p.ascentRate);
+    d = next;
+  }
+  return 0;
+}
+
 /** Continuous ceiling depth, using the slope defined by `anchor`. */
 export function ceilingDepth(t: Tissues, anchor: number, p: DecoParams): number {
   if (t.tolerates(SURFACE_PRESSURE, p.gfHigh)) return 0;
@@ -214,15 +235,16 @@ export function ndl(t: Tissues, depth: number, gas: Gas, gfHigh: number, cap = 9
 
 /**
  * Simulates a direct ascent from `depth` with stops. Returns the stops and total time to surface.
- * `anchor` is the GF low anchor already fixed during the dive (0 if none); the deeper of that and
- * the current anchor is used, like most GF implementations. `resolution` is the stop time step in
- * minutes (1 = whole minutes like most computers; smaller for second-level countdowns).
+ * `anchor` is the GF low anchor (first stop) already fixed during the dive (0 if none); the deeper of
+ * that and the first stop from here is used, like most GF implementations. The anchor stays put when
+ * the diver is shallower than it: the GF keeps its interpolated value at each stop. `resolution` is
+ * the stop time step in minutes (1 = whole minutes like most computers; smaller for second-level
+ * countdowns).
  */
 export function planAscent(tissues: Tissues, depth: number, gas: Gas, p: DecoParams, anchor = 0, resolution = 1): DecoPlan {
   const t = tissues.clone();
   const stops: DecoStop[] = [];
-  let a = Math.max(anchor, gfLowAnchor(t, p));
-  if (a > 0 && a > depth) a = roundUpToStop(depth, p.stopStep);
+  const a = Math.max(anchor, firstStop(t, depth, gas, p));
   let d = depth;
   let time = 0;
 
@@ -245,7 +267,7 @@ export function planAscent(tissues: Tissues, depth: number, gas: Gas, p: DecoPar
   let first = roundUpToStop(ceilingDepth(t, a, p), p.stopStep);
   if (first > 0 && first < p.lastStop) first = p.lastStop;
   if (first < d) ascend(first);
-  const firstStop = first;
+  const initialStop = first;
 
   let guard = 0;
   while (d > 0 && guard++ < 5000) {
@@ -263,7 +285,7 @@ export function planAscent(tissues: Tissues, depth: number, gas: Gas, p: DecoPar
     else stops.push({ depth: stopDepth, minutes: resolution });
   }
 
-  return { stops, tts: Math.ceil(time - 1e-6), firstStop: stops.length ? stops[0].depth : firstStop > 0 ? firstStop : 0 };
+  return { stops, tts: Math.ceil(time - 1e-6), firstStop: stops.length ? stops[0].depth : initialStop > 0 ? initialStop : 0 };
 }
 
 /** Time (minutes) until the tissues tolerate a given ambient pressure while resting at the surface. */

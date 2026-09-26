@@ -101,6 +101,7 @@ export class SuuntoD5 extends DiveComputer {
     this.safetyStop = { trigger: 10, start: 6, top: 2.4, bottom: 6, reset: 10 };
     this.ascentAlarmDelay = 5; // "for five seconds or more"
     this.ceilingMargin = 0.6; // safe margin above the ceiling
+    this.violationRef = 'ceiling';
     this.lockAfter = 180;
     this.lockHours = 48;
     this.stopWindow = 3; // deco window: ceiling to ceiling + 3 m
@@ -263,7 +264,10 @@ export class SuuntoD5 extends DiveComputer {
     return this.deepstops.filter((d) => d.state !== 'done').reduce((a, d) => a + d.remaining, 0);
   }
 
-  render(el: HTMLElement, v: ComputerView, _s: DiveSession, _lang: Lang): void {
+  render(el: HTMLElement, view: ComputerView, _s: DiveSession, _lang: Lang): void {
+    // §4.11: above the safe margin "the decompression calculation is paused until you go back down
+    // below this limit".
+    const v = this.withPausedDeco(view);
     this.currentScreen();
     const deep = this.deepstops.find((d) => d.state !== 'done');
     const deepActive = !!deep && v.inDive && deep.state === 'active';
@@ -312,8 +316,9 @@ export class SuuntoD5 extends DiveComputer {
     } else if (v.inDeco) {
       decoTag = true;
       archFrac = 1;
-      // The ceiling value comes from the deepest stop, deepstops included.
-      rightLbl = deepPending && deep ? stopLbl : 'CEILING';
+      // The ceiling value comes from the deepest stop, deepstops included; the field is labelled
+      // "STOP, m" in the manual's decompression display examples (§4.11).
+      rightLbl = stopLbl;
       rightVal = deepPending && deep ? stopDepth(deep.target) : stopDepth(v.ceiling);
       if (v.ceilingViolation === 2) {
         rightCls = 'su-red blink';

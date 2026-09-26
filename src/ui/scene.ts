@@ -204,19 +204,21 @@ export class Scene {
       ctx.setLineDash([]);
     }
 
-    // Target depth marker
+    // Target depth marker (none when the diver is driven by a vertical speed command)
     const yt = this.depthToY(s.targetDepth);
     const cx = w * 0.55;
-    ctx.strokeStyle = 'rgba(255, 230, 120, 0.9)';
-    ctx.setLineDash([8, 5]);
-    ctx.beginPath();
-    ctx.moveTo(cx - 90, yt);
-    ctx.lineTo(cx + 90, yt);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = 'rgba(255, 230, 120, 0.95)';
-    ctx.font = '600 11px Inter, sans-serif';
-    ctx.fillText(`▸ ${depthLabel(s.targetDepth)}`, cx + 94, yt + 4);
+    if (s.control === 'target') {
+      ctx.strokeStyle = 'rgba(255, 230, 120, 0.9)';
+      ctx.setLineDash([8, 5]);
+      ctx.beginPath();
+      ctx.moveTo(cx - 90, yt);
+      ctx.lineTo(cx + 90, yt);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(255, 230, 120, 0.95)';
+      ctx.font = '600 11px Inter, sans-serif';
+      ctx.fillText(`▸ ${depthLabel(s.targetDepth)}`, cx + 94, yt + 4);
+    }
 
     // Bubbles: exhaled every ~4 s of simulated time; they rise at ~15 m/min... faster in real time.
     this.bubbleTimer += simDt;

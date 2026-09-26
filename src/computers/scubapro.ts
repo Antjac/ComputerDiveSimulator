@@ -1,5 +1,5 @@
 import {
-  COMPARTMENTS, DecoParams, ceilingDepth, equilibriumDepth, gfLowAnchor, ndl, planAscent,
+  COMPARTMENTS, DecoParams, SURFACE_PRESSURE, ceilingDepth, equilibriumDepth, firstStop, ndl, planAscent,
 } from '../engine/buhlmann';
 import { remainingTime } from '../engine/gas';
 import type { DiveSession } from '../engine/session';
@@ -65,6 +65,7 @@ export class ScubaproG2 extends DiveComputer {
     },
     {
       key: 'screen',
+      essential: true,
       label: { fr: 'Configuration écran', en: 'Screen configuration' },
       options: [
         { value: 'light', label: 'Light' },
@@ -122,6 +123,19 @@ export class ScubaproG2 extends DiveComputer {
     this.pdisDepth = 0;
     this.pdisRemaining = 120;
     this.screen = 0;
+    this.sosSec = 0;
+  }
+
+  /**
+   * SOS mode (manual §1.6): above 0.8 m for more than 3 minutes without observing a prescribed
+   * decompression stop, the G2 locks for 24 hours (then dives in Gauge mode, no deco information).
+   * The dive closes after 3 minutes at the surface, so an obligation still pending then also locks.
+   */
+  private sosSec = 0;
+
+  onDiveEnd(s: DiveSession): void {
+    super.onDiveEnd(s);
+    if (this.sosSec > 0 && !s.tissues.tolerates(SURFACE_PRESSURE, this.decoParams(s).gfHigh)) this.lock(s);
   }
 
   tick(s: DiveSession, dt: number): void {
@@ -130,9 +144,15 @@ export class ScubaproG2 extends DiveComputer {
       this.activeLevel = Number(this.settings.level);
       return;
     }
+    if (s.depth < 0.8 && !s.tissues.tolerates(SURFACE_PRESSURE, this.decoParams(s).gfHigh)) {
+      this.sosSec += dt;
+      if (this.sosSec > 180) this.lock(s);
+    } else {
+      this.sosSec = 0;
+    }
     if (this.activeLevel > 0) {
       const lp = levelParams(this.activeLevel);
-      this.levelAnchor = Math.max(this.levelAnchor, Math.min(gfLowAnchor(s.tissues, lp), Math.ceil(s.depth / 3) * 3));
+      this.levelAnchor = Math.max(this.levelAnchor, firstStop(s.tissues, s.depth, s.gas, lp));
       const lc = ceilingDepth(s.tissues, this.levelAnchor, lp);
       const deepestStop = lc > 0 ? Math.ceil(lc / 3 - 1e-6) * 3 : 0;
       if (deepestStop > 0 && s.depth < deepestStop - 1.5) {
@@ -277,7 +297,11 @@ export class ScubaproG2 extends DiveComputer {
     let mainVal = `${Math.min(99, this.activeLevel > 0 ? levelNdl : v.ndl)}:`;
     let mainCls = '';
     let tat: string | null = null;
-    if (!v.inDive) {
+    if (v.locked) {
+      // SOS lock: countdown at the surface; dives in Gauge mode, without decompression information.
+      [mainLbl, mainUnit, mainVal] = v.inDive ? ['GAUGE', '', '--'] : ['SOS', 'HR', hmm(Math.max(0, (this.lockedUntil - s.clock) / 60))];
+      mainCls = 'red';
+    } else if (!v.inDive) {
       [mainLbl, mainUnit, mainVal] = ['DESAT', 'HR', v.desat > 0 ? hmm(v.desat) : '--'];
     } else if (v.inDeco) {
       [mainLbl, mainUnit] = ['DECO STOP', ''];

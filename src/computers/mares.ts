@@ -167,7 +167,10 @@ export class MaresPuck extends DiveComputer {
     };
   }
 
-  render(el: HTMLElement, v: ComputerView, s: DiveSession, _lang: Lang): void {
+  render(el: HTMLElement, view: ComputerView, s: DiveSession, _lang: Lang): void {
+    // §3.2.4: while the missed deco stop alarm is on, "desaturation of the simulated tissue
+    // compartments is halted and resumes only when the diver returns to the correct stop depth".
+    const v = this.withPausedDeco(view);
     if (this.screen === 4 && performance.now() - this.screenChangedAt > 4000) this.screen = 0;
     const screen = this.currentScreen();
     const bottomTimer = v.locked; // after a violation: depth gauge and timer only

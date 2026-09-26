@@ -56,7 +56,7 @@ export class CressiGoa extends DiveComputer {
     super();
     // Safety stop after any dive to 10 m or more, 3 minutes between 5 and 3 m.
     this.safetyStop = { trigger: 10, start: 5.1, top: 3, bottom: 5.1, reset: 10 }; // 5 m, as displayed
-    this.ceilingMargin = 0.3;
+    this.ceilingMargin = 0; // "rising above the depth specified by the computer": no margin
     this.lockAfter = null; // ERROR mode handled in tick
     this.lockHours = 48;
     this.stopWindow = 1;
@@ -114,9 +114,9 @@ export class CressiGoa extends DiveComputer {
     const inDeco = ceil > 0;
     if (inDeco) this.hadDeco = true;
 
-    // Omitted stop: 2 minutes to go back down, then ERROR mode for 48 hours.
+    // Omitted stop (rising above the stop depth): 2 minutes to go back down, then ERROR mode for 48 hours.
     const stop = inDeco ? Math.max(p.lastStop, Math.ceil(ceil / p.stopStep - 1e-6) * p.stopStep) : 0;
-    if (inDeco && s.depth < stop - 0.3) {
+    if (inDeco && s.depth < stop - 0.05) {
       this.missedSec += dt;
       if (this.missedSec > 120) this.lock(s);
     } else {
