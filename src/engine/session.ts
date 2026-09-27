@@ -3,7 +3,7 @@ import { OxygenTracker } from './oxygen';
 
 export const DIVE_START_DEPTH = 1.2; // m
 export const DIVE_END_TIMEOUT = 180; // s spent at the surface before the dive is closed
-const MAX_DESCENT = 25; // m/min the diver can physically reach
+const MAX_DESCENT = 35; // m/min the diver can physically reach
 const MAX_ASCENT = 22; // m/min (deliberately above computer limits so alarms can be triggered)
 const ACCEL = 0.15; // m/s²
 const DEFAULT_ASCENT = 9; // m/min, within every computer's ascent limit
