@@ -1,0 +1,15 @@
+/* Depth buttons over the water column (touch screens have no wheel). */
+.scene-ctl { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 8px; }
+.scene-ctl button {
+  width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.35);
+  background: rgba(5, 12, 20, 0.55); color: #fff; font-size: 16px; cursor: pointer;
+}
+.scene-ctl button:active { background: rgba(76, 195, 255, 0.45); }
+.scene-ctl[hidden] { display: none; }
+/* 3D steering: a horizontal pair at the bottom, apart from the vertical speed controls. */
+.scene-ctl.turn { top: auto; right: auto; left: 50%; bottom: 40px; transform: translateX(-50%); flex-direction: row; gap: 14px; }
+
+/* Phones: smaller depth buttons (after their base rules). */
+@media (max-width: 640px), (max-height: 500px) and (orientation: landscape) {
+  .scene-ctl button { width: 40px; height: 40px; }
+}

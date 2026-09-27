@@ -1,0 +1,94 @@
+/* Mares Quad Air: grey face in a black bumper, four corner buttons (ENTER, UP, ESC, DOWN), segmented
+   monochrome LCD with every printed label visible, lit or not (cover and figures of the manual). No
+   brand or model name on the case (manufacturers' rights). */
+.qa-case {
+  position: relative; width: 470px; height: 410px; border-radius: 46px;
+  background: linear-gradient(160deg, #3a3d42, #17181b 55%, #0c0d0f);
+  box-shadow: 0 16px 30px rgba(0,0,0,0.55), inset 0 0 0 2px #4b4f55;
+}
+.qa-case::before {
+  content: ''; position: absolute; inset: 20px 22px; border-radius: 30px;
+  background: linear-gradient(170deg, #d4d7da, #a9aeb2 60%, #8d9297);
+  box-shadow: inset 0 0 0 2px #6d7277;
+}
+.qa-n2lbl { position: absolute; left: 25px; top: 246px; transform: rotate(-90deg); transform-origin: left top; font: 700 9px/1 'Roboto Condensed', sans-serif; color: #1c1f22; letter-spacing: 1px; }
+.qa-scale { position: absolute; left: 36px; top: 76px; height: 244px; width: 9px; display: flex; flex-direction: column; gap: 3px; }
+.qa-scale i { flex: 1; background: #2fa84a; }
+.qa-scale i.r { background: #d9362b; } .qa-scale i.y { background: #e9c629; }
+/* Printed beside the LCD, each caption centred on its row (same heights as .qa-hr), with a dash at
+   each row boundary (cover of the manual). */
+.qa-side { position: absolute; left: 424px; top: 66px; width: 22px; height: 262px; font: 700 11px/1 'Roboto Condensed', sans-serif; letter-spacing: 1px; color: #1c1f22; }
+.qa-side b { position: absolute; left: 0; right: 0; display: flex; align-items: center; justify-content: center; writing-mode: vertical-rl; white-space: nowrap; }
+.qa-side b:nth-child(1) { top: 0; height: 86px; }
+.qa-side b:nth-child(2) { top: 86px; height: 86px; }
+.qa-side b:nth-child(3) { top: 172px; height: 90px; }
+.qa-side b + b::before { content: ''; position: absolute; top: -1px; left: 6px; width: 10px; height: 2px; background: #1c1f22; }
+.qa-btn { position: absolute; width: 74px; height: 24px; border-radius: 12px; background: linear-gradient(#26282c, #0c0d0f); box-shadow: 0 0 0 2px #050506; }
+.qa-btn span { font: 700 10px/24px 'Roboto Condensed', sans-serif; color: #e8eaec; letter-spacing: 1px; pointer-events: none; }
+.qa-btn.tl { left: 8px; top: 30px; transform: rotate(-38deg); }
+.qa-btn.tr { right: 8px; top: 30px; transform: rotate(38deg); }
+.qa-btn.bl { left: 8px; bottom: 30px; transform: rotate(38deg); }
+.qa-btn.br { right: 8px; bottom: 30px; transform: rotate(-38deg); }
+.qa-btn.tl.pressed, .qa-btn.tr.pressed { translate: 0 2px; }
+.qa-btn.bl.pressed, .qa-btn.br.pressed { translate: 0 -2px; }
+.qa-lcd {
+  --qa-ink: #15191a; --qa-ghost: rgba(21, 25, 26, 0.09);
+  position: absolute; left: 52px; top: 66px; width: 368px; height: 262px; overflow: hidden;
+  background: linear-gradient(170deg, #cfd5c9, #b6beb0);
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.35), 0 0 0 2px #5f6468;
+  color: var(--qa-ink); font-family: 'Roboto Condensed', sans-serif; font-style: italic; font-weight: 700; line-height: 1;
+}
+.qa-lcd.backlit { background: linear-gradient(170deg, #d6f4ff, #93d2ea); }
+.qa-lcd > * { position: absolute; }
+.qa-lcd .seg-on { fill: var(--qa-ink); } .qa-lcd .seg-ghost { fill: var(--qa-ghost); }
+.qa-l { color: var(--qa-ghost); white-space: nowrap; padding: 0 2px; }
+.qa-l.on { color: var(--qa-ink); }
+.qa-bar { left: 7px; top: 8px; width: 9px; height: 246px; display: flex; flex-direction: column; gap: 3px; }
+.qa-bar i { flex: 1; background: var(--qa-ghost); }
+.qa-bar i.on { background: var(--qa-ink); }
+/* Top row. */
+.qa-depth { left: 20px; top: 8px; } .qa-d { height: 70px; }
+.qa-h { left: 150px; top: 3px; font-size: 11px; }
+.qa-dft { left: 168px; top: 48px; font-size: 11px; } .qa-dm { left: 169px; top: 64px; font-size: 13px; }
+.qa-tri { left: 170px; top: 12px; display: flex; flex-direction: column; font-size: 12px; font-style: normal; }
+.qa-desat { left: 163px; top: 3px; font-size: 11px; }
+.qa-pf { left: 207px; top: 1px; font-size: 14px; }
+.qa-hg { left: 184px; top: 89px; font-size: 13px; font-style: normal; }
+.qa-mtn { left: 184px; top: 18px; width: 28px; height: 24px; fill: none; stroke: var(--qa-ghost); stroke-width: 2; }
+.qa-batt { left: 180px; top: 54px; width: 24px; height: 11px; border: 2px solid var(--qa-ghost); }
+.qa-plane { left: 222px; top: 48px; font-size: 15px; font-style: normal; }
+.qa-tlbl { left: 249px; top: 3px; font-size: 10px; display: flex; gap: 2px; }
+.qa-asc5t { left: 222px; top: 28px; font-size: 9px; text-align: center; }
+.qa-top { left: 250px; top: 22px; } .qa-t { height: 46px; }
+.qa-th { left: 280px; top: 14px; font-size: 10px; }
+.qa-tc { left: 348px; top: 22px; font-size: 11px; }
+.qa-tm { left: 351px; top: 58px; font-size: 12px; }
+.qa-hr { left: 20px; right: 8px; height: 2px; background: var(--qa-ink); opacity: 0.8; }
+.qa-hr.r1 { top: 86px; } .qa-hr.r2 { top: 172px; }
+/* Middle row. */
+.qa-dtime { left: 20px; top: 91px; font-size: 12px; }
+.qa-si { left: 66px; top: 91px; font-size: 12px; }
+.qa-fast { left: 90px; top: 104px; font-size: 12px; }
+.qa-left { left: 18px; top: 112px; } .qa-m { height: 50px; }
+.qa-spd { left: 90px; top: 138px; font-size: 10px; text-align: center; }
+.qa-sep { left: 108px; top: 94px; width: 2px; height: 74px; background: var(--qa-ink); opacity: 0.8; }
+.qa-mss { left: 152px; top: 91px; font-size: 12px; }
+.qa-stop { left: 114px; top: 112px; }
+.qa-stopu { left: 188px; top: 148px; font-size: 12px; }
+.qa-mlbl { left: 196px; top: 91px; font-size: 12px; display: flex; gap: 3px; }
+.qa-ascm { left: 296px; top: 101px; font-size: 11px; }
+.qa-out { left: 342px; top: 101px; font-size: 9px; }
+.qa-watch { left: 268px; top: 104px; font-size: 10px; font-style: normal; }
+.qa-r1 { left: 196px; top: 112px; }
+.qa-r2 { left: 278px; top: 112px; }
+.qa-msg { left: 112px; top: 112px; width: 246px; text-align: center; font: italic 700 38px/1 'Roboto Condensed', sans-serif; letter-spacing: 3px; }
+/* Bottom row. */
+.qa-blbl { left: 20px; top: 176px; font-size: 11px; display: flex; gap: 4px; }
+.qa-press { left: 18px; top: 192px; } .qa-p { height: 56px; }
+.qa-psi { left: 176px; top: 222px; font-size: 11px; } .qa-barl { left: 176px; top: 238px; font-size: 12px; }
+.qa-bt { left: 182px; top: 190px; font-size: 16px; }
+.qa-rlbl { left: 196px; top: 176px; font-size: 11px; display: flex; gap: 3px; }
+.qa-asc5b { left: 204px; top: 198px; font-size: 9px; text-align: center; }
+.qa-br { left: 224px; top: 192px; } .qa-b { height: 52px; }
+.qa-units { left: 318px; top: 190px; width: 48px; font-size: 9px; line-height: 1.25; text-align: right; }
+.qa-units .qa-l { padding: 0 1px; }

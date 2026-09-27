@@ -1,0 +1,30 @@
+/* Suunto D5: round colour display in a steel bezel. */
+.su { position: relative; padding: 26px 0; }
+.su-strap { position: absolute; left: 50%; transform: translateX(-50%); width: 150px; height: 44px; background: linear-gradient(90deg, #1a1a1a, #2d2d2d, #1a1a1a); }
+.su-strap.top { top: 0; border-radius: 10px 10px 0 0; }
+.su-strap.bottom { bottom: 0; border-radius: 0 0 10px 10px; }
+.su-case {
+  position: relative; width: 336px; height: 336px; border-radius: 50%;
+  background: conic-gradient(from 20deg, #8b9198, #4a4f55, #9aa0a6, #3c4046, #8b9198);
+  box-shadow: 0 16px 30px rgba(0,0,0,0.55), inset 0 0 0 10px #1b1d20;
+  display: grid; place-items: center;
+}
+.su-btn { position: absolute; width: 14px; height: 30px; border-radius: 4px; background: linear-gradient(90deg, #9aa0a6, #d7dbdf); }
+.su-btn.upper { top: 64px; right: 10px; transform: rotate(-38deg); }
+.su-btn.middle { top: 153px; right: -8px; }
+.su-btn.lower { top: 242px; right: 10px; transform: rotate(38deg); }
+.su-screen { width: 300px; height: 300px; border-radius: 50%; }
+.su-t { font-family: 'Barlow Condensed', sans-serif; fill: #fff; }
+.su-lbl { font-size: 12px; fill: #c9c9c9; letter-spacing: 0.4px; font-weight: 500; }
+.su-c { text-anchor: middle; }
+.su-depth { font-size: 62px; font-weight: 500; }
+.su-dec { font-size: 36px; }
+.su-arrows { font-size: 16px; }
+.su-time { font-size: 50px; font-weight: 500; }
+.su-right { font-size: 32px; font-weight: 500; }
+.su-tag { font-size: 11px; font-weight: 700; fill: #000; text-anchor: middle; }
+.su-band { font-size: 34px; font-weight: 600; fill: #000; text-anchor: middle; }
+.su-sec { font-size: 22px; }
+.su-wave { fill: #2fe3ff; font-size: 22px; text-anchor: middle; }
+.su-alert { fill: #000; font-weight: 700; font-size: 16px; text-anchor: middle; }
+.su-red { fill: #ff2d2d; } .su-yellow { fill: #ffe11a; }

@@ -1,0 +1,99 @@
+/* Scubapro G2: 320×240 colour LCD, green windows. */
+/* Three buttons on the upper edge, above their on-screen labels (left, middle, right). */
+.g2-case {
+  position: relative; padding: 34px 26px 28px; border-radius: 30px;
+  background: linear-gradient(160deg, #474b52, #1b1d21 60%);
+  box-shadow: 0 16px 30px rgba(0,0,0,0.55), inset 0 0 0 2px #626870;
+}
+.g2-btn { position: absolute; top: -8px; width: 58px; height: 16px; border-radius: 6px 6px 3px 3px; background: linear-gradient(#d9dde1, #7a8088); box-shadow: inset 0 -2px 0 #5a6068; }
+.g2-btn.l { left: 62px; }
+.g2-btn.m { left: 50%; transform: translateX(-50%); }
+.g2-btn.r { right: 62px; }
+.g2-screen {
+  position: relative; width: 320px; height: 240px; background: #000; overflow: hidden;
+  font-family: 'Roboto Condensed', sans-serif; color: #36e036; line-height: 1;
+}
+.g2-bar {
+  height: 20px; display: flex; justify-content: space-around; align-items: center; margin: 0 16px;
+  font-size: 12px; font-weight: 700; color: #fff; letter-spacing: 0.5px;
+}
+.g2-bar span { border: 1px solid #aaa; border-radius: 3px; padding: 0 10px; background: #111; }
+.g2-bar.yellow { background: #ffd400; color: #000; justify-content: center; }
+.g2-bar.red { background: #ff2a1f; color: #fff; justify-content: center; }
+.g2-side { position: absolute; top: 3px; bottom: 3px; width: 12px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 8px; color: #ccc; }
+.g2-side.l { left: 2px; } .g2-side.r { right: 2px; }
+.g2-side div { flex: 1; width: 5px; background: #1b1b1b; display: flex; align-items: flex-end; }
+.g2-side i { width: 100%; background: #36e036; }
+.g2-side i.red { background: #ff2a1f; }
+.g2-grid { position: absolute; left: 16px; right: 16px; top: 23px; bottom: 3px; display: grid; gap: 3px; }
+.g2-grid.light { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.g2-grid.classic {
+  grid-template-columns: 1.25fr 0.8fr 1fr;
+  grid-template-rows: 1fr 1fr 0.8fr;
+  grid-template-areas: 'depth temp time' 'alt main tat' 'o2 cns mb';
+}
+.g2-grid.full {
+  grid-template-columns: 1fr 0.7fr 1.1fr 0.9fr;
+  grid-template-rows: 0.8fr 0.9fr 0.9fr 1fr 0.9fr;
+  grid-template-areas: 'temp mb sw clock' 'depth depth dtime heart' 'depth depth dtime max' 'main main tat avg' 'o2 cns ppo2 ppo2';
+}
+.f-temp { grid-area: temp; } .f-mb { grid-area: mb; } .f-sw { grid-area: sw; } .f-clock { grid-area: clock; }
+.f-depth { grid-area: depth; } .f-dtime { grid-area: dtime; } .f-heart { grid-area: heart; } .f-max { grid-area: max; }
+.f-main { grid-area: main; } .f-tat { grid-area: tat; } .f-avg { grid-area: avg; }
+.f-o2 { grid-area: o2; } .f-cns { grid-area: cns; } .f-ppo2 { grid-area: ppo2; }
+.g2-grid.full .g2-v { font-size: 20px; }
+.g2-grid.full .f-depth .g2-v { font-size: 44px; }
+.g2-grid.full .f-dtime .g2-v, .g2-grid.full .f-main .g2-v { font-size: 28px; }
+.g2-grid.graphical {
+  grid-template-columns: 1fr 1fr 0.55fr 0.55fr;
+  grid-template-rows: 1fr 1fr 1fr 0.8fr 0.8fr;
+  grid-template-areas: 'graph graph graph temp' 'graph graph graph max' 'graph graph graph tat' 'depth alt clock clock' 'depth alt main dtime';
+}
+.g2-graph { grid-area: graph; border: 2px solid #2bb82b; border-radius: 3px; overflow: hidden; background: #000; }
+.g2-graph svg { width: 100%; height: 100%; display: block; }
+.g-temp { grid-area: temp; } .g-max { grid-area: max; } .g-tat { grid-area: tat; }
+.g-depth { grid-area: depth; } .g-alt { grid-area: alt; } .g-clock { grid-area: clock; } .g-main { grid-area: main; } .g-dtime { grid-area: dtime; }
+.g2-grid.graphical .g2-v { font-size: 18px; }
+.g2-grid.graphical .g2-sub { display: none; }
+.g2-grid.graphical .g-depth .g2-v, .g2-grid.graphical .g-alt .g2-v { font-size: 32px; }
+.g2-grid.graphical .g-main .g2-h, .g2-grid.graphical .g-dtime .g2-h { font-size: 7.5px; letter-spacing: 0; padding: 1px 2px; font-family: "Roboto Condensed", sans-serif; }
+/* Narrow windows: the label alone (the unit would not fit). */
+.g2-grid.graphical .g-main .g2-h span + span, .g2-grid.graphical .g-dtime .g2-h span + span { display: none; }
+.c-depth { grid-area: depth; } .c-temp { grid-area: temp; } .c-time { grid-area: time; }
+.c-alt { grid-area: alt; } .c-main { grid-area: main; } .c-tat { grid-area: tat; }
+.c-o2 { grid-area: o2; } .c-cns { grid-area: cns; } .c-mb { grid-area: mb; }
+.g2-win { border: 2px solid #2bb82b; border-radius: 3px; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.g2-h { display: flex; justify-content: space-between; background: #2bb82b; color: #000; font-size: 10px; font-weight: 700; padding: 1px 4px; letter-spacing: 0.5px; white-space: nowrap; }
+.g2-v { flex: 1; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 30px; gap: 4px; position: relative; white-space: nowrap; }
+.g2-v small { font-size: 0.4em; color: inherit; }
+.g2-win.big .g2-v { font-size: 52px; }
+.g2-win.c-depth .g2-v { font-size: 36px; }
+.g2-win.c-main .g2-v { font-size: 28px; }
+.g2-win.big.g2-long .g2-v { font-size: 34px; }
+.g2-grid.graphical .g-alt.g2-long .g2-v { font-size: 22px; }
+.g2-win.c-alt.g2-long .g2-v { font-size: 22px; }
+.g2-grid.full .f-o2.g2-long .g2-v { font-size: 16px; }
+.g2-win.c-main .g2-gap { margin-left: 8px; }
+/* O2 % under the tank pressure, bottom right; the value is lifted to leave it room. */
+.g2-o2 { position: absolute; right: 4px; bottom: 2px; font-size: 16px; }
+.g2-v:has(.g2-o2) { padding-bottom: 16px; }
+.g2-grid.graphical .g2-o2 { font-size: 12px; }
+.g2-grid.graphical .g2-v:has(.g2-o2) { padding-bottom: 11px; }
+.g2-o2 small { font-size: 9px; margin-left: 2px; }
+.g2-win.yellow { border-color: #ffd400; } .g2-win.yellow .g2-h { background: #ffd400; } .g2-win.yellow .g2-v { color: #ffd400; }
+.g2-win.red { border-color: #ff2a1f; } .g2-win.red .g2-h { background: #ff2a1f; } .g2-win.red .g2-v { color: #ff2a1f; }
+.g2-win.deco { border-color: #ff2a1f; } .g2-win.deco .g2-h { background: #ff2a1f; color: #fff; } .g2-win.deco .g2-v { color: #fff; }
+.g2-win.level { border-color: #ffd400; } .g2-win.level .g2-h { background: #ffd400; } .g2-win.level .g2-v { color: #ffd400; }
+.g2-screen .red { color: #ff2a1f; }
+.g2-gap { margin-left: 14px; }
+.g2-sub { position: absolute; bottom: 1px; font-size: 8px; font-style: normal; letter-spacing: 0.5px; }
+.g2-sub.l { left: 4px; } .g2-sub.r { right: 4px; }
+/* Keep the digits above the MINUTE / METER captions. */
+.g2-v:has(.g2-sub) { padding: 0 4px 9px; }
+.g2-grid.full .f-main .g2-v:has(.g2-sub) { font-size: 22px; }
+.g2-win.c-main .g2-v:has(.g2-sub) { font-size: 24px; }
+.g2-grid.graphical .g-main .g2-v:has(.g2-sub) { font-size: 15px; }
+.g2-grid.graphical .g-main .g2-gap { margin-left: 4px; }
+
+.g2-btn.pressed { translate: 0 3px; }
+.g2-screen.backlit { filter: brightness(1.35) saturate(1.1); }

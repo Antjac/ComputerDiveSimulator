@@ -1,0 +1,173 @@
+/* First-visit notice */
+.modal {
+  width: min(460px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 18px 20px;
+  background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+}
+.modal::backdrop { background: rgba(3, 8, 14, 0.7); }
+.modal h2 { margin: 0 0 10px; font-size: 17px; }
+.modal h3 { margin: 16px 0 6px; font-size: 13px; color: var(--ink); }
+.modal p { margin: 0 0 10px; font-size: 13px; line-height: 1.5; color: var(--ink-2); }
+.modal p.lead { color: var(--ink); font-weight: 600; }
+.modal .btn { display: block; margin: 14px 0 0 auto; }
+.modal table.compare { margin-bottom: 8px; }
+.modal table.compare th { position: static; }
+.about { width: min(620px, calc(100vw - 32px)); }
+.modal-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.modal-actions .btn { margin: 0; }
+/* Guided tour (src/ui/tour.ts): dimmed page with a spotlight gliding to each element, and a bubble. */
+.tour { position: fixed; inset: 0; z-index: 1000; }
+.tour-hole {
+  position: fixed; border-radius: 10px; border: 2px solid var(--accent); pointer-events: none;
+  box-shadow: 0 0 0 200vmax rgba(3, 8, 14, 0.74), 0 0 24px 4px rgba(76, 195, 255, 0.45);
+  transition: left 0.45s cubic-bezier(0.3, 0.9, 0.3, 1), top 0.45s cubic-bezier(0.3, 0.9, 0.3, 1),
+    width 0.45s cubic-bezier(0.3, 0.9, 0.3, 1), height 0.45s cubic-bezier(0.3, 0.9, 0.3, 1);
+  animation: tour-pulse 1.8s ease-in-out infinite;
+}
+.tour-hole.empty { border-color: transparent; animation: none; }
+@keyframes tour-pulse {
+  50% { box-shadow: 0 0 0 200vmax rgba(3, 8, 14, 0.74), 0 0 34px 10px rgba(76, 195, 255, 0.25); }
+}
+.tour-bubble {
+  position: fixed; width: min(360px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto;
+  padding: 16px 18px 14px; background: var(--panel); color: var(--ink);
+  border: 1px solid var(--accent); border-radius: var(--radius); box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+  transition: left 0.45s cubic-bezier(0.3, 0.9, 0.3, 1), top 0.45s cubic-bezier(0.3, 0.9, 0.3, 1);
+}
+.tour-bubble h2 { margin: 0 28px 8px 0; font-size: 16px; }
+.tour-body { font-size: 13px; line-height: 1.5; color: var(--ink-2); }
+.tour-body b { color: var(--ink); }
+.tour-x {
+  position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); cursor: pointer; font-size: 12px;
+}
+.tour-x:hover { border-color: var(--accent); }
+.tour-nav { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+.tour-count { margin-right: auto; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) {
+  .tour-hole, .tour-bubble { transition: none; animation: none; }
+}
+
+/* Rescue alert (main.ts, renderRescue): blue beacon over the water column, simulation stopped.
+   A reflector turns round a vertical axis inside the dome, seen from the side: the beam sweeps
+   horizontally (right, shrinking, left…), a glint crosses the dome, bright in front and faint
+   behind, and the dome glares when the beam faces the viewer — once per turn (1.2 s, well under
+   3 flashes per second). Everything stays still when the system asks for reduced motion. */
+.grid-hint { grid-column: 1 / -1; margin: 0; }
+.scene-panel.emergency { box-shadow: inset 0 0 0 2px #2f7bff, inset 0 0 60px rgba(47, 123, 255, 0.55); animation: rescue-glow 1.2s ease-in-out infinite; }
+@keyframes rescue-glow { 50% { box-shadow: inset 0 0 0 2px #2f7bff, inset 0 0 18px rgba(47, 123, 255, 0.25); } }
+.rescue {
+  position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center; padding: 10px;
+  background: rgba(3, 10, 30, 0.55);
+}
+.rescue[hidden], .rescue-mini[hidden] { display: none; }
+/* The text scrolls if needed, the buttons always stay in view. */
+.rescue-card {
+  width: min(360px, 100%); max-height: 100%; display: flex; flex-direction: column; padding: 14px 16px; text-align: center;
+  background: rgba(10, 20, 36, 0.94); border: 1px solid #2f7bff; border-radius: var(--radius);
+  box-shadow: 0 0 40px rgba(47, 123, 255, 0.45);
+}
+.rescue-stop { margin: 4px 0 2px; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #7fb0ff; }
+.rescue-card h2 { margin: 0 0 8px; font-size: 17px; }
+#rescue-body { min-height: 0; overflow: auto; }
+#rescue-body p { margin: 0 0 8px; font-size: 13px; line-height: 1.45; color: var(--ink-2); }
+#rescue-body p.muted { font-size: 12px; color: var(--muted); }
+.rescue-card .button-row { flex: none; justify-content: center; margin-top: 4px; }
+.rescue-card .beacon { flex: none; transform: scale(1.35); margin: 14px auto 18px; }
+
+.beacon { position: relative; display: block; width: 72px; height: 64px; margin: 0 auto; }
+/* Dome on its base. */
+.beacon::before {
+  content: ''; position: absolute; left: 14px; right: 14px; top: 6px; bottom: 12px; border-radius: 22px 22px 4px 4px;
+  background: radial-gradient(circle at 50% 35%, #d9e8ff 0 10%, #4d8dff 30%, #1745c9 75%);
+  box-shadow: 0 0 22px 6px rgba(60, 130, 255, 0.8);
+}
+.beacon::after { content: ''; position: absolute; left: 8px; right: 8px; bottom: 2px; height: 12px; border-radius: 3px; background: linear-gradient(#5a6068, #25282c); }
+/* Keyframes every 45° of the turn (θ = 0: beam facing the viewer); sin θ gives the horizontal
+   position, cos θ how much it faces the viewer. */
+.beacon .beam {
+  position: absolute; left: 50%; top: 27px; width: 170px; height: 30px; margin-top: -15px; z-index: 1; pointer-events: none;
+  transform-origin: 0 50%; mix-blend-mode: screen; filter: blur(1.5px);
+  background: linear-gradient(90deg, rgba(190, 220, 255, 0.95), rgba(90, 150, 255, 0.45) 45%, rgba(90, 150, 255, 0));
+  clip-path: polygon(0 42%, 100% 0, 100% 100%, 0 58%);
+  animation: beacon-beam 1.2s linear infinite;
+}
+@keyframes beacon-beam {
+  0% { transform: scaleX(0); opacity: 1; }
+  12.5% { transform: scaleX(0.71); opacity: 0.93; }
+  25% { transform: scaleX(1); opacity: 0.75; }
+  37.5% { transform: scaleX(0.71); opacity: 0.57; }
+  50% { transform: scaleX(0); opacity: 0.5; }
+  62.5% { transform: scaleX(-0.71); opacity: 0.57; }
+  75% { transform: scaleX(-1); opacity: 0.75; }
+  87.5% { transform: scaleX(-0.71); opacity: 0.93; }
+  100% { transform: scaleX(0); opacity: 1; }
+}
+.beacon .glint {
+  position: absolute; left: 50%; top: 21px; width: 18px; height: 18px; margin: -9px 0 0 -9px; z-index: 2; border-radius: 50%;
+  background: radial-gradient(circle, #fff 0 25%, rgba(200, 225, 255, 0.7) 45%, rgba(120, 170, 255, 0) 70%);
+  animation: beacon-glint 1.2s linear infinite;
+}
+@keyframes beacon-glint {
+  0% { transform: translateX(0) scale(1.5); opacity: 1; }
+  12.5% { transform: translateX(10px) scale(1.2); opacity: 0.85; }
+  25% { transform: translateX(14px) scale(0.9); opacity: 0.5; }
+  37.5% { transform: translateX(10px) scale(0.7); opacity: 0.2; }
+  50% { transform: translateX(0) scale(0.6); opacity: 0.1; }
+  62.5% { transform: translateX(-10px) scale(0.7); opacity: 0.2; }
+  75% { transform: translateX(-14px) scale(0.9); opacity: 0.5; }
+  87.5% { transform: translateX(-10px) scale(1.2); opacity: 0.85; }
+  100% { transform: translateX(0) scale(1.5); opacity: 1; }
+}
+.beacon::before { animation: beacon-glare 1.2s linear infinite; }
+@keyframes beacon-glare {
+  0%, 100% { box-shadow: 0 0 34px 14px rgba(130, 180, 255, 0.95); filter: brightness(1.35); }
+  25%, 75% { box-shadow: 0 0 20px 6px rgba(60, 130, 255, 0.7); filter: brightness(1); }
+  50% { box-shadow: 0 0 12px 3px rgba(60, 130, 255, 0.45); filter: brightness(0.8); }
+}
+.rescue-mini {
+  position: absolute; z-index: 3; left: 50%; top: 44px; transform: translateX(-50%); padding: 4px 10px 0; cursor: pointer;
+  background: rgba(10, 20, 36, 0.85); border: 1px solid #2f7bff; border-radius: 10px; isolation: isolate;
+}
+.rescue-mini .beacon { transform: scale(0.6); margin: -12px -14px -10px; }
+@media (prefers-reduced-motion: reduce) {
+  .beacon .beam, .beacon .glint, .beacon::before, .scene-panel.emergency { animation: none; }
+  .beacon .beam { transform: scaleX(0.6); }
+}
+@media (max-width: 640px), (max-height: 500px) and (orientation: landscape) {
+  .rescue { padding: 6px; }
+  .rescue-card { padding: 8px 12px; }
+  .rescue-card .beacon { transform: scale(0.7); margin: -8px auto -10px; }
+  .rescue-card h2 { font-size: 15px; margin-bottom: 4px; }
+  #rescue-body p { font-size: 12px; margin-bottom: 5px; }
+}
+
+/* Boat offering a full tank (main.ts, placeBoatBubble): comic speech bubble pointing at the boat
+   (--tail: tail position from the left edge; .above: bubble above the boat, tail at the bottom). */
+.boat-offer {
+  position: absolute; z-index: 4; width: min(250px, calc(100% - 16px));
+  padding: 10px 12px; background: #fffdf5; color: #1d2630; border: 2px solid #1d2630; border-radius: 16px;
+  box-shadow: 3px 4px 0 rgba(0, 0, 0, 0.35); font-size: 13px; line-height: 1.4;
+}
+.boat-offer[hidden] { display: none; }
+.boat-offer::before, .boat-offer::after {
+  content: ''; position: absolute; left: var(--tail, 30px); border: solid transparent; transform: translateX(-50%);
+}
+.boat-offer::before { bottom: 100%; border-width: 0 9px 13px; border-bottom-color: #1d2630; }
+.boat-offer::after { bottom: calc(100% - 3px); border-width: 0 7px 11px; border-bottom-color: #fffdf5; }
+.boat-offer.above::before { top: 100%; bottom: auto; border-width: 13px 9px 0; border-color: #1d2630 transparent transparent; }
+.boat-offer.above::after { top: calc(100% - 3px); bottom: auto; border-width: 11px 7px 0; border-color: #fffdf5 transparent transparent; }
+.boat-offer p { margin: 0; font-weight: 600; }
+.boat-offer .boat-note { margin-top: 4px; font-weight: 400; font-size: 12px; color: #4a5663; }
+.boat-offer .boat-note[hidden], .boat-btns[hidden] { display: none; }
+.boat-btns { display: flex; gap: 8px; margin-top: 8px; }
+.boat-btns .btn { flex: 1; color: #1d2630; background: #fff; border: 2px solid #1d2630; font-weight: 700; }
+.boat-btns .btn.primary { background: #1d2630; color: #fffdf5; }
+.boat-btns .btn:hover { border-color: #1f6fa8; }
+.boat-offer.no-tail::before, .boat-offer.no-tail::after { display: none; }
+@media (max-width: 640px), (max-height: 500px) and (orientation: landscape) {
+  .boat-offer { padding: 7px 10px; font-size: 12px; }
+  .boat-offer .boat-note { font-size: 11px; margin-top: 2px; }
+  .boat-btns { margin-top: 6px; }
+  .boat-btns .btn { min-height: 32px; padding: 4px 8px; }
+}

@@ -1,0 +1,41 @@
+/* ---------------------------------------------------------------------- */
+/* Device screens — shared */
+.dev { user-select: none; font-variant-numeric: tabular-nums; flex: none; }
+.dev button { border: 0; padding: 0; cursor: pointer; }
+.dev button:active { filter: brightness(1.5); }
+.blink { animation: blink 1s steps(2, start) infinite; }
+@keyframes blink { to { visibility: hidden; } }
+
+/* Pressure gauge beside the computer. */
+.spg { position: absolute; left: 10px; top: 10px; width: 112px; text-align: center; z-index: 1; pointer-events: none; }
+.spg[hidden] { display: none; }
+.spg svg { width: 100%; display: block; filter: drop-shadow(0 6px 10px rgba(0,0,0,0.5)); }
+.spg-lbl { font-size: 11px; color: var(--muted); }
+
+/* Larger hit areas for the device buttons (fingers). */
+.dev button::after { content: ''; position: absolute; inset: -14px; }
+@media (pointer: coarse) {
+  select, .btn, .seg-toggle button, .tabs button { min-height: 40px; }
+  .dev button::after { inset: -22px; }
+}
+
+/* Device buttons: pressed look, inactive buttons, tooltip. */
+.dev button[data-btn] { cursor: pointer; transition: filter 0.08s; }
+.dev button[data-btn].pressed { filter: brightness(0.6); scale: 0.9; }
+.dev button[data-btn].inactive { cursor: not-allowed; opacity: 0.55; }
+.btn-tip {
+  position: absolute; z-index: 5; max-width: min(320px, calc(100% - 12px)); pointer-events: none;
+  background: rgba(5, 12, 20, 0.95); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px;
+  font-size: 12px; line-height: 1.4; color: var(--ink); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+.btn-tip[hidden] { display: none; }
+.btn-tip .tip-name { font-weight: 700; margin-bottom: 3px; }
+.btn-tip em { color: var(--muted); font-style: normal; }
+.btn-tip .tip-off { color: var(--muted); }
+.btn-tip .tip-tag { color: var(--warn); font-weight: 600; }
+
+/* Phones: smaller pressure gauge (after its base rules). */
+@media (max-width: 640px), (max-height: 500px) and (orientation: landscape) {
+  .spg { width: 54px; left: 4px; top: 4px; }
+  .spg-lbl { display: none; }
+}

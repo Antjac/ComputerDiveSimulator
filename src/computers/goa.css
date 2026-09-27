@@ -1,0 +1,66 @@
+/* Cressi Goa: round watch, monochrome segmented LCD, two buttons on the right. Every item sits at a
+   fixed place on the LCD, as in the manual's figures. */
+.cg-case {
+  position: relative; width: 330px; height: 330px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 30%, #33363b, #0e0f11 70%);
+  box-shadow: 0 16px 30px rgba(0,0,0,0.55), inset 0 0 0 10px #1b1c1f, inset 0 0 0 13px #5d6268;
+  display: grid; place-items: center;
+}
+.cg-btn { position: absolute; width: 16px; height: 34px; border-radius: 5px; background: linear-gradient(90deg, #6b7178, #d5d9dd); }
+.cg-btn.up { right: 22px; top: 60px; transform: rotate(-35deg); }
+.cg-btn.down { right: 22px; bottom: 60px; transform: rotate(35deg); }
+.cg-btn.up.pressed { translate: -2px 2px; } .cg-btn.down.pressed { translate: -2px -2px; }
+.cg-lcd {
+  position: relative; width: 256px; height: 256px; border-radius: 50%; overflow: hidden;
+  background: radial-gradient(circle at 45% 35%, #d7ddd6, #aab3aa);
+  box-shadow: inset 0 3px 12px rgba(0,0,0,0.45);
+  color: #151a15; font-family: 'Roboto Condensed', sans-serif; font-weight: 700;
+}
+.cg-lcd.backlit { background: radial-gradient(circle at 45% 35%, #d8fff4, #86dcc6); box-shadow: inset 0 3px 12px rgba(0,0,0,0.3), 0 0 18px rgba(120, 240, 210, 0.5); }
+.cg-lcd .seg-on { fill: #151a15; } .cg-lcd .seg-ghost { fill: rgba(21, 26, 21, 0.07); }
+.cg-at { position: absolute; line-height: 1; white-space: nowrap; }
+.cg-seg { height: 26px; }
+.cg-u { font-style: normal; font-size: 9px; margin: 0 2px; align-self: flex-end; }
+/* Top row: MAX | DIVE.T fields. */
+.cg-lbl-tl, .cg-lbl-tr { top: 26px; font-size: 9px; letter-spacing: 0.3px; }
+.cg-lbl-tl { right: 132px; } .cg-lbl-tr { left: 132px; }
+.cg-tl, .cg-tr { top: 37px; display: flex; align-items: flex-end; }
+.cg-tl { right: 134px; } .cg-tr { left: 134px; }
+.cg-sep { left: 126px; top: 26px; width: 2px; height: 44px; background: #151a15; }
+.cg-stop { left: 20px; top: 42px; width: 20px; height: 20px; }
+.cg-stop svg { width: 100%; height: 100%; }
+.cg-cns { left: 140px; top: 72px; display: flex; align-items: flex-end; gap: 2px; font-size: 9px; }
+.cg-cns b { margin-right: 3px; }
+.cg-cns i { width: 7px; background: rgba(21, 26, 21, 0.1); transform: skewX(-20deg); }
+.cg-cns i.on { background: #151a15; }
+.cg-deep { left: 56px; top: 75px; font-size: 8px; letter-spacing: 0.5px; }
+/* Two lines with the DEPTH / NO DECO captions. */
+.cg-lines { left: 24px; right: 24px; top: 86px; height: 2px; background: linear-gradient(to right, #151a15 0 45%, transparent 45% 50%, #151a15 50%); }
+.cg-lbl-depth, .cg-lbl-ndl { top: 91px; font-size: 9px; display: flex; justify-content: space-between; width: 88px; }
+.cg-lbl-depth { left: 34px; } .cg-lbl-ndl { left: 134px; }
+.cg-lbl-ndl .off { visibility: hidden; }
+/* Big figures and the ascent rate dots between them. */
+.cg-depth, .cg-ndl { top: 104px; }
+.cg-depth { right: 134px; } .cg-ndl { left: 140px; }
+.cg-depth .seg, .cg-ndl .seg { height: 54px; }
+.cg-dots { left: 124px; top: 104px; height: 54px; width: 12px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; }
+.cg-dots i { width: 9px; height: 9px; border-radius: 50%; background: #151a15; }
+.cg-excl { font-size: 11px; line-height: 1; }
+.cg-slow { left: 112px; top: 162px; font-size: 9px; }
+.cg-arrow { left: 18px; font-size: 13px; }
+.cg-arrow.up { top: 110px; } .cg-arrow.down { top: 138px; }
+.cg-nitrox { left: 212px; top: 146px; font-size: 8px; }
+.cg-sf { left: 98px; top: 162px; font-size: 9px; }
+.cg-po2 { left: 28px; top: 158px; font-size: 10px; border: 1.5px solid #151a15; padding: 0 2px; }
+.cg-pen { left: 80px; top: 160px; font-size: 11px; }
+.cg-total { left: 162px; top: 162px; font-size: 8px; }
+/* Bottom row. */
+.cg-temp { left: 150px; top: 174px; display: flex; align-items: flex-start; }
+.cg-temp .seg, .cg-dec .seg { height: 30px; }
+.cg-dec { left: 62px; top: 174px; }
+.cg-bottom { left: 40px; right: 40px; top: 172px; display: flex; justify-content: center; }
+.cg-bottom .seg { height: 32px; }
+.cg-btag { left: 0; right: 0; top: 208px; text-align: center; font-size: 9px; }
+.cg-clock { left: 0; right: 0; top: 96px; display: flex; justify-content: center; }
+.cg-clock .seg { height: 62px; }
+.cg-wd { font-size: 26px; font-style: italic; font-weight: 400; }

@@ -1,0 +1,127 @@
+/* Mares Quad Ci: rectangular case, four buttons on the top and bottom edges, 400×240 8-colour MIP
+   screen as in the manual's figures: black background, white figures, coloured blocks (tank
+   pressure range, alarms), magenta N2 divider, tank pressure graph in FULL. */
+.qc-case {
+  position: relative; width: 440px; height: 300px; border-radius: 46px;
+  background: linear-gradient(160deg, #3a3f46, #16181b 60%, #0c0d0f);
+  box-shadow: 0 16px 30px rgba(0,0,0,0.55), inset 0 0 0 3px #50565e, inset 0 0 0 9px #111;
+  display: grid; place-items: center;
+}
+.qc-btn { position: absolute; width: 50px; height: 16px; border-radius: 6px; background: linear-gradient(#2a2d31, #8a9199, #2a2d31); }
+.qc-btn.tl { top: -8px; left: 44px; } .qc-btn.tr { top: -8px; right: 44px; }
+.qc-btn.bl { bottom: -8px; left: 44px; } .qc-btn.br { bottom: -8px; right: 44px; }
+.qc-btn.tl.pressed, .qc-btn.tr.pressed { translate: 0 3px; }
+.qc-btn.bl.pressed, .qc-btn.br.pressed { translate: 0 -3px; }
+.qc-screen {
+  --qc-cyan: #3fc6f5; --qc-mag: #e03ae0; --qc-green: #2fd35a; --qc-yellow: #ffe600; --qc-red: #f02a1e; --qc-blue: #1c3cff;
+  position: relative; width: 360px; height: 216px; overflow: hidden; background: #000; color: #fff;
+  display: flex; flex-direction: column; box-sizing: border-box;
+  font-family: 'Barlow Condensed', 'Roboto Condensed', sans-serif; font-weight: 600; line-height: 0.95;
+  box-shadow: 0 0 0 4px #05070c;
+}
+.qc-screen.backlit { filter: brightness(1.25); }
+.qc-screen u { text-decoration: none; font-size: 0.32em; font-weight: 500; margin-left: 2px; }
+.qc-screen em { font-style: normal; font-size: 12px; font-weight: 600; letter-spacing: 0.3px; display: block; }
+.qc-screen em.cy { color: var(--qc-cyan); }
+.qc-row { display: flex; align-items: stretch; flex: 1; min-height: 0; }
+.qc-row.center { justify-content: center; }
+.qc-row > * { min-width: 0; }
+/* Big depth, top left. */
+.qc-depth { flex: 1; font-size: 76px; font-weight: 700; padding: 2px 6px; white-space: nowrap; display: flex; align-items: flex-end; position: relative; }
+.qc-depth em { position: absolute; top: 4px; left: 8px; }
+.qc-row.center .qc-depth { flex: none; }
+.qc-depth.red { color: var(--qc-red); }
+/* Tank pressure block, coloured by pressure range. */
+.qc-tank { flex: 0 0 40%; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; padding: 4px 8px; }
+.qc-tank b { font-size: 50px; font-weight: 700; }
+.qc-tank u { font-size: 13px; }
+.qc-tank.blue { background: var(--qc-blue); } .qc-tank.green { background: var(--qc-green); }
+.qc-tank.yellow { background: var(--qc-yellow); color: #000; } .qc-tank.red { background: var(--qc-red); }
+/* Dividers: N2 bar graph (magenta), ascent speed graph, tank pressure graph. */
+.qc-bar { position: relative; height: 5px; flex: none; background: #1a1a1a; }
+.qc-bar i { position: absolute; left: 0; top: 0; bottom: 0; }
+.qc-bar.n2 { background: var(--qc-mag); }
+.qc-bar.n2 i { left: auto; right: 0; background: var(--qc-green); width: 12% !important; }
+.qc-bar.n2 em { position: absolute; right: 2px; top: 5px; font-size: 7px; }
+.qc-bar.speed.green i { background: var(--qc-green); } .qc-bar.speed.yellow i { background: var(--qc-yellow); } .qc-bar.speed.red i { background: var(--qc-red); }
+.qc-bar.tank i { background: var(--qc-green); }
+.qc-bar.tank.blue i { background: var(--qc-blue); } .qc-bar.tank.yellow i { background: var(--qc-yellow); } .qc-bar.tank.red i { background: var(--qc-red); }
+.qc-batt { position: absolute; right: 2px; top: -2px; width: 16px; height: 8px; border: 1.5px solid #fff; border-radius: 1px; box-sizing: border-box; background: linear-gradient(to right, #fff 70%, transparent 70%); }
+.qc-bar.green { background: var(--qc-green); } .qc-bar.cyan { background: var(--qc-cyan); }
+/* Cells: label above a big value. */
+.qc-c { flex: 1; padding: 3px 6px; display: flex; flex-direction: column; justify-content: flex-start; gap: 4px; white-space: nowrap; }
+.qc-c b { font-size: 84px; font-weight: 700; }
+.qc-c em { display: flex; justify-content: space-between; }
+.qc-c.r { text-align: right; align-items: flex-end; }
+.qc-c.r > em { align-self: stretch; }
+.qc-c.red b { color: var(--qc-red); }
+.qc-sec { font-size: 15px; }
+.qc-right { flex: 1; display: flex; border-left: 2px solid #333; }
+.qc-c.sm b { font-size: 40px; }
+.qc-c.sm em { font-size: 12px; }
+/* FULL: dive time with small seconds, "NO / DECO" label. */
+.qc-c.dt { flex-direction: row; align-items: flex-end; justify-content: flex-start; }
+.qc-c.dt b { font-size: 56px; }
+.qc-c.dt .qc-sec { display: flex; flex-direction: column; justify-content: space-between; align-self: stretch; font-size: 16px; margin-left: 2px; }
+.qc-c.dt .qc-sec em { font-size: 11px; }
+.qc-c.nd { flex-direction: row; justify-content: space-between; align-items: flex-end; }
+.qc-c.nd em { font-size: 12px; line-height: 1.1; align-self: flex-start; }
+.qc-c.nd b { font-size: 56px; }
+/* Fields with a cyan label (FULL corners, graphic screens). */
+.qc-f { flex: 1; padding: 3px 8px; text-align: right; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; white-space: nowrap; }
+.qc-f b { font-size: 40px; font-weight: 700; }
+.qc-f.red { background: var(--qc-red); }
+/* GF RATE digits: yellow while GF @SURF rises, blue while it falls. */
+.qc-f b.yel { color: var(--qc-yellow); } .qc-f b.blu { color: #4d7bff; }
+.qc-f.red em { color: #fff; }
+/* Alarm / warning block, bottom right. */
+.qc-alarm { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-size: 26px; font-weight: 700; padding: 2px 6px; line-height: 1.05; }
+.qc-alarm small { font-size: 36px; margin-top: 2px; }
+.qc-alarm small u { font-size: 12px; }
+.qc-alarm.sm { font-size: 13px; }
+.qc-alarm.red { background: var(--qc-red); } .qc-alarm.yellow { background: var(--qc-yellow); color: #000; }
+/* Row heights per screen. */
+.qc-dive .qc-row.top { flex: 0 0 96px; }
+.qc-dive .qc-row.bot { flex: 1; }
+.qc-dive .qc-row.mid { flex: 0 0 64px; }
+.qc-dive .qc-row.low { flex: 1; }
+.qc-dive .qc-row.mid ~ .qc-row.low .qc-c b { font-size: 44px; }
+.qc-dive .qc-row.top:has(~ .qc-row.mid) { flex: 0 0 72px; }
+.qc-dive .qc-row.top:has(~ .qc-row.mid) .qc-depth { font-size: 62px; }
+.qc-row.top.sm { flex: 0 0 60px !important; }
+.qc-row.top.sm .qc-depth { font-size: 52px; }
+.qc-row.top.sm .qc-f b { font-size: 34px; }
+.qc-row.low.sm .qc-f b, .qc-row.low.sm .qc-c b { font-size: 26px; }
+.qc-row.mid.sm .qc-c b { font-size: 34px; }
+/* Graphic screens. */
+.qc-tissue { position: relative; flex: 1; display: flex; align-items: flex-end; gap: 3px; padding: 4px 34px 4px 8px; border-bottom: 1px solid #333; }
+.qc-tissue i { flex: 1; }
+.qc-tissue i.blue { background: #2244ff; } .qc-tissue i.yellow { background: var(--qc-yellow); } .qc-tissue i.red { background: var(--qc-red); }
+.qc-tissue b { position: absolute; left: 8px; right: 30px; height: 2px; background: var(--qc-yellow); }
+.qc-tissue em { position: absolute; right: 4px; font-size: 16px; transform: translateY(50%); color: var(--qc-yellow); }
+.qc-prof { flex: 1; width: 100%; }
+.qc-prof polyline { fill: none; stroke: var(--qc-cyan); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.qc-stops { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 4px 30px; }
+.qc-stops div { display: flex; justify-content: space-between; font-size: 1em; font-weight: 700; }
+/* Surface displays. */
+.qc-surf .qc-row.pd { flex: 0 0 50px; }
+.qc-surf .qc-row.pd .qc-f b { font-size: 30px; }
+.qc-surf .qc-row.mid { flex: 1; }
+.qc-surf .qc-row.mid .qc-c { align-items: flex-start; }
+.qc-surf .qc-row.mid .qc-c b { font-size: 70px; }
+.qc-surf .qc-row.mid .qc-c b.huge { font-size: 86px; }
+.qc-surf .qc-row.mid .qc-f b { font-size: 26px; }
+.qc-surf .qc-f.mode b { font-size: 24px; color: var(--qc-green); }
+.qc-surf .qc-f.mode b b { font-size: 44px; }
+.qc-surf .qc-row.low { flex: 0 0 52px; }
+.qc-surf .qc-row.top.sm { flex: 0 0 62px !important; }
+.qc-surf .qc-row.mid.sm { flex: 1; }
+.qc-surf .qc-row.mid.sm .qc-c b { font-size: 54px; }
+/* Bottom timer (manual §14): AVG | TEMP side by side, centred captions, DTIME centred below. */
+.qc-bt .qc-row.mid .qc-c, .qc-bt .qc-row.low .qc-c { align-items: center; }
+.qc-bt .qc-c em { justify-content: center; }
+.qc-bt .qc-row.mid .qc-c b, .qc-bt .qc-row.low .qc-c b { font-size: 44px; }
+.qc-bt .qc-row.mid .qc-c + .qc-c { border-left: 2px solid var(--qc-cyan); }
+.qc-dive.qc-bt .qc-row.top.center { flex: 0 0 56px; }
+.qc-dive.qc-bt .qc-row.top.center .qc-depth { font-size: 50px; }
+.qc-msg { flex: none; background: var(--qc-red); color: #fff; text-align: center; font-size: 14px; font-weight: 700; padding: 3px 0; }

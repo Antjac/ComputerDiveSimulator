@@ -1,0 +1,35 @@
+/* Garmin Descent Mk3: round AMOLED watch. */
+.gm-case {
+  position: relative; width: 340px; height: 340px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #5a6068, #202328 62%, #111);
+  box-shadow: 0 16px 30px rgba(0,0,0,0.55), inset 0 0 0 3px #6b7178;
+  display: grid; place-items: center;
+}
+.gm-btn { position: absolute; width: 14px; height: 32px; border-radius: 4px; background: linear-gradient(90deg, #555a60, #a8adb3); }
+.gm-btn.light { left: 8px; top: 62px; transform: rotate(-38deg); }
+.gm-btn.up { left: -8px; top: 154px; }
+.gm-btn.down { left: 8px; top: 246px; transform: rotate(38deg); }
+.gm-btn.start { right: 8px; top: 62px; transform: rotate(38deg); background: linear-gradient(90deg, #a8adb3, #c0392b); }
+.gm-btn.back { right: 8px; top: 246px; transform: rotate(-38deg); }
+.gm-bezel { width: 312px; height: 312px; border-radius: 50%; background: #0b0c0e; display: grid; place-items: center; box-shadow: inset 0 0 0 6px #2a2d31; }
+.gm-screen { width: 292px; height: 292px; border-radius: 50%; }
+.gm-t { font-family: Roboto, sans-serif; fill: #fff; text-anchor: middle; }
+.gm-lbl { font-size: 14px; font-weight: 700; }
+.gm-val { font-size: 46px; font-weight: 700; }
+.gm-mid { font-size: 32px; font-weight: 700; }
+.gm-top { font-size: 27px; font-weight: 500; }
+.gm-unit { font-size: 20px; font-weight: 700; }
+.gm-unit2 { font-size: 24px; font-weight: 700; }
+.gm-bignum { font-size: 70px; font-weight: 700; letter-spacing: -2px; }
+.gm-bigdec { font-size: 40px; }
+.gm-bignum2 { font-size: 54px; font-weight: 700; letter-spacing: -1px; }
+.gm-bignum3 { font-size: 42px; font-weight: 700; letter-spacing: -1px; }
+.gm-t.gm-end { text-anchor: end; } .gm-t.gm-start { text-anchor: start; }
+.gm-sup { font-size: 24px; }
+.gm-vert { font-size: 17px; font-weight: 700; }
+.gm-pill { font-size: 22px; font-weight: 700; }
+.gm-small { font-size: 13px; fill: #aaa; }
+.gm-alert { font-size: 18px; font-weight: 700; }
+.gm-n2 { font-size: 13px; font-weight: 700; }
+.gm-wave { fill: #0a84ff; font-size: 22px; font-weight: 700; }
+.gm-red { fill: #ff3b30; } .gm-yellow { fill: #ffcc00; } .gm-blue { fill: #0a84ff; }

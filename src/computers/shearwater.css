@@ -1,0 +1,68 @@
+/* Shearwater Perdix 2: 320×240 LCD, four areas separated by blue lines. */
+/* Black case held by eight screws; piezo buttons on the sides (manual, figure 6):
+   MENU on the left side, CONFIRM low on the right side. */
+.pd-body {
+  position: relative; padding: 34px 34px 38px; border-radius: 30px;
+  background: linear-gradient(170deg, #2a2c30, #121315 55%, #0a0a0b);
+  box-shadow: 0 16px 30px rgba(0,0,0,0.55), inset 0 0 0 2px #3a3d42;
+}
+.pd-screw { position: absolute; width: 11px; height: 11px; border-radius: 50%; background: radial-gradient(circle, #1a1a1a 25%, #9aa0a6 30%, #5d6268 70%); }
+.pd-btn { position: absolute; width: 16px; height: 46px; border-radius: 8px; background: linear-gradient(90deg, #1b1c1f, #3c3f44, #1b1c1f); box-shadow: 0 0 0 2px #0b0b0c; }
+.pd-btn.l { left: -9px; top: 118px; }
+.pd-btn.r { right: -9px; top: 214px; }
+.pd-screen {
+  --pd-blue: #2f7bff;
+  width: 320px; height: 240px; background: #000; color: #fff; overflow: hidden;
+  display: flex; flex-direction: column; font-family: Oswald, 'Roboto Condensed', sans-serif; line-height: 1;
+  box-shadow: 0 0 0 3px #050505;
+}
+.pd-screen small { font-size: 0.55em; }
+.pd-blue { color: var(--pd-blue); }
+.pd-top { display: grid; grid-template-columns: 1fr 1fr; height: 172px; border-bottom: 2px solid var(--pd-blue); }
+.pd-left { border-right: 2px solid var(--pd-blue); padding: 4px 6px; display: flex; flex-direction: column; }
+.pd-depth { position: relative; font-size: 78px; font-weight: 500; letter-spacing: -1px; height: 88px; }
+.pd-depth small { font-size: 40px; }
+.pd-unit { color: var(--pd-blue); font-size: 22px; margin-left: 2px; }
+.pd-arrows { position: absolute; right: 0; top: 4px; display: flex; flex-direction: column; gap: 1px; }
+.pd-arrows i { width: 13px; height: 11px; clip-path: polygon(50% 0, 100% 55%, 100% 100%, 50% 45%, 0 100%, 0 55%); background: #262626; }
+.pd-arrows i.white { background: #d8d8d8; } .pd-arrows i.yellow { background: #ffd400; } .pd-arrows i.red { background: #ff2a1f; }
+.pd-lbl { color: var(--pd-blue); font-size: 17px; letter-spacing: 0.5px; }
+.pd-lbl.r { text-align: right; }
+.pd-time { font-size: 50px; margin-top: 2px; display: flex; align-items: baseline; }
+.pd-time small { font-size: 26px; }
+.pd-bat { display: inline-block; width: 12px; height: 26px; border: 2px solid #3a7bff; margin-left: auto; position: relative; }
+.pd-bat i { position: absolute; left: 1px; right: 1px; bottom: 1px; height: 70%; background: #2fbf4a; }
+.pd-right { display: flex; flex-direction: column; padding: 4px 6px; }
+.pd-stopzone { height: 82px; text-align: center; }
+.pd-title { font-size: 20px; color: var(--pd-blue); letter-spacing: 0.5px; }
+.pd-title.red { color: #ff2a1f; } .pd-title.green { color: #2fdb4a; }
+.pd-stop { font-size: 48px; margin-top: 4px; white-space: nowrap; }
+.pd-stop.sm { font-size: 40px; } .pd-stop.xs { font-size: 34px; }
+.pd-stop.green { font-size: 32px; color: #2fdb4a; margin-top: 14px; }
+.pd-down { font-size: 26px; margin-right: 4px; vertical-align: middle; }
+.pd-ndlrow { flex: 1; display: flex; align-items: flex-end; gap: 6px; }
+.pd-ndl { flex: 1; text-align: right; }
+.pd-big { font-size: 58px; font-weight: 500; }
+.pd-n2 { position: relative; width: 14px; height: 70px; border: 2px solid var(--pd-blue); margin-bottom: 4px; }
+.pd-n2 span { position: absolute; top: 2px; left: 1px; font-size: 10px; color: var(--pd-blue); }
+.pd-n2-fill { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(to top, #2fbf4a 0, #2fbf4a 45%, #e6d82b 75%, #e6392e); background-size: 100% 66px; background-position: bottom; }
+.pd-warn { border: 2px solid currentColor; font-size: 16px; text-align: center; padding: 2px 4px; line-height: 1.05; margin-bottom: 4px; }
+.pd-screen .red { color: #ff2a1f; } .pd-screen .yellow { color: #ffd400; } .pd-screen .green { color: #2fdb4a; }
+.pd-bottom { flex: 1; display: flex; align-items: center; padding: 0 6px; gap: 6px; }
+.pd-gas { font-size: 56px; font-weight: 500; min-width: 108px; }
+.pd-cell { flex: 1; text-align: center; }
+.pd-cell.r { text-align: right; }
+.pd-cell.wide { flex: 3; }
+.pd-val { font-size: 34px; white-space: nowrap; }
+.pd-val.sm { font-size: 26px; } .pd-val.xs { font-size: 20px; }
+.pd-small { font-size: 24px; line-height: 1.1; white-space: nowrap; }
+.pd-small.r { text-align: right; } .pd-small.c { font-size: 20px; }
+.pd-bottom.info .pd-cell { text-align: left; }
+.pd-bottom.info .pd-cell.r { text-align: right; }
+.pd-tissues { flex: 1; }
+.pd-tbars { position: relative; height: 40px; display: flex; align-items: flex-end; gap: 3px; border-bottom: 1px solid #444; }
+.pd-tbars i { flex: 1; }
+.pd-tbars b { position: absolute; left: 0; right: 0; height: 1px; background: #fff; }
+
+.pd-btn.l.pressed { translate: 3px 0; }
+.pd-btn.r.pressed { translate: -3px 0; }

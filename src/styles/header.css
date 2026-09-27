@@ -1,0 +1,13 @@
+/* Header controls. After controls.css: .tour-open overrides .btn at equal specificity. */
+/* "How to use it?" button next to the title (an icon on phones), intro notice buttons. */
+.brand-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brand-row h1 { min-width: 0; }
+.tour-open { flex: none; padding: 3px 9px; font-size: 12px; border-color: var(--accent); color: var(--accent); }
+.tour-open .icon { display: none; }
+@media (max-width: 640px), (max-height: 500px) and (orientation: landscape) {
+  .brand { display: block; flex: none; }
+  .brand h1, .brand .sub { display: none; }
+  .tour-open { width: 34px; padding-left: 0; padding-right: 0; font-size: 13px; }
+  .tour-open span:first-child { display: none; }
+  .tour-open .icon { display: inline; font: 700 15px Georgia, serif; }
+}

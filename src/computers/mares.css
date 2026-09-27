@@ -1,0 +1,48 @@
+/* Mares Puck Pro: round puck, monochrome segmented LCD. */
+.mr-case {
+  position: relative; width: 340px; height: 340px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 30%, #3b3f45, #121417 70%);
+  box-shadow: 0 16px 30px rgba(0,0,0,0.55), inset 0 0 0 11px #1f6fd1, inset 0 0 0 14px #0d3d77;
+  display: grid; place-items: center;
+}
+.mr-btn { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); width: 76px; height: 26px; border-radius: 13px; background: linear-gradient(#e7ebee, #9aa3ab); box-shadow: inset 0 -2px 0 #6f7880; }
+.mr-lcd {
+  position: relative; width: 262px; height: 262px; border-radius: 50%; margin-top: -14px;
+  background: radial-gradient(circle at 45% 35%, #d3dacb, #aeb8a4);
+  box-shadow: inset 0 3px 12px rgba(0,0,0,0.45);
+  color: #141a10; font-family: 'Roboto Condensed', sans-serif; font-style: italic; font-weight: 700;
+}
+.seg { display: inline-block; vertical-align: bottom; }
+.seg-on { fill: #141a10; }
+.seg-ghost { fill: rgba(20, 26, 16, 0.07); }
+.mr-big { height: 54px; }
+.mr-mid { height: 36px; }
+.mr-small { height: 20px; }
+.mr-lbl { font-size: 11px; font-weight: 700; letter-spacing: 0.2px; line-height: 1; }
+.mr-lbl.c { text-align: center; }
+.mr-lbl.stack { display: inline-block; font-size: 9px; margin-right: 3px; vertical-align: bottom; }
+.mr-row { position: absolute; left: 0; right: 0; display: flex; align-items: flex-end; }
+.mr-toprow { top: 34px; padding: 0 30px 0 36px; justify-content: space-between; }
+.mr-depth .mr-lbl { margin-left: 12px; } /* keep the caption inside the round LCD */
+.mr-max { text-align: right; }
+.mr-midrow { top: 106px; padding: 0 22px; }
+.mr-left { width: 44px; text-align: left; }
+.mr-center { flex: 1; text-align: center; }
+.mr-midval { display: flex; justify-content: center; gap: 14px; align-items: flex-end; }
+.mr-right { width: 44px; text-align: right; }
+.mr-bottomrow { top: 168px; padding: 0 44px; justify-content: space-between; }
+.mr-br { display: flex; align-items: flex-end; gap: 2px; }
+.mr-tri { font-size: 20px; font-style: normal; }
+.mr-n2 { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 3px; }
+.mr-n2 i { width: 12px; height: 9px; background: rgba(20, 26, 16, 0.08); }
+.mr-n2 i.on { background: #141a10; }
+.mr-icons { position: absolute; top: 90px; left: 26px; display: flex; flex-direction: column; gap: 3px; }
+.mr-fast { background: #141a10; color: #c9d1c0; font-size: 10px; padding: 0 3px; border-radius: 2px; transform: skewX(-8deg); }
+.mr-glass { font-size: 16px; font-style: normal; }
+
+.mr-btn.pressed { translate: 0 2px; box-shadow: inset 0 1px 2px #6f7880; }
+/* Backlight (Mares LCD, G2 screen). */
+.mr-lcd.backlit {
+  background: radial-gradient(circle at 45% 35%, #d9f7ff, #8fd6ec);
+  box-shadow: inset 0 3px 12px rgba(0, 0, 0, 0.3), 0 0 18px rgba(120, 220, 255, 0.55);
+}

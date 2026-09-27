@@ -1,0 +1,175 @@
+/* ---------------------------------------------------------------------- */
+/* Page layout: everything fits in the viewport, no page scroll. */
+
+.app-header {
+  flex: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.brand { min-width: 0; flex: 1; }
+.app-header .sub { margin: 0; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.header-actions { display: flex; align-items: center; gap: 10px; flex: none; }
+
+.app {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(220px, 0.9fr) minmax(320px, 1.25fr) minmax(290px, 360px);
+  gap: var(--gap);
+  padding: var(--gap) 16px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  min-width: 0;
+  min-height: 0;
+}
+
+.scene-panel { position: relative; overflow: hidden; }
+#scene { width: 100%; height: 100%; display: block; cursor: ns-resize; touch-action: none; }
+#scene3d { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
+#scene3d:active { cursor: grabbing; }
+#scene[hidden], #scene3d[hidden] { display: none; }
+.scene-top { position: absolute; left: 8px; top: 6px; right: 60px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.scene-top .seg-toggle { background: rgba(5, 12, 20, 0.6); }
+.scene-top .seg-toggle button { padding: 3px 9px; font-size: 12px; }
+.scene-top select { font-size: 12px; padding: 3px 6px; background: rgba(5, 12, 20, 0.6); }
+.scene-top select[hidden] { display: none; }
+.scene-hint {
+  position: absolute; left: 8px; right: 60px; top: 40px; margin: 0; font-size: 11px; color: #fff;
+  background: rgba(5, 12, 20, 0.6); padding: 4px 8px; border-radius: 6px; pointer-events: none;
+}
+.scene-hint[hidden] { display: none; }
+.scene-hud {
+  position: absolute; left: 8px; right: 8px; bottom: 8px;
+  display: flex; justify-content: space-between; gap: 6px; flex-wrap: wrap;
+  font-size: 11px; pointer-events: none;
+}
+.scene-hud span { background: rgba(5, 12, 20, 0.72); padding: 3px 7px; border-radius: 6px; font-variant-numeric: tabular-nums; }
+
+.device-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: radial-gradient(circle at 50% 35%, #1d2d40, var(--panel) 70%);
+}
+.device-host {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+/* Centred and scaled to fit (the scale is computed in main.ts). */
+.device-host > .dev {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%) scale(var(--dev-scale, 1));
+}
+.alarms { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; min-height: 22px; flex: none; }
+.alarm { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid; background: rgba(0,0,0,0.25); color: var(--ink); }
+.alarm.warn { border-color: var(--warn); }
+.alarm.serious { border-color: var(--serious); }
+.alarm.crit { border-color: var(--crit); background: rgba(255, 92, 92, 0.15); }
+.device-hint { text-align: center; font-size: 11px; color: var(--muted); flex: none; }
+.device-caption {
+  display: flex; align-items: baseline; justify-content: center; gap: 6px;
+  margin: 0; flex: none; text-align: center; font-size: 11px; line-height: 1.35; color: var(--ink-2);
+}
+.device-caption .badge { flex: none; }
+
+.profile-box { flex: 0 0 26%; min-height: 110px; max-height: 220px; position: relative; }
+.profile-box .chart-wrap { height: 100%; }
+#profile { width: 100%; height: 100%; display: block; }
+
+.side-panel { display: flex; flex-direction: column; overflow: hidden; }
+.tabs { display: flex; border-bottom: 1px solid var(--line); flex: none; }
+.tabs button {
+  flex: 1; font: inherit; font-size: 12px; font-weight: 600; color: var(--muted); background: none; border: 0;
+  padding: 9px 4px; cursor: pointer; border-bottom: 2px solid transparent;
+}
+.tabs button.on { color: var(--ink); border-bottom-color: var(--accent); }
+.sheet { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
+.sheet-close { display: none; }
+.tab-body { flex: 1; min-height: 0; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.tab-body[hidden] { display: none; }
+#about-open .icon { display: none; }
+
+/* Tablets: scene + device side by side on top, panel below. */
+@media (max-width: 1100px) {
+  .app {
+    grid-template-columns: minmax(180px, 0.8fr) 1.2fr;
+    grid-template-rows: minmax(0, 1.25fr) minmax(0, 1fr);
+  }
+  .side-panel { grid-column: 1 / -1; }
+  .profile-box { display: none; }
+}
+/* Phones (same query as compactMq in main.ts): the computer full width on top, the water column
+   under it, the tabs in a bottom bar opening a sheet over the water column (the computer stays in
+   view while a setting is changed). */
+@media (max-width: 640px), (max-height: 500px) and (orientation: landscape) {
+  .app-header { padding: 6px 8px; gap: 6px; }
+  .brand, .header-actions .field span { display: none; }
+  .header-actions { flex: 1; min-width: 0; gap: 6px; }
+  .header-actions .field { flex: 1; }
+  #computer-select { width: 100%; }
+  #about-open { width: 34px; padding-left: 0; padding-right: 0; flex: none; }
+  #about-open span:first-child { display: none; }
+  #about-open .icon { display: inline; font: italic 700 15px Georgia, serif; }
+
+  .app {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1.45fr) minmax(0, 1fr) auto;
+    padding: 6px 8px 0; gap: 6px;
+  }
+  .device-panel { grid-row: 1; padding: 4px 6px; gap: 4px; }
+  .scene-panel { grid-row: 2; }
+  .side-panel { grid-row: 3; position: relative; overflow: visible; border-radius: var(--radius) var(--radius) 0 0; border-bottom: 0; }
+  .tabs { border-bottom: 0; padding-bottom: env(safe-area-inset-bottom); }
+  .tabs button { border-bottom: 0; border-top: 2px solid transparent; padding: 11px 4px; }
+  .tabs button.on { border-top-color: var(--accent); }
+  .sheet { display: none; }
+  .sheet.open {
+    display: flex; position: absolute; left: var(--sheet-left, 0); width: var(--sheet-w, 100%); bottom: 100%;
+    height: var(--sheet-h, 50dvh); z-index: 10;
+    background: var(--panel); border: 1px solid var(--line); border-bottom-color: var(--accent);
+    border-radius: var(--radius) var(--radius) 0 0; box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.5);
+  }
+  .sheet-close {
+    display: block; position: absolute; top: 6px; right: 6px; z-index: 1; width: 34px; height: 34px;
+    border: 1px solid var(--line); border-radius: 50%; background: var(--panel-2); color: var(--ink); font-size: 14px; cursor: pointer;
+  }
+  .tab-body { padding-top: 14px; }
+  .tab-body[data-pane="settings"] .algo-info { padding-right: 40px; }
+  .tab-body:not([data-pane="settings"]) { padding-top: 46px; }
+  #compare-table th { top: -46px; }
+  #compare-table :is(th, td):nth-child(2) { display: none; }
+
+  /* One line each; a tap unfolds them (main.ts). */
+  .device-caption { cursor: pointer; }
+  .device-caption:not(.unfold) span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .algo-info { cursor: pointer; }
+  .algo-info:not(.unfold) p { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+  .dev-used .device-hint { display: none; }
+  .alarms { min-height: 0; }
+
+  .scene-hud { font-size: 10px; }
+}
+/* Landscape phones: water column and computer side by side above the tab bar. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .app { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr); grid-template-rows: minmax(0, 1fr) auto; }
+  .device-panel { grid-row: 1; grid-column: 2; }
+  .scene-panel { grid-row: 1; grid-column: 1; }
+  .side-panel { grid-row: 2; grid-column: 1 / -1; }
+  .tabs button { padding: 7px 4px; }
+  .device-hint { display: none; }
+}
+@media (max-height: 640px) and (min-width: 1101px) {
+  .profile-box { flex-basis: 22%; min-height: 90px; }
+}
