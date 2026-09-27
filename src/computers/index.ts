@@ -1,10 +1,10 @@
 import type { DiveComputer } from './base';
 import { GarminDescent } from './garmin';
 import { CressiGoa } from './goa';
-import { MaresPuck } from './mares';
-import { MaresGenius } from './genius';
-import { MaresQuadAir } from './quadair';
-import { MaresQuadCi } from './quadci';
+import { MaresPuck } from './mares/puck';
+import { MaresGenius } from './mares/genius';
+import { MaresQuadAir } from './mares/quadair';
+import { MaresQuadCi } from './mares/quadci';
 import { ScubaproG2 } from './scubapro';
 import { ShearwaterPerdix } from './shearwater';
 import { SuuntoD5 } from './suunto';

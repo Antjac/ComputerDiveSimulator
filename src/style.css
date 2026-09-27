@@ -9,10 +9,10 @@
 @import './computers/shearwater.css';
 @import './computers/garmin.css';
 @import './computers/suunto.css';
-@import './computers/mares.css';
+@import './computers/mares/puck/puck.css';
 @import './computers/scubapro.css';
-@import './computers/quadci.css';
+@import './computers/mares/quadci/quadci.css';
 @import './computers/goa.css';
-@import './computers/quadair.css';
-@import './computers/genius.css';
+@import './computers/mares/quadair/quadair.css';
+@import './computers/mares/genius/genius.css';
 @import './styles/overlays.css';
