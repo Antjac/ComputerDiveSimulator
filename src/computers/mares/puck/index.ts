@@ -2,7 +2,7 @@ import { DIVE_END_TIMEOUT, type DiveSession } from '../../../engine/session';
 import type { Lang } from '../../../i18n';
 import { depthInt, depthText, depthVal, tempUnit, tempVal } from '../../../units';
 import { ButtonHelp, ComputerView, clockOfDay } from '../../base';
-import { sevenSeg } from '../../segments';
+import { sevenSeg } from '../../common/segments';
 import { PuckRules } from './rules';
 
 /** Mares Puck Pro: button and segmented LCD, after the manual (rules in rules.ts). */

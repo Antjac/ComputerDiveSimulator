@@ -3,7 +3,7 @@ import type { Lang } from '../../../i18n';
 import { depthInt, depthText, depthUnit, imperial, pressText, tempUnit, tempVal } from '../../../units';
 import { ButtonHelp, ComputerView, clockOfDay } from '../../base';
 import { Acks } from '../../common/acks';
-import { sevenSeg } from '../../segments';
+import { sevenSeg } from '../../common/segments';
 import { QuadAirRules } from './rules';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
