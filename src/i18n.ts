@@ -71,8 +71,8 @@ const dict = {
     en: 'Surfaced while decompression stops were still required, whatever the computer: a compartment exceeds its surface M-value (SurfGF {gf} %, Bühlmann ZH-L16C without gradient factors).',
   },
   rescueFoot: {
-    fr: 'En réalité, c’est une urgence : appliquez les procédures apprises en formation, qui varient selon les fédérations. Recommencez pour repartir avec des tissus neufs.',
-    en: 'In real life this is an emergency: follow the procedures from your training, which vary between agencies. Start over to begin again with fresh tissues.',
+    fr: 'Lors d’une vraie plongée, ce serait une urgence : appliquez les procédures apprises en formation, qui peuvent différer selon les fédérations. « Recommencer » repart d’une nouvelle plongée, sans azote résiduel.',
+    en: 'On a real dive, this would be an emergency: follow the procedures from your training, which may differ between agencies. “Start over” begins a new dive with no residual nitrogen.',
   },
   rescueReset: { fr: 'Recommencer', en: 'Start over' },
   rescueHide: { fr: 'Masquer', en: 'Hide' },
