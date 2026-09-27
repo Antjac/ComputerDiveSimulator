@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "calib": "tsx scripts/calibrate.ts",
     "scenario": "tsx scripts/scenario.ts",
-    "stops": "tsx scripts/stops.ts"
+    "stops": "tsx scripts/stops.ts",
+    "snapshot": "tsx scripts/snapshot.ts"
   },
   "devDependencies": {
     "@types/three": "^0.186.0",
