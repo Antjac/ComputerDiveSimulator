@@ -7,6 +7,11 @@ import { ppo2Setting } from '../common/ppo2';
 // Garmin conservatism presets (gradient factors).
 export const PRESETS: Record<string, [number, number]> = { low: [45, 95], medium: [40, 85], high: [35, 70] };
 
+// Manual, Dive Setup: "The Custom option sets a custom gradient factor". Range and step not given:
+// 10 to 100 % by 5 assumed (not verified).
+const GF_VALUES = Array.from({ length: 19 }, (_, i) => String(10 + i * 5));
+const customGf = (s: Record<string, string>) => s.gf === 'custom';
+
 /**
  * Garmin Descent Mk3, single-gas mode.
  * Layout and thresholds follow the Descent Mk3 Series owner's manual (Dive data screens, safety and
@@ -20,8 +25,8 @@ export abstract class DescentRules extends DiveComputer {
   readonly transmitter = 'Descent T2';
   readonly gasTimeName = 'ATR';
   readonly notes = {
-    fr: 'Bühlmann ZHL-16C avec facteurs de gradient. DOWN (et UP en sens inverse) : écrans de données ; LIGHT, START et BACK ne sont pas simulés. Verrouillage de déco après 3 min au-dessus du plafond. L’écran TTS / plafond / GF99 / Surface GF est un écran personnalisé : sur la montre, ces champs s’ajoutent via Dive Setup > Display Settings > Data Screens.',
-    en: 'Bühlmann ZHL-16C with gradient factors. DOWN (and UP backwards): data screens; LIGHT, START and BACK are not simulated. Decompression lockout after 3 min above the ceiling. The TTS / ceiling / GF99 / Surface GF screen is a custom one: on the watch, these fields are added via Dive Setup > Display Settings > Data Screens.',
+    fr: 'Bühlmann ZHL-16C avec facteurs de gradient : Low, Medium, High ou Custom (GF bas et haut réglés séparément ; bornes et pas non donnés par le manuel, 10 à 100 % par 5 supposés). DOWN (et UP en sens inverse) : écrans de données ; LIGHT, START et BACK ne sont pas simulés. Verrouillage de déco après 3 min au-dessus du plafond. L’écran TTS / plafond / GF99 / Surface GF est un écran personnalisé : sur la montre, ces champs s’ajoutent via Dive Setup > Display Settings > Data Screens.',
+    en: 'Bühlmann ZHL-16C with gradient factors: Low, Medium, High or Custom (GF low and high set separately; range and step not given by the manual, 10 to 100 % by 5 assumed). DOWN (and UP backwards): data screens; LIGHT, START and BACK are not simulated. Decompression lockout after 3 min above the ceiling. The TTS / ceiling / GF99 / Surface GF screen is a custom one: on the watch, these fields are added via Dive Setup > Display Settings > Data Screens.',
   };
   readonly settingDefs: SettingDef[] = [
     {
@@ -31,8 +36,23 @@ export abstract class DescentRules extends DiveComputer {
         { value: 'low', label: 'Low (45/95)' },
         { value: 'medium', label: 'Medium (40/85)' },
         { value: 'high', label: 'High (35/70)' },
+        { value: 'custom', label: 'Custom' },
       ],
       default: 'medium',
+    },
+    {
+      key: 'gfLow',
+      label: { fr: 'GF bas (Custom)', en: 'GF low (Custom)' },
+      options: GF_VALUES.map((v) => ({ value: v, label: `${v} %` })),
+      default: '40',
+      showIf: customGf,
+    },
+    {
+      key: 'gfHigh',
+      label: { fr: 'GF haut (Custom)', en: 'GF high (Custom)' },
+      options: GF_VALUES.map((v) => ({ value: v, label: `${v} %` })),
+      default: '85',
+      showIf: customGf,
     },
     {
       key: 'layout',
@@ -77,8 +97,24 @@ export abstract class DescentRules extends DiveComputer {
     this.init();
   }
 
+  /**
+   * Custom starts from the preset in use (Garmin forum, Descent Mk1: "It defaults to the current GF
+   * setting, and will show the low and high values"; not stated in the Mk3 manual).
+   */
+  settingChanged(key: string, previous: string): void {
+    const preset = PRESETS[previous];
+    if (key === 'gf' && this.settings.gf === 'custom' && preset) {
+      [this.settings.gfLow, this.settings.gfHigh] = preset.map(String);
+    }
+  }
+
   baseParams(): DecoParams {
-    const [lo, hi] = PRESETS[this.settings.gf] ?? PRESETS.medium;
+    let [lo, hi] = this.settings.gf === 'custom'
+      ? [Number(this.settings.gfLow), Number(this.settings.gfHigh)]
+      : PRESETS[this.settings.gf] ?? PRESETS.medium;
+    // A GF low above the GF high is not meaningful: capped at the GF high (the watch's own check is
+    // not described in the manual).
+    lo = Math.min(lo, hi);
     return { gfLow: lo / 100, gfHigh: hi / 100, lastStop: Number(this.settings.lastStop), stopStep: 3, ascentRate: 10 };
   }
 

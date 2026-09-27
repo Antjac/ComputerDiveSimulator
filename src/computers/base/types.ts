@@ -18,6 +18,8 @@ export interface SettingDef {
   default: string;
   /** Shown without the advanced mode (e.g. the screen layout). */
   essential?: boolean;
+  /** Shown only when this returns true (e.g. custom GF values only with the Custom conservatism). */
+  showIf?: (settings: Record<string, string>) => boolean;
 }
 
 export type AlarmCode =

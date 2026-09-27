@@ -35,8 +35,9 @@ export function renderControls(): void {
     <select data-setting="${def.key}">${def.options
       .map((o) => `<option value="${o.value}" ${active.settings[def.key] === o.value ? 'selected' : ''}>${optText(o)}</option>`)
       .join('')}</select></label>`;
-  const advDefs = active.settingDefs.filter((d) => !d.essential);
-  $('computer-settings').innerHTML = active.settingDefs.filter((d) => d.essential).map(settingField).join('');
+  const shown = active.settingDefs.filter((d) => !d.showIf || d.showIf(active.settings));
+  const advDefs = shown.filter((d) => !d.essential);
+  $('computer-settings').innerHTML = shown.filter((d) => d.essential).map(settingField).join('');
   $('computer-settings-adv').innerHTML = advDefs.map(settingField).join('');
   // Collapsed: remind the values in use, so a changed setting is not forgotten.
   const optLabel = (def: SettingDef) => {
@@ -100,8 +101,12 @@ export function setupSettings(): void {
     $(id).addEventListener('change', (e) => {
       const el = e.target as HTMLSelectElement;
       if (el.dataset.setting) {
+        const previous = app.active.settings[el.dataset.setting];
         app.active.settings[el.dataset.setting] = el.value;
+        app.active.settingChanged(el.dataset.setting, previous);
         savePrefs();
+        // Other settings may appear, disappear or change with this one.
+        renderControls();
         refresh(true);
       }
     });

@@ -76,6 +76,9 @@ export abstract class DiveComputer {
     for (const def of this.settingDefs) if (!(def.key in this.settings)) this.settings[def.key] = def.default;
   }
 
+  /** Called after the user changes a setting (`previous` = its former value), e.g. to prefill dependent ones. */
+  settingChanged(_key: string, _previous: string): void {}
+
   abstract baseParams(): DecoParams;
 
   /** Deco parameters, possibly adjusted by the computer's own state (penalties, levels...). */
