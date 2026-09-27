@@ -12,6 +12,9 @@ npm run build      # tsc --noEmit + build : doit passer avant de rendre la main
 npm run stops      # contrôle des paliers de tous les ordinateurs (ou : npm run stops -- <id>)
 npm run scenario   # rejoue un profil sur tous les ordinateurs
 npm run calib      # tables de NDL (calibration des algorithmes approchés)
+npm run snapshot   # non-régression : vues et HTML de tous les ordinateurs × états × unités × mises en page
+                   # comparés à .snapshots/baseline.json (-- --save pour la créer avant un refactoring,
+                   # -- <id> pour un seul ordinateur). Un changement voulu d'affichage la rend obsolète.
 ```
 
 ## Architecture en bref
@@ -19,10 +22,19 @@ npm run calib      # tables de NDL (calibration des algorithmes approchés)
 - `src/engine/buhlmann.ts` : ZHL-16C + GF (méthode d'Erik Baker), `planAscent`, `firstStop`, `ndl`.
 - `src/engine/session.ts` : état **physique** du plongeur (profondeur, tissus, gaz, bloc). Les
   ordinateurs le lisent, ne le modifient jamais. Les tissus sont **partagés** par tous les modèles.
-- `src/computers/base.ts` : classe `DiveComputer` (paliers, palier de sécurité, violations,
-  verrouillage, `compute()` → `ComputerView`). Un fichier par modèle dans `src/computers/`,
-  enregistré dans `src/computers/index.ts`.
-- `src/main.ts` : contrôles, onglets (Réglages, Comparer, Tissus, Carnet), boucle de simulation.
+- `src/computers/base/` : classe `DiveComputer` (`computer.ts` : paliers, palier de sécurité,
+  violations, verrouillage, `compute()` → `ComputerView`), types, formats, calculs sur les tissus.
+- `src/computers/common/` : utilitaires partagés (prédictions GF/TTS, jours de plongée, acquittement
+  des alarmes, afficheurs 7 segments) ; `src/computers/mares/common.ts` : règles communes aux Mares.
+- Un dossier par modèle (`src/computers/<marque>/` ou `mares/<modèle>/`) : `rules.ts` (classe
+  abstraite `XRules extends DiveComputer` : réglages, algorithme, paliers, alarmes — ce qu'on vérifie
+  dans le manuel), `index.ts` (classe finale : écrans, boutons, rendu HTML), sa feuille `.css`
+  (importée dans `src/style.css`). Enregistré dans `src/computers/index.ts`.
+- `src/app/` : l'interface, un module par fonction (`state.ts` état partagé, `settings.ts`,
+  `diveControls.ts`, `tabs.ts`, `render.ts`, `loop.ts` boucle de simulation, `rescue.ts`,
+  `devHook.ts`…). Les modules ne font que déclarer ; `src/main.ts` les branche dans l'ordre.
+- `src/ui/` : scène 2D, graphiques, visite guidée ; `src/ui/scene3d/` : vue 3D (three.js, chargée à
+  la demande). `src/styles/` : feuilles de la page.
 
 ## Règle d'or : le manuel officiel fait foi
 

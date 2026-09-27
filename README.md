@@ -70,9 +70,12 @@ The **2D | 3D** button at the top of the dive area switches to a playful 3D view
 
 ```
 src/engine/      engine: Bühlmann ZHL-16C + GF, gases, O2 toxicity (CNS/OTU), dive session
-src/computers/   one file per simulated computer (display + model-specific rules)
-src/ui/          2D scene (water column), 3D view (three.js), charts, gauges, guided tour
-scripts/         calibration and scenario scripts
+src/computers/   one folder per simulated computer: rules.ts (model-specific rules),
+                 index.ts (display and buttons), its style sheet; base/ and common/ are shared
+src/app/         interface: settings, tabs, dialogs, guided tour, logbook, simulation loop
+src/ui/          2D scene (water column), 3D view (scene3d/, three.js), charts, gauges, tour
+src/styles/      page style sheets (the computers' sheets live next to their code)
+scripts/         calibration, scenario and regression (snapshot) scripts
 ```
 
 ## Trademarks and affiliation

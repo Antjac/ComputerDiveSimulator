@@ -70,9 +70,12 @@ Le bouton **2D | 3D** en haut de la zone de plongée bascule vers une vue 3D lud
 
 ```
 src/engine/      moteur : Bühlmann ZHL-16C + GF, gaz, toxicité O2 (CNS/OTU), session de plongée
-src/computers/   un fichier par ordinateur simulé (affichage + règles propres au modèle)
-src/ui/          scène 2D (colonne d'eau), vue 3D (three.js), graphiques, jauges, visite guidée
-scripts/         scripts de calibration et de scénarios
+src/computers/   un dossier par ordinateur simulé : rules.ts (règles propres au modèle),
+                 index.ts (affichage et boutons), sa feuille de style ; base/ et common/ sont partagés
+src/app/         interface : réglages, onglets, dialogues, visite guidée, carnet, boucle de simulation
+src/ui/          scène 2D (colonne d'eau), vue 3D (scene3d/, three.js), graphiques, jauges, visite
+src/styles/      feuilles de style de la page (celles des ordinateurs sont à côté de leur code)
+scripts/         scripts de calibration, de scénarios et de non-régression (snapshot)
 ```
 
 ## Marques et affiliation
