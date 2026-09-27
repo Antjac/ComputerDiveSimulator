@@ -1,0 +1,77 @@
+/* Scubapro Luna 2.0 AI: squarish case, two buttons under the screen, black-and-white matrix-segment
+   display (§1.2): segment digits on the top and bottom rows, a dot-matrix area in the middle. */
+/* Luna 2.0 AI (manufacturer's product animation): blue case, black bezel around the screen. */
+.ln-case {
+  position: relative; width: 430px; height: 300px; border-radius: 26px;
+  background: linear-gradient(160deg, #3f9fe0, #1f78c4 55%, #1765ad);
+  box-shadow: 0 16px 30px rgba(0,0,0,0.5), inset 0 2px 0 rgba(255,255,255,0.25), inset 0 -3px 0 rgba(0,0,0,0.2);
+  display: grid; place-items: center;
+}
+.ln-bezel {
+  position: relative; width: 392px; height: 258px; border-radius: 14px; background: #1b1c1e;
+  box-shadow: inset 0 0 0 2px #0c0d0e; display: grid; place-items: center;
+}
+.ln-btn { position: absolute; top: 50%; margin-top: -45px; width: 22px; height: 90px; background: linear-gradient(90deg, #0f4fa8, #3d8ff0 60%, #1b62c4); box-shadow: 0 2px 5px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(0,0,0,0.25); }
+.ln-btn.left { left: -14px; border-radius: 10px 3px 3px 10px; } .ln-btn.right { right: -14px; border-radius: 3px 10px 10px 3px; background: linear-gradient(90deg, #1b62c4, #3d8ff0 40%, #0f4fa8); }
+.ln-screen {
+  position: relative; width: 356px; height: 222px; border-radius: 3px; overflow: hidden;
+  background: #050505; box-shadow: inset 0 0 0 3px #1c1c1c;
+  color: #f2f2f2; font-family: 'Roboto Condensed', sans-serif; font-weight: 700;
+}
+.ln-screen .seg-on { fill: #f4f4f4; } .ln-screen .seg-ghost { fill: rgba(255, 255, 255, 0.045); }
+.ln-seg { height: 52px; }
+.ln-top, .ln-bot { position: absolute; display: flex; align-items: flex-start; line-height: 1; }
+.ln-top { top: 6px; } .ln-top.l { left: 10px; } .ln-top.r { right: 38px; }
+.ln-bot { bottom: 5px; } .ln-bot.l { left: 16px; } .ln-bot.r { right: 38px; }
+.ln-bot .ln-seg { height: 46px; }
+.ln-unit { font-size: 22px; margin-left: 2px; }
+.ln-deg { font-size: 20px; margin-left: 2px; }
+.ln-pct { font-size: 16px; align-self: flex-end; margin-left: 2px; }
+.ln-dash { font-size: 30px; letter-spacing: 2px; padding-top: 14px; }
+.ln-lbl { position: absolute; top: 152px; font-size: 13px; }
+.ln-lbl.l { left: 20px; } .ln-lbl.r { right: 44px; }
+.ln-icons { position: absolute; top: 12px; left: 168px; display: flex; gap: 4px; font-size: 20px; }
+/* Left column: dive mode symbol and alarm bell. */
+.ln-side { position: absolute; left: 4px; top: 58px; width: 78px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.ln-diver { width: 78px; }
+.ln-diver .body { fill: #f2f2f2; stroke: #050505; stroke-width: 0.9; stroke-linejoin: round; }
+.ln-diver .bub { fill: none; stroke: #f2f2f2; stroke-width: 1; }
+.ln-bell { width: 18px; fill: #f2f2f2; }
+/* Dot-matrix area (§1.2): white text; warnings and alarms in a white box (§3.9, §3.10). */
+.ln-matrix {
+  position: absolute; left: 74px; top: 64px; width: 196px; height: 84px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-family: 'Doto', 'Roboto Mono', monospace; font-weight: 900; font-size: 22px; line-height: 1.05; letter-spacing: 0.5px;
+}
+.ln-l { white-space: nowrap; } .ln-l.big { font-size: 40px; } .ln-l.mid { font-size: 30px; } .ln-l.inv { background: #f2f2f2; color: #050505; padding: 0 3px; }
+.ln-box {
+  width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background-color: #efefef; color: #050505;
+  background-image: linear-gradient(rgba(0,0,0,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.12) 1px, transparent 1px);
+  background-size: 4px 4px; white-space: nowrap;
+}
+.ln-box { font-size: 22px; } .ln-box .l2 { font-size: 22px; } .ln-box.big .l2 { font-size: 38px; } .ln-box.wide > div:first-child { letter-spacing: 3px; }
+.ln-box small { font-size: 13px; }
+.ln-arr { font-family: 'Roboto Condensed', sans-serif; margin: 0 3px; }
+.ln-nst { display: flex; align-items: center; gap: 10px; }
+.ln-vert { font-size: 18px; line-height: 1.05; text-align: center; }
+.ln-stop { display: flex; align-items: center; gap: 6px; }
+.ln-stopbox { text-align: center; font-size: 18px; line-height: 1.05; } /* plain text, as in the product animation */
+.ln-tat { text-align: center; font-size: 22px; line-height: 1; } .ln-tat .big { font-size: 34px; }
+.ln-sos { font-size: 48px; letter-spacing: 4px; }
+.ln-batt { position: absolute; right: 44px; top: 70px; width: 34px; height: 14px; border: 2px solid #f2f2f2; display: flex; gap: 2px; padding: 1px; }
+.ln-batt::after { content: ''; position: absolute; right: -6px; top: 3px; width: 3px; height: 5px; background: #f2f2f2; }
+.ln-batt i { flex: 1; background: #f2f2f2; transform: skewX(-15deg); }
+/* Right edge (product animation, manual photos): a fixed coloured band, red at the top and green
+   below, over the whole height; the six white segments just left of it show the tissue saturation
+   at the surface (§1.1: 6 bars = full, none = desaturated) and the ascent speed in the water. */
+.ln-strip { position: absolute; right: 6px; top: 8px; bottom: 8px; width: 11px; background: linear-gradient(#d8432f 0 13%, #3aa64a 13%); }
+.ln-bar { position: absolute; right: 22px; top: 60px; width: 7px; height: 150px; display: flex; flex-direction: column; gap: 4px; }
+.ln-bar i { flex: 1; background: rgba(255,255,255,0.05); } .ln-bar i.on { background: #f2f2f2; }
+/* Water contacts, top corners of the bezel (§1.6). */
+.ln-contact { position: absolute; top: 8px; width: 7px; height: 7px; border-radius: 50%; background: #2a2d31; box-shadow: inset 0 0 0 1px #4a4f55; }
+.ln-contact.l { left: 14px; } .ln-contact.r { right: 14px; }
+.ln-o2 { font-size: 11px; line-height: 1; margin-left: 2px; align-self: flex-end; text-align: center; }
+.ln-l .inv, .ln-l.inv { background: #f2f2f2; color: #050505; padding: 0 3px; }
+.ln-asc { position: absolute; right: 50px; top: 118px; width: 16px; height: 24px; fill: none; stroke: #f2f2f2; stroke-width: 2; }
+.ln-signal { position: absolute; right: 50px; top: 92px; width: 16px; height: 16px; fill: none; stroke: #f2f2f2; stroke-width: 2; }

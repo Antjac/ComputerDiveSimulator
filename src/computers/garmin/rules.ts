@@ -2,6 +2,7 @@ import type { DecoParams } from '../../engine/buhlmann';
 import type { DiveSession } from '../../engine/session';
 import { remainingTime } from '../../engine/gas';
 import { type AlertCue, type ComputerView, DiveComputer, SettingDef } from '../base';
+import { ppo2Setting } from '../common/ppo2';
 
 // Garmin conservatism presets (gradient factors).
 export const PRESETS: Record<string, [number, number]> = { low: [45, 95], medium: [40, 85], high: [35, 70] };
@@ -60,6 +61,8 @@ export abstract class DescentRules extends DiveComputer {
       options: [{ value: 'on', label: { fr: 'Activé', en: 'On' } }, { value: 'off', label: { fr: 'Désactivé', en: 'Off' } }],
       default: 'off',
     },
+    // Manual, Setting PO2 Thresholds (MOD/Deco PO2): range and default not given, 1.0–1.6 and 1.4 assumed.
+    ppo2Setting(1.0, 1.6, 1.4, 'MOD/Deco PO2'),
   ];
 
   constructor() {

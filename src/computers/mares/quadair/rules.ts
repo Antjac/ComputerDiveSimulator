@@ -5,6 +5,7 @@ import { imperial } from '../../../units';
 import { standardNoFly } from '../../common/dives';
 import { ttsAfter } from '../../common/predict';
 import { FastAscentRgbm, MissedStop, maresCues, maresRgbmParams } from '../common';
+import { ppo2Setting } from '../../common/ppo2';
 
 
 const atm = (d: number) => depthToPressure(d) / 1.01325;
@@ -71,6 +72,8 @@ export abstract class QuadAirRules extends DiveComputer {
       options: [{ value: 'on', label: { fr: 'Activé', en: 'On' } }, { value: 'off', label: { fr: 'Désactivé', en: 'Off' } }],
       default: 'on',
     },
+    // Manual: ppO2max 1.4 bar from the factory, adjustable between 1.2 and 1.6 bar (step not given: 0.1).
+    ppo2Setting(1.2, 1.6, 1.4, 'ppO2max'),
   ];
 
   protected fast = new FastAscentRgbm();

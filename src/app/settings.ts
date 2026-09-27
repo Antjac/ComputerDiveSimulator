@@ -1,6 +1,6 @@
 // Settings panel: the chosen computer's settings, gas, dive parameters, and the controls' state.
 import type { SettingDef, SettingOption } from '../computers/base';
-import { gasLabel, pressureToDepth } from '../engine/buhlmann';
+import { gasLabel } from '../engine/buhlmann';
 import { lang, t } from '../i18n';
 import { depthLabel, imperial, pressText, pressUnit, setUnits, units, type UnitSystem } from '../units';
 import { renderLog } from './logbook';
@@ -54,7 +54,7 @@ export function renderControls(): void {
   const gasSel = $<HTMLSelectElement>('gas-select');
   gasSel.innerHTML = GASES.map((o2) => {
     const label = gasLabel({ o2: o2 / 100, he: 0 });
-    const mod = depthLabel(pressureToDepth(1.4 / (o2 / 100)), 0);
+    const mod = depthLabel(app.active.modDepth(o2 / 100), 0);
     return `<option value="${o2}" ${Math.round(session.gas.o2 * 100) === o2 ? 'selected' : ''}>${label} (MOD ${mod})</option>`;
   }).join('');
 

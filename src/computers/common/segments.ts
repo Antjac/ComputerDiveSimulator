@@ -5,7 +5,7 @@ const MAP: Record<string, string> = {
   '7': 'abc', '8': 'abcdefg', '9': 'abcdfg', '-': 'g', ' ': '', ':': '', E: 'afged', r: 'eg', L: 'fed',
   P: 'abfge', o: 'cdeg', n: 'ceg', d: 'bcdeg', C: 'afed',
   // Letters for LCD words (SAFE, DIVE, DEC, AIR, STOP...).
-  A: 'abcefg', S: 'afgcd', F: 'afge', I: 'ef', U: 'bcdef', t: 'fged', O: 'abcdef', H: 'bcefg', G: 'afedc',
+  A: 'abcefg', S: 'afgcd', F: 'afge', I: 'ef', U: 'bcdef', t: 'fged', O: 'abcdef', H: 'bcefg', G: 'afedc', h: 'cefg',
 };
 
 const W = 56;

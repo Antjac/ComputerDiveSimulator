@@ -48,7 +48,7 @@
 .pd-n2 span { position: absolute; top: 2px; left: 1px; font-size: 10px; color: var(--pd-blue); }
 .pd-n2-fill { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(to top, #2fbf4a 0, #2fbf4a 45%, #e6d82b 75%, #e6392e); background-size: 100% 66px; background-position: bottom; }
 .pd-warn { border: 2px solid currentColor; font-size: 16px; text-align: center; padding: 2px 4px; line-height: 1.05; margin-bottom: 4px; }
-.pd-screen .red { color: #ff2a1f; } .pd-screen .yellow { color: #ffd400; } .pd-screen .green { color: #2fdb4a; }
+.pd-screen .gray { color: #8a8f96; } .pd-screen .red { color: #ff2a1f; } .pd-screen .yellow { color: #ffd400; } .pd-screen .green { color: #2fdb4a; }
 .pd-bottom { flex: 1; display: flex; align-items: center; padding: 0 6px; gap: 6px; }
 .pd-gas { font-size: 56px; font-weight: 500; min-width: 108px; }
 .pd-cell { flex: 1; text-align: center; }

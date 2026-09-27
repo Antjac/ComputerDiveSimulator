@@ -25,7 +25,8 @@ npm run snapshot   # non-régression : vues et HTML de tous les ordinateurs × �
 - `src/computers/base/` : classe `DiveComputer` (`computer.ts` : paliers, palier de sécurité,
   violations, verrouillage, `compute()` → `ComputerView`), types, formats, calculs sur les tissus.
 - `src/computers/common/` : utilitaires partagés (prédictions GF/TTS, jours de plongée, acquittement
-  des alarmes, afficheurs 7 segments) ; `src/computers/mares/common.ts` : règles communes aux Mares.
+  des alarmes, afficheurs 7 segments) ; `src/computers/mares/common.ts` : règles communes aux Mares ;
+  `src/computers/scubapro/common.ts` : règles communes aux Scubapro (vitesse idéale, niveaux MB, PDIS, SOS, RBT).
 - Un dossier par modèle (`src/computers/<marque>/` ou `mares/<modèle>/`) : `rules.ts` (classe
   abstraite `XRules extends DiveComputer` : réglages, algorithme, paliers, alarmes — ce qu'on vérifie
   dans le manuel), `index.ts` (classe finale : écrans, boutons, rendu HTML), sa feuille `.css`

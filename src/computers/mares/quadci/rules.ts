@@ -3,6 +3,7 @@ import { type DiveSession } from '../../../engine/session';
 import { type AlertCue, ComputerView, DiveComputer, SettingDef, desaturationTime } from '../../base';
 import { divingDays } from '../../common/dives';
 import { DeepStop, FastAscentZhl, MissedStop, PRESETS, maresCues, quadAscentLimit } from '../common';
+import { ppo2Setting } from '../../common/ppo2';
 
 const atm = (d: number) => depthToPressure(d) / 1.01325;
 
@@ -57,6 +58,8 @@ export abstract class QuadCiRules extends DiveComputer {
       options: [{ value: 'on', label: { fr: 'Activé', en: 'On' } }, { value: 'off', label: { fr: 'Désactivé', en: 'Off' } }],
       default: 'off',
     },
+    // Manual: ppO2max 1.4 bar from the factory, adjustable up to 1.6 bar (from 1.2, step 0.1: assumed as on the other Mares).
+    ppo2Setting(1.2, 1.6, 1.4, 'ppO2max'),
   ];
 
   protected fast = new FastAscentZhl();

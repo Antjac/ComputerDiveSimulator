@@ -1,6 +1,7 @@
 import { ceilingDepth, depthToPressure, ndl, pressureToDepth, type DecoParams } from '../../engine/buhlmann';
 import type { DiveSession } from '../../engine/session';
 import { type AlertCue, type ComputerView, DiveComputer, SettingDef, desaturationTime } from '../base';
+import { ppo2Setting } from '../common/ppo2';
 
 
 /** Approximate GF equivalent of each safety factor (Cressi RGBM is proprietary). */
@@ -34,6 +35,8 @@ export abstract class GoaRules extends DiveComputer {
       options: [{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }],
       default: 'on',
     },
+    // Manual: PO2 set in the factory to 1.4 bar, adjustable from 1.2 to 1.6 bar.
+    ppo2Setting(1.2, 1.6, 1.4, 'PO2 MAX'),
   ];
 
   protected deepState: 'none' | 'pending' | 'active' | 'done' = 'none';

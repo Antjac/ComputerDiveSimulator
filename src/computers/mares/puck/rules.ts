@@ -2,6 +2,7 @@ import { ceilingDepth, depthToPressure, ndl, pressureToDepth, type DecoParams } 
 import { type DiveSession } from '../../../engine/session';
 import { type AlertCue, type ComputerView, DiveComputer, SettingDef } from '../../base';
 import { FastAscentRgbm, MissedStop, maresCues, maresRgbmParams } from '../common';
+import { ppo2Setting } from '../../common/ppo2';
 
 /**
  * Mares Puck Pro. Display and rules follow the Puck Pro instruction manual (display information,
@@ -31,6 +32,8 @@ export abstract class PuckRules extends DiveComputer {
       options: [{ value: 'on', label: { fr: 'Activé', en: 'On' } }, { value: 'off', label: { fr: 'Désactivé', en: 'Off' } }],
       default: 'on',
     },
+    // Manual §2.2: ppO2max 1.4 bar from the factory, adjustable between 1.2 and 1.6 bar (step not given: 0.1).
+    ppo2Setting(1.2, 1.6, 1.4, 'ppO2max'),
   ];
 
   deepState: 'none' | 'pending' | 'active' | 'done' = 'none';

@@ -3,6 +3,7 @@ import type { DiveSession } from '../../engine/session';
 import { remainingTime } from '../../engine/gas';
 import { type AlertCue, type ComputerView, DiveComputer, SettingDef } from '../base';
 import { Notices } from '../common/notices';
+import { ppo2Setting } from '../common/ppo2';
 
 export type PerdixNotice = 'high-ppo2' | 'missed-stop' | 'fast-ascent' | 'high-cns' | 'gas';
 
@@ -64,6 +65,17 @@ export abstract class PerdixRules extends DiveComputer {
       options: [{ value: 'on', label: { fr: 'Activé', en: 'On' } }, { value: 'off', label: { fr: 'Désactivé', en: 'Off' } }],
       default: 'on',
     },
+    // §8 Display Setup: "MOD PPO2 can be set from 1.2 to 1.6 in steps of 0.1" (1.4 ata).
+    ppo2Setting(1.2, 1.6, 1.4, 'MOD PPO2'),
+    {
+      // §8 Adv. Config, Max. Depth: "The shallower of this value and the depth determined from the PPO2
+      // sets the MOD. Can be set from 100ft to 165ft (default is 130ft), or 30m to 50m (default 40m)."
+      // Step not given: 5 m offered.
+      key: 'maxdepth',
+      label: { fr: 'Profondeur max. de la MOD (Max. Depth)', en: 'MOD depth limit (Max. Depth)' },
+      options: [30, 35, 40, 45, 50].map((m) => ({ value: String(m), label: `${m} m` })),
+      default: '40',
+    },
   ];
 
   /** §10: seconds with the PPO2 above 1.65 (High PPO2) and with an ascent faster than 10 m/min (Fast Ascent). */
@@ -86,6 +98,11 @@ export abstract class PerdixRules extends DiveComputer {
     if (s.oxygen.cns > 90) now.push('high-cns');
     if (this.airIntegrated(s) && (s.outOfGas || s.tankPressure < s.tank.reserve)) now.push('gas');
     this.notices.update(now);
+  }
+
+  /** §8 Max. Depth: caps the MOD. */
+  modDepthLimit(): number {
+    return Number(this.settings.maxdepth) || 40;
   }
 
   /** Adapt mode (§8.2): 5 min stop if the dive exceeded 30 m or the NDL fell below 5 min. */

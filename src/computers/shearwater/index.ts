@@ -226,7 +226,8 @@ export class ShearwaterPerdix extends PerdixRules {
         return cell(`T1 ${pressUnit()}`, pressText(v.tank.pressure)) + cell('GTR', this.gtrText(v)) + cell('SAC', v.inDive && v.diveTime >= 120 ? sac : '---');
       }
       case 'mod':
-        return cell('MOD', `${depthInt(v.mod)}<small class="pd-blue">${u}</small>`, v.depth > v.mod ? 'red blink' : '') +
+        // §8.5: "When the Max Depth setting is the controlling factor, the MOD is displayed grayed-out."
+        return cell('MOD', `${depthInt(v.mod)}<small class="pd-blue">${u}</small>`, v.depth > v.mod ? 'red blink' : v.mod >= this.modDepthLimit() - 0.05 ? 'gray' : '') +
           cell('MAX', `${depthInt(v.maxDepth)}<small class="pd-blue">${u}</small>`) +
           cell('PPO2', v.ppO2.toFixed(2).replace(/^0/, ''), v.ppO2 > 1.4 ? 'red blink' : '');
       case 'temp':

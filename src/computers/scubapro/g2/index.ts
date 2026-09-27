@@ -1,9 +1,10 @@
-import { ndl, planAscent } from '../../engine/buhlmann';
-import type { DiveSession } from '../../engine/session';
-import { depthInt, depthText, imperial, pressText, pressUnit, tempUnit, tempVal } from '../../units';
-import type { Lang } from '../../i18n';
-import { ButtonHelp, ComputerView, clockOfDay, hmm, mmss } from '../base';
-import { G2Rules, idealAscent, levelParams } from './rules';
+import { ndl, planAscent } from '../../../engine/buhlmann';
+import type { DiveSession } from '../../../engine/session';
+import { depthInt, depthText, imperial, pressText, pressUnit, tempUnit, tempVal } from '../../../units';
+import type { Lang } from '../../../i18n';
+import { ButtonHelp, ComputerView, clockOfDay, hmm, mmss } from '../../base';
+import { idealAscent, levelParams } from '../common';
+import { G2Rules } from './rules';
 
 const DU = () => (imperial() ? 'FEET' : 'METER');
 const DU1 = () => (imperial() ? 'FT' : 'M');

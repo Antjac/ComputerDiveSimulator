@@ -3,6 +3,7 @@ import type { DiveSession } from '../../engine/session';
 import { depthToPressure } from '../../engine/buhlmann';
 import { type AlertCue, ComputerView, DiveComputer, SettingDef } from '../base';
 import { Notices } from '../common/notices';
+import { ppo2Setting } from '../common/ppo2';
 
 /** §4.1 warnings (acknowledged with any button), then notifications. */
 export type D5Notice = 'cns-100' | 'tank-50' | 'gas-time' | 'safety-broken' | 'cns-80';
@@ -75,6 +76,8 @@ export abstract class D5Rules extends DiveComputer {
       ],
       default: 'both',
     },
+    // §4.18: pO2 setting 1.6 bar by default (1.4 recommended for nitrox); range not given, 1.0–1.6 assumed.
+    ppo2Setting(1.0, 1.6, 1.6, 'pO2'),
   ];
 
   /** GF points removed because of fast ascents during this dive. */

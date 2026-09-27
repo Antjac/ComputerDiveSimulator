@@ -37,6 +37,25 @@ export function unlockAudio(): void {
   if (ctx.state === 'suspended') void ctx.resume();
 }
 
+/**
+ * Silences everything at once: the sounds already scheduled (a pattern can last up to 12 s) are cut
+ * by detaching them from the output, and a running vibration is cancelled.
+ */
+export function stopAllSounds(): void {
+  if (ctx && master) {
+    master.disconnect();
+    master = ctx.createGain();
+    master.gain.value = 0.22;
+    master.connect(ctx.destination);
+  }
+  busyUntil = 0;
+  try {
+    navigator.vibrate?.(0);
+  } catch {
+    /* not allowed here */
+  }
+}
+
 /** Repeats `pattern` (on/off ms) to last about `seconds` (one pattern if not given). */
 function stretch(pattern: number[], seconds?: number): number[] {
   if (!seconds) return pattern;

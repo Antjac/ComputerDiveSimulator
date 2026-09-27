@@ -40,8 +40,21 @@ export abstract class DiveComputer {
   lockHours = 24;
   /** Metres below a stop depth still considered "at the stop". */
   stopWindow = 1.5;
-  /** ppO2 used for the MOD display. */
-  modPpo2 = 1.4;
+  /** ppO2 of the MOD: the model's "ppo2" setting (its own limits, from its manual), 1.4 bar otherwise. */
+  get modPpo2(): number {
+    const v = Number(this.settings.ppo2);
+    return v > 0 ? v : 1.4;
+  }
+
+  /** Depth limit applied to the MOD on top of the ppO2 (e.g. the Perdix 2 Max. Depth); none by default. */
+  modDepthLimit(): number {
+    return Infinity;
+  }
+
+  /** MOD of a gas with oxygen fraction `o2` on this computer. */
+  modDepth(o2: number): number {
+    return Math.min(this.modDepthLimit(), Math.max(0, pressureToDepth(this.modPpo2 / o2)));
+  }
 
   // Per-dive state.
   anchor = 0;
@@ -335,7 +348,7 @@ export abstract class DiveComputer {
       gas: gasLabel(s.gas),
       o2: Math.round(s.gas.o2 * 100),
       ppO2: s.ppO2,
-      mod: Math.max(0, pressureToDepth(this.modPpo2 / s.gas.o2)),
+      mod: this.modDepth(s.gas.o2),
       cns: s.oxygen.cns,
       otu: s.oxygen.otu,
       gfLow: Math.round(p.gfLow * 100),

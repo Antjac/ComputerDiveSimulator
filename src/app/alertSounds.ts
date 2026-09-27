@@ -4,7 +4,7 @@
 // on (browsers only allow audio after a click); the choice is saved with the preferences.
 import type { AlertCue, ComputerView } from '../computers/base';
 import { t } from '../i18n';
-import { playAlert, unlockAudio } from '../ui/sound';
+import { playAlert, stopAllSounds, unlockAudio } from '../ui/sound';
 import { savePrefs } from './prefs';
 import { $, app, session } from './state';
 
@@ -32,6 +32,8 @@ function play(cue: AlertCue, seconds?: number): boolean {
 export function updateAlertSounds(v: ComputerView): void {
   const running = !app.paused && !session.emergency;
   if (forComputer !== app.active.id) {
+    // Another computer: whatever the previous one was sounding stops.
+    if (live.size) stopAllSounds();
     forComputer = app.active.id;
     live = new Map();
   }
@@ -54,7 +56,10 @@ export function updateAlertSounds(v: ComputerView): void {
     const every = cue.until === 'once' || !cue.every ? Infinity : cue.every * 1000;
     known.next = play(cue, cue.repeat) ? now + every : now + 500;
   }
+  const had = live.size;
   for (const key of [...live.keys()]) if (!seen.has(key)) live.delete(key);
+  // No alert left (condition over, or the model's own sound setting switched off): silence at once.
+  if (had && !live.size) stopAllSounds();
 }
 
 /** Button `id` of the computer was pressed: alerts waiting for it stop repeating. */
@@ -78,7 +83,8 @@ export function setupSound(): void {
   renderSoundButton();
   $('sound-toggle').addEventListener('click', () => {
     app.sound = !app.sound;
-    if (app.sound) {
+    if (!app.sound) stopAllSounds();
+    else {
       unlockAudio();
       // Short sample of the active computer's alerts (beep or vibration), so the user hears it works.
       window.setTimeout(() => playAlert(app.active.soundKind, 'info', undefined, shake), 60);

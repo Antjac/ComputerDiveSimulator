@@ -10,7 +10,8 @@
 @import './computers/garmin/garmin.css';
 @import './computers/suunto/suunto.css';
 @import './computers/mares/puck/puck.css';
-@import './computers/scubapro/scubapro.css';
+@import './computers/scubapro/g2/g2.css';
+@import './computers/scubapro/luna/luna.css';
 @import './computers/mares/quadci/quadci.css';
 @import './computers/goa/goa.css';
 @import './computers/mares/quadair/quadair.css';

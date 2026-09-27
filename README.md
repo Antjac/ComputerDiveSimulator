@@ -22,6 +22,7 @@ User interface in English and French, metric or imperial units.
 | Mares Quad Air | Mares RGBM | Approximation (≈) |
 | Mares Genius | Bühlmann ZH-L16C + GF | Public algorithm, reproduced (R2, T1, T2 interpolated) |
 | Scubapro Galileo 2 (G2) | ZH-L16 ADT MB | Approximation (≈) |
+| Scubapro Luna 2.0 AI | ZH-L16 ADT MB or ZH-L16C + GF | Approximation (≈) for ADT MB, reproduced for ZH-L16C + GF |
 | Cressi Goa | Cressi RGBM | Approximation (≈) |
 
 Proprietary algorithms (RGBM, ZH-L16 ADT MB) are unpublished: they are approximated from Bühlmann ZHL-16C with gradient factors and penalties calibrated on published values. Displays and rules (alarms, stops, lockouts…) are inspired by each model's public user manual.
@@ -82,7 +83,7 @@ scripts/         calibration, scenario and regression (snapshot) scripts
 
 ## Trademarks and affiliation
 
-This project is independent and **is not affiliated with, endorsed or sponsored by** the manufacturers mentioned. Shearwater, Perdix, Garmin, Descent, Suunto, Mares, Puck, Quad, Genius, Scubapro, Galileo, Cressi and Goa are trademarks of their respective owners; they are only mentioned to identify the models whose displays inspired this simulator. No manufacturer logo, code or artwork is included.
+This project is independent and **is not affiliated with, endorsed or sponsored by** the manufacturers mentioned. Shearwater, Perdix, Garmin, Descent, Suunto, Mares, Puck, Quad, Genius, Scubapro, Galileo, Luna, Cressi and Goa are trademarks of their respective owners; they are only mentioned to identify the models whose displays inspired this simulator. No manufacturer logo, code or artwork is included.
 
 If you represent one of these manufacturers and would like something changed or removed, please open an issue.
 

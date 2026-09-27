@@ -4,6 +4,7 @@ import { type AlertCue, ComputerView, DiveComputer, SettingDef } from '../../bas
 import { divingDays, standardNoFly } from '../../common/dives';
 import { surfGfAfter, ttsAfter } from '../../common/predict';
 import { DeepStop, FastAscentZhl, MissedStop, PRESETS, maresCues, quadAscentLimit } from '../common';
+import { ppo2Setting } from '../../common/ppo2';
 
 const atm = (d: number) => depthToPressure(d) / 1.01325;
 const LEVELS = [{ value: 'off', label: 'OFF' }, { value: '1', label: 'LOW' }, { value: '2', label: 'MEDIUM' }, { value: '3', label: 'HIGH' }];
@@ -112,6 +113,8 @@ export abstract class GeniusRules extends DiveComputer {
       options: [{ value: 'on', label: { fr: 'Activé', en: 'On' } }, { value: 'off', label: { fr: 'Désactivé', en: 'Off' } }],
       default: 'off',
     },
+    // Manual: ppO2max 1.4 bar from the factory, up to 1.6 bar (from 1.2, step 0.1: assumed as on the other Mares).
+    ppo2Setting(1.2, 1.6, 1.4, 'ppO2max'),
   ];
 
   protected fast = new FastAscentZhl();
