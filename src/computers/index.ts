@@ -9,9 +9,14 @@ import { ScubaproG2 } from './scubapro';
 import { ShearwaterPerdix } from './shearwater';
 import { SuuntoD5 } from './suunto';
 
+/** Every simulated computer, in alphabetical order of name (the order of the lists and tables). */
 export function createComputers(): DiveComputer[] {
-  return [new ShearwaterPerdix(), new GarminDescent(), new SuuntoD5(), new MaresPuck(), new MaresQuadCi(), new MaresQuadAir(), new MaresGenius(), new ScubaproG2(), new CressiGoa()];
+  const all = [new ShearwaterPerdix(), new GarminDescent(), new SuuntoD5(), new MaresPuck(), new MaresQuadCi(), new MaresQuadAir(), new MaresGenius(), new ScubaproG2(), new CressiGoa()];
+  return all.sort((a, b) => a.name.localeCompare(b.name));
 }
+
+/** Computer shown on a first visit. */
+export const DEFAULT_COMPUTER = 'shearwater';
 
 export type { ComputerView } from './base';
 export { DiveComputer } from './base';

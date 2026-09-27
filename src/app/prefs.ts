@@ -58,7 +58,7 @@ export function applyPrefs(): void {
     const saved = prefs.settings?.[c.id];
     if (saved) for (const def of c.settingDefs) if (def.options.some((o) => o.value === saved[def.key])) c.settings[def.key] = saved[def.key];
   }
-  app.active = computers.find((c) => c.id === prefs.computer) ?? computers[0];
+  app.active = computers.find((c) => c.id === prefs.computer) ?? app.active;
   if (prefs.o2) session.gas = { o2: prefs.o2 / 100, he: 0 };
   if (prefs.site) session.siteDepth = prefs.site;
   app.tankId = TANKS.some((k) => k.id === prefs.tank) ? prefs.tank! : '12-200';

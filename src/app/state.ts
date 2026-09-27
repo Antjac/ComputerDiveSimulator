@@ -1,5 +1,5 @@
 // Shared application state: the diver's session, the computers, and what the interface shows.
-import { createComputers, type DiveComputer } from '../computers';
+import { createComputers, DEFAULT_COMPUTER, type DiveComputer } from '../computers';
 import { DiveSession } from '../engine/session';
 import type { Environment, Scene3D } from '../ui/scene3d';
 
@@ -14,7 +14,7 @@ export const compactMq = window.matchMedia('(max-width: 640px), (max-height: 500
 
 export const app = {
   /** Computer shown (and whose settings are edited). */
-  active: computers[0] as DiveComputer,
+  active: (computers.find((c) => c.id === DEFAULT_COMPUTER) ?? computers[0]) as DiveComputer,
   /** Simulated seconds per real second. */
   speed: 1,
   paused: false,
