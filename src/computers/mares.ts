@@ -4,21 +4,7 @@ import type { Lang } from '../i18n';
 import { depthInt, depthText, depthVal, tempUnit, tempVal } from '../units';
 import { ButtonHelp, ComputerView, DiveComputer, SettingDef, clockOfDay } from './base';
 import { sevenSeg } from './segments';
-
-const PERSONAL: Record<string, number> = { P0: 0.9, P1: 0.83, P2: 0.76 };
-
-/**
- * Approximation of Mares RGBM (Wienke), shared by the models that use it (Puck Pro, Quad Air):
- * Bühlmann with a GF per P factor, and a repetitive-dive penalty fading over the surface interval.
- */
-export function maresRgbmParams(pFactor: string, s: DiveSession | null): DecoParams {
-  const g = PERSONAL[pFactor] ?? PERSONAL.P0;
-  const p: DecoParams = { gfLow: g - 0.1, gfHigh: g, lastStop: 3, stopStep: 3, ascentRate: 10 };
-  if (!s || s.lastDiveEnd === null) return p;
-  const si = ((s.inDive ? s.diveStart : s.clock) - s.lastDiveEnd) / 60;
-  const drop = 0.1 * Math.exp(-si / 150);
-  return { ...p, gfLow: p.gfLow - drop, gfHigh: p.gfHigh - drop };
-}
+import { FastAscentRgbm, MissedStop, maresRgbmParams } from './mares/common';
 
 /**
  * Mares Puck Pro. Display and rules follow the Puck Pro instruction manual (display information,
@@ -47,9 +33,9 @@ export class MaresPuck extends DiveComputer {
   deepRemaining = 120;
   deepTarget = 0;
   /** Depth where a >12 m/min ascent started (uncontrolled ascent detection). */
-  private fastFrom: number | null = null;
+  private fast = new FastAscentRgbm();
   private fastViolation = false;
-  private missedSec = 0;
+  private missed = new MissedStop('rgbm');
   private decoViolation = false;
   private ndlTimer = 0;
   private lastNdl = 99;
@@ -84,9 +70,9 @@ export class MaresPuck extends DiveComputer {
     this.deepState = 'none';
     this.deepRemaining = 120;
     this.deepTarget = 0;
-    this.fastFrom = null;
+    this.fast.reset();
     this.fastViolation = false;
-    this.missedSec = 0;
+    this.missed.reset();
     this.decoViolation = false;
     this.screen = 0;
   }
@@ -101,12 +87,7 @@ export class MaresPuck extends DiveComputer {
     if (!s.inDive) return;
 
     // Uncontrolled ascent: > 12 m/min started deeper than 12 m and kept for 2/3 of that depth.
-    if (s.ascentRate > 12) {
-      if (this.fastFrom === null && s.depth > 12) this.fastFrom = s.depth;
-      if (this.fastFrom !== null && s.depth <= this.fastFrom / 3) this.fastViolation = true;
-    } else {
-      this.fastFrom = null;
-    }
+    if (this.fast.update(s.ascentRate, s.depth)) this.fastViolation = true;
 
     // Missed deco stop: more than 1 m above the stop for more than 3 minutes.
     const p = this.decoParams(s);
@@ -118,11 +99,10 @@ export class MaresPuck extends DiveComputer {
       this.ndlTimer = 10;
       this.lastNdl = inDeco ? 0 : ndl(s.tissues, s.depth, s.gas, p.gfHigh);
     }
-    if (inDeco && s.depth < stopDepth - 1) {
-      this.missedSec += dt;
-      if (this.missedSec > 180) this.decoViolation = true;
+    if (inDeco) {
+      if (this.missed.update(stopDepth - s.depth, dt)) this.decoViolation = true;
     } else {
-      this.missedSec = 0;
+      this.missed.reset();
     }
 
     // Deep stop (not mandatory): generated when approaching the no-deco limit on dives deeper than 20 m.

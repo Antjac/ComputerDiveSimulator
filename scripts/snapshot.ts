@@ -1,7 +1,8 @@
 // Regression snapshots for refactoring: replays dive states on every computer (both unit systems,
 // every display layout, every simulated button press) and records the computed view and the screen
 // HTML. `npm run snapshot -- --save` stores the baseline in .snapshots/; `npm run snapshot` compares
-// with it and lists every difference (the first ones are written to .snapshots/diff/).
+// with it and lists every difference (the first ones are written to .snapshots/diff/);
+// `npm run snapshot -- <id>` compares one computer only.
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { DiveSession } from '../src/engine/session';
@@ -106,16 +107,22 @@ for (const name of Object.keys(STATES)) {
 
 const hash = (t: string) => createHash('sha1').update(t).digest('hex');
 mkdirSync(DIR, { recursive: true });
-const file = `${DIR}/baseline${only ? `-${only}` : ''}.json`;
+const file = `${DIR}/baseline.json`;
 if (save) {
+  if (only) {
+    console.log('Save the baseline for every computer (no computer id).');
+    argv.exit(1);
+  }
   writeFileSync(file, JSON.stringify(out));
   console.log(`${n} snapshots saved to ${file}`);
 } else {
   if (!existsSync(file)) {
-    console.log(`No baseline: run "npm run snapshot -- --save${only ? ` ${only}` : ''}" first.`);
+    console.log('No baseline: run "npm run snapshot -- --save" first.');
     argv.exit(1);
   }
-  const base: Record<string, string> = JSON.parse(readFileSync(file, 'utf8'));
+  const all: Record<string, string> = JSON.parse(readFileSync(file, 'utf8'));
+  // With a computer id, only its cases are compared.
+  const base = Object.fromEntries(Object.entries(all).filter(([k]) => !only || k.split(' | ')[1] === only));
   const keys = new Set([...Object.keys(base), ...Object.keys(out)]);
   const diff = [...keys].filter((k) => base[k] === undefined || out[k] === undefined || hash(base[k]) !== hash(out[k]));
   if (!diff.length) {

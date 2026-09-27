@@ -1,9 +1,12 @@
-import { ceilingDepth, depthToPressure, planAscent, type DecoParams } from '../engine/buhlmann';
+import { ceilingDepth, depthToPressure, type DecoParams } from '../engine/buhlmann';
 import { DIVE_END_TIMEOUT, type DiveSession } from '../engine/session';
 import type { Lang } from '../i18n';
 import { depthInt, depthText, depthUnit, imperial, pressText, tempUnit, tempVal } from '../units';
 import { ButtonHelp, ComputerView, DiveComputer, SettingDef, clockOfDay } from './base';
-import { maresRgbmParams } from './mares';
+import { Acks } from './common/acks';
+import { standardNoFly } from './common/dives';
+import { ttsAfter } from './common/predict';
+import { FastAscentRgbm, MissedStop, maresRgbmParams } from './mares/common';
 import { sevenSeg } from './segments';
 
 const atm = (d: number) => depthToPressure(d) / 1.01325;
@@ -74,10 +77,10 @@ export class MaresQuadAir extends DiveComputer {
   /** Bottom field shown momentarily (time of day 4 s, anything else over CNS 8 s). */
   private botUntil = 0;
   private stopwatchFrom = 0;
-  private fastFrom: number | null = null;
+  private fast = new FastAscentRgbm();
   private fastBlink = false;
   private fastViolation = false;
-  private missedSec = 0;
+  private missed = new MissedStop('rgbm');
   private decoViolation = false;
   /** Violation that locked the computer, shown until the lock ends (§3.2.1, §3.2.4.1). */
   private lockCause: 'fast' | 'deco' | null = null;
@@ -87,8 +90,7 @@ export class MaresQuadAir extends DiveComputer {
   private longNoFly = false;
   /** Depth where the current ascent started (speed shown after 0.8 m, §3.2.1). */
   private ascentFrom = 0;
-  private acked = new Set<string>();
-  private pendingAcks: string[] = [];
+  private acks = new Acks();
   private surfacePage: 'pre' | 'post' = 'pre';
   private lastView: ComputerView | null = null;
 
@@ -127,14 +129,14 @@ export class MaresQuadAir extends DiveComputer {
     this.topIdx = this.botIdx = 0;
     this.botUntil = 0;
     this.stopwatchFrom = 0;
-    this.fastFrom = null;
+    this.fast.reset();
     this.fastBlink = this.fastViolation = this.decoViolation = false;
-    this.missedSec = 0;
+    this.missed.reset();
     this.hadDeco = false;
     // §3.4: a dive started with remaining desaturation is a repetitive dive.
     this.repetitive = this.lastView !== null && this.lastView.desat > 0;
     this.ascentFrom = 0;
-    this.acked.clear();
+    this.acks.clear();
   }
 
   onDiveEnd(s: DiveSession): void {
@@ -155,14 +157,8 @@ export class MaresQuadAir extends DiveComputer {
 
     // §3.2.1 / §2.2.1.7: faster than 12 m/min deeper than 12 m blinks the uncontrolled ascent icon;
     // kept for two thirds of the depth where it started, it is a dive violation.
-    if (s.ascentRate > 12) {
-      if (this.fastFrom === null && s.depth > 12) this.fastFrom = s.depth;
-      this.fastBlink = this.fastFrom !== null;
-      if (this.fastFrom !== null && s.depth <= this.fastFrom / 3 && this.settings.fast !== 'off') this.fastViolation = true;
-    } else {
-      this.fastFrom = null;
-      this.fastBlink = false;
-    }
+    if (this.fast.update(s.ascentRate, s.depth) && this.settings.fast !== 'off') this.fastViolation = true;
+    this.fastBlink = this.fast.active;
 
     // §3.2.4.1: more than 1 m above the stop for more than three minutes is a dive violation.
     const p = this.decoParams(s);
@@ -170,14 +166,9 @@ export class MaresQuadAir extends DiveComputer {
     if (ceil > 0) {
       this.hadDeco = true;
       const stop = Math.max(p.lastStop, Math.ceil(ceil / p.stopStep - 1e-6) * p.stopStep);
-      if (s.depth < stop - 1) {
-        this.missedSec += dt;
-        if (this.missedSec > 180) this.decoViolation = true;
-      } else {
-        this.missedSec = 0;
-      }
+      if (this.missed.update(stop - s.depth, dt)) this.decoViolation = true;
     } else {
-      this.missedSec = 0;
+      this.missed.reset();
     }
   }
 
@@ -191,7 +182,7 @@ export class MaresQuadAir extends DiveComputer {
   }
 
   press(button: string, s: DiveSession): boolean {
-    this.acked = new Set([...this.acked, ...this.pendingAcks]);
+    this.acks.ackAll();
     if (!s.inDive) {
       // Surface: UP / DOWN scroll the menus, POST-DIVE ↔ PRE-DIVE being the first two (§2).
       if ((button === 'up' || button === 'down') && this.hasPostDive(s)) this.surfacePage = this.surfacePage === 'pre' ? 'post' : 'pre';
@@ -279,9 +270,7 @@ export class MaresQuadAir extends DiveComputer {
   }
 
   private asc5(v: ComputerView, s: DiveSession): number {
-    const t = s.tissues.clone();
-    t.expose(depthToPressure(v.depth), s.gas, 5);
-    return planAscent(t, v.depth, s.gas, this.decoParams(s), this.anchor).tts;
+    return ttsAfter(s, v.depth, 5, this.decoParams(s), this.anchor);
   }
 
   private hasPostDive(s: DiveSession): boolean {
@@ -291,8 +280,7 @@ export class MaresQuadAir extends DiveComputer {
 
   /** §3.4: standard 12 h (no-deco, non repetitive) or 24 h (deco and/or repetitive) countdown. */
   private noFlyMin(_v: ComputerView, s: DiveSession): number {
-    if (s.surfaceInterval === null) return 0;
-    return Math.max(0, (this.longNoFly ? 24 : 12) * 60 - s.surfaceInterval / 60);
+    return standardNoFly(this.longNoFly, s);
   }
 
   // -------------------------------------------------------------------------
@@ -319,18 +307,12 @@ export class MaresQuadAir extends DiveComputer {
   }
 
   /** Alarms waiting for a button press (§3.2.5 half tank, low tank; §3.3.1 runaway deco). */
-  private ackable(key: string, on: boolean, pending: string[]): boolean {
-    if (!on) {
-      this.acked.delete(key);
-      return false;
-    }
-    if (this.acked.has(key)) return false;
-    pending.push(key);
-    return true;
+  private ackable(key: string, on: boolean): boolean {
+    return this.acks.show(key, on);
   }
 
   private dive(v: ComputerView, s: DiveSession): string {
-    const pending: string[] = [];
+    this.acks.begin();
     const now = performance.now();
     const ai = v.tank.ai;
     const surfacing = v.depth < 1.2;
@@ -357,13 +339,12 @@ export class MaresQuadAir extends DiveComputer {
     const reserveAt = imperial() ? v.tank.reserve : Math.max(50, v.tank.reserve); // §3.2.5 note
     const halfAt = imperial() ? 1500 / 14.5038 : 100; // §2.2.1.6 tANK WARN default
     const asc5 = v.inDeco ? this.asc5(v, s) : 0;
-    const lowTank = this.ackable('lowtank', ai && v.inDeco && s.diveTime > 120 && v.tank.gasTime !== null && v.tank.gasTime < v.tts, pending);
+    const lowTank = this.ackable('lowtank', ai && v.inDeco && s.diveTime > 120 && v.tank.gasTime !== null && v.tank.gasTime < v.tts);
     const reserveBlink = ai && v.tank.pressure <= reserveAt; // keeps blinking after the acknowledgement
-    this.ackable('reserve', reserveBlink, pending);
-    const halfBlink = this.ackable('half', ai && v.tank.pressure <= halfAt && v.tank.pressure > reserveAt, pending);
+    this.ackable('reserve', reserveBlink);
+    const halfBlink = this.ackable('half', ai && v.tank.pressure <= halfAt && v.tank.pressure > reserveAt);
     const runLimit = Number(this.settings.runaway);
-    const runaway = this.ackable('runaway', v.inDeco && this.settings.runaway !== 'off' && asc5 - v.tts >= runLimit, pending);
-    this.pendingAcks = pending;
+    const runaway = this.ackable('runaway', v.inDeco && this.settings.runaway !== 'off' && asc5 - v.tts >= runLimit);
     // The blinking value is brought up: ASC+5 (§3.3.1 figure), TTR (§3.2.5 figure).
     if (runaway && !surfacing) {
       if (this.settings.asc5 === 'top') top = 'asc5';

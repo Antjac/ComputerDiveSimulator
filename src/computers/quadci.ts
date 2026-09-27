@@ -1,22 +1,13 @@
-import { WATER_VAPOUR, ceilingDepth, depthToPressure, ndl, planAscent, pressureToDepth, type DecoParams } from '../engine/buhlmann';
+import { WATER_VAPOUR, ceilingDepth, depthToPressure, type DecoParams } from '../engine/buhlmann';
 import { DIVE_END_TIMEOUT, type DiveSession } from '../engine/session';
 import type { Lang } from '../i18n';
 import { depthInt, depthText, depthUnit, imperial, pressText, pressUnit, tempUnit, tempVal } from '../units';
 import { ButtonHelp, ComputerView, DiveComputer, SettingDef, clockOfDay, desaturationTime, hmm, mmss } from './base';
+import { Acks } from './common/acks';
+import { divingDays } from './common/dives';
+import { gfRate, surfGfAfter, ttsAfter } from './common/predict';
+import { DeepStop, FastAscentZhl, MissedStop, PRESETS, quadAscentLimit, tankRange } from './mares/common';
 
-/**
- * Gradient factor sets. The manual gives R0 (85/85), R2 (60/70), R3 (50/60), T0 (30/85) and
- * T3 (25/40); R1, T1 and T2 are interpolated.
- */
-export const PRESETS: Record<string, [number, number]> = {
-  R0: [85, 85], R1: [70, 80], R2: [60, 70], R3: [50, 60],
-  T0: [30, 85], T1: [28, 70], T2: [27, 55], T3: [25, 40],
-};
-
-/** Maximum ascent rate by depth (m/min). */
-export function quadAscentLimit(depth: number): number {
-  return depth > 50 ? 20 : depth > 30 ? 15 : depth > 10 ? 10 : 5;
-}
 
 type Screen = 'ez' | 'full' | 'tissue' | 'profile' | 'stops';
 const SCREENS: Screen[] = ['ez', 'full', 'tissue', 'profile', 'stops'];
@@ -80,9 +71,8 @@ export class MaresQuadCi extends DiveComputer {
   /** Dive screen setting last applied, so a change in the settings shows at once. */
   private appliedDisplay = '';
   private stopwatchFrom = 0;
-  private fastFrom: number | null = null;
-  private missedNear = 0;
-  private missedFar = 0;
+  private fast = new FastAscentZhl();
+  private missed = new MissedStop('zhl');
   private violation: 'deco' | 'ascent' | null = null;
   private hadDeco = false;
   private repetitiveDive = false;
@@ -93,13 +83,9 @@ export class MaresQuadCi extends DiveComputer {
   private surfacePage: SurfacePage = 'home';
   private ezTop: { i: number; until: number } | null = null;
   private ezBottom: { i: number; until: number } | null = null;
-  private acked = new Set<string>();
-  private pendingAcks: string[] = [];
+  private acks = new Acks();
   private lastView: ComputerView | null = null;
-  private deepState: 'none' | 'pending' | 'active' | 'done' = 'none';
-  private deepDepth = 0;
-  private deepRemaining = 120;
-  /** GF @SURF change per minute, and the sample it is computed from. */
+  private deep = new DeepStop();
 
   constructor() {
     super();
@@ -120,26 +106,12 @@ export class MaresQuadCi extends DiveComputer {
 
   decoParams(s: DiveSession): DecoParams {
     const p = this.baseParams();
-    let drop = Math.min(6, 2 * (this.divingDays(s) - 1));
+    let drop = Math.min(6, 2 * (divingDays(s) - 1));
     if (this.settings.repetitive === 'on' && s.lastDiveEnd !== null) {
       const si = ((s.inDive ? s.diveStart : s.clock) - s.lastDiveEnd) / 60;
       drop += Math.max(0, 8 - Math.floor(si / 15));
     }
     return { ...p, gfLow: Math.max(0.1, p.gfLow - drop / 100), gfHigh: Math.max(0.2, p.gfHigh - drop / 100) };
-  }
-
-  /** Days of diving in the current series (dives less than 24 h apart). */
-  private divingDays(s: DiveSession): number {
-    const dayOf = (t: number) => Math.floor((t + 9 * 3600) / 86400);
-    let t = s.inDive ? s.diveStart : s.clock;
-    const days = new Set<number>([dayOf(t)]);
-    for (let i = s.log.length - 1; i >= 0; i--) {
-      const e = s.log[i];
-      if (t - (e.start + e.duration) >= 24 * 3600) break;
-      days.add(dayOf(e.start));
-      t = e.start;
-    }
-    return days.size;
   }
 
   /** SLOW! above the limit for the current depth, warning from 80 % of it. */
@@ -155,16 +127,15 @@ export class MaresQuadCi extends DiveComputer {
 
   onDiveStart(s: DiveSession): void {
     super.onDiveStart(s);
-    this.fastFrom = null;
-    this.missedNear = this.missedFar = 0;
+    this.fast.reset();
+    this.missed.reset();
     this.violation = null;
     this.hadDeco = false;
     this.repetitiveDive = s.clock < this.desatUntil;
     this.stopwatchFrom = 0;
-    this.acked.clear();
+    this.acks.clear();
     this.ezTop = this.ezBottom = null;
-    this.deepState = 'none';
-    this.deepRemaining = 120;
+    this.deep.reset();
     this.appliedDisplay = this.settings.display;
     this.screen = SCREENS.indexOf(this.appliedDisplay === 'full' ? 'full' : 'ez');
   }
@@ -182,12 +153,7 @@ export class MaresQuadCi extends DiveComputer {
     if (!s.inDive || this.locked) return;
 
     // Uncontrolled ascent: more than 120 % of the allowed rate over more than 20 m.
-    if (s.ascentRate > 1.2 * quadAscentLimit(s.depth)) {
-      if (this.fastFrom === null) this.fastFrom = s.depth;
-      if (this.fastFrom - s.depth > 20) this.violation = this.violation ?? 'ascent';
-    } else {
-      this.fastFrom = null;
-    }
+    if (this.fast.update(s.ascentRate, s.depth)) this.violation = this.violation ?? 'ascent';
 
     // Missed stop: above it by less than 1 m for more than 3 min, or by more than 1 m for more than 1 min.
     const p = this.decoParams(s);
@@ -195,35 +161,14 @@ export class MaresQuadCi extends DiveComputer {
     if (ceil > 0) {
       this.hadDeco = true;
       const stop = Math.max(p.lastStop, Math.ceil(ceil / p.stopStep - 1e-6) * p.stopStep);
-      const above = stop - s.depth;
-      if (above > 1) this.missedFar += dt;
-      else if (above > 0.3) this.missedNear += dt;
-      if (above <= 0.3) this.missedNear = this.missedFar = 0;
-      if (this.missedNear > 180 || this.missedFar > 60) this.violation = 'deco';
+      if (this.missed.update(stop - s.depth, dt)) this.violation = 'deco';
     } else {
-      this.missedNear = this.missedFar = 0;
+      this.missed.reset();
     }
 
     // Deep stop (manual §4.5): depth at which the 5th tissue (27 min) switches from ongassing to
     // offgassing, suggested as the no deco limit approaches; optional, not part of the TTS.
-    if (this.settings.deepstop === 'on' && this.deepState === 'none' && s.maxDepth > 15) {
-      const near = ceil > 0 || ndl(s.tissues, s.depth, s.gas, p.gfHigh) <= 10;
-      if (near) {
-        this.deepDepth = Math.round(pressureToDepth(s.tissues.n2[4] / 0.7902 + 0.0627) * 10) / 10;
-        this.deepState = this.deepDepth >= 9 && this.deepDepth < s.depth ? 'pending' : 'done';
-      }
-    }
-    if (this.deepState === 'pending' || this.deepState === 'active') {
-      if (Math.abs(s.depth - this.deepDepth) <= 1.5) {
-        this.deepState = 'active';
-        this.deepRemaining -= dt;
-        if (this.deepRemaining <= 0) this.deepState = 'done';
-      } else if (s.depth < this.deepDepth - 1.5) {
-        this.deepState = 'done';
-      } else if (this.deepState === 'active') {
-        this.deepState = 'pending';
-      }
-    }
+    this.deep.update(s, ceil, p, dt, this.settings.deepstop === 'on');
   }
 
   // Dive mode (manual §1.5): BL-SP cycles E-Z, FULL, tissue graph, profile, list of stops; TL-SP
@@ -231,7 +176,7 @@ export class MaresQuadCi extends DiveComputer {
   // backlight. At the surface BL-SP cycles HOME, PRE-DIVE and (with residual nitrogen) POST DIVE.
   // Any button acknowledges the messages that stay until then.
   press(button: string, s: DiveSession): boolean {
-    this.acked = new Set([...this.acked, ...this.pendingAcks]);
+    this.acks.ackAll();
     if (!s.inDive) {
       if (button !== 'bl') return true;
       const pages: SurfacePage[] = ['home', 'predive', ...(this.hasDesat(s) ? ['postdive' as const] : [])];
@@ -359,12 +304,9 @@ export class MaresQuadCi extends DiveComputer {
 
   /** Current alarm or warning message (bottom-right block), highest priority first. */
   private alarm(v: ComputerView, s: DiveSession): Alarm | null {
-    const pending: string[] = [];
-    const ack = (key: string) => {
-      if (this.acked.has(key)) return false;
-      pending.push(key);
-      return true;
-    };
+    // Acknowledged messages stay off until the next dive.
+    this.acks.begin();
+    const ack = (key: string) => this.acks.show(key);
     let a: Alarm | null = null;
     const ai = v.tank.ai;
     if (v.ascentLevel === 2) {
@@ -385,14 +327,11 @@ export class MaresQuadCi extends DiveComputer {
     } else if (ai && v.tank.pressure >= v.tank.reserve && v.tank.pressure < v.tank.fill / 2 && ack('half')) {
       a = { text: 'HALF TANK', cls: 'yellow' };
     }
-    this.pendingAcks = pending;
     return a;
   }
 
   private tankColor(v: ComputerView): string {
-    const p = v.tank.pressure;
-    const half = v.tank.fill / 2;
-    return p > (v.tank.fill + half) / 2 ? 'blue' : p > half ? 'green' : p > v.tank.reserve ? 'yellow' : 'red';
+    return tankRange(v.tank.pressure, v.tank.fill, v.tank.fill / 2, v.tank.reserve);
   }
 
   private tankBlock(v: ComputerView): string {
@@ -514,24 +453,18 @@ export class MaresQuadCi extends DiveComputer {
    * next minute at the current depth. One decimal below 10, as in the figures ("77/1.6", "163/1").
    */
   private gfRate(v: ComputerView, s: DiveSession): { text: string; cls: string } {
-    const t = s.tissues.clone();
-    t.expose(depthToPressure(v.depth), s.gas, 1);
-    const r = t.maxGradientPercent(depthToPressure(0)) - s.tissues.maxGradientPercent(depthToPressure(0));
-    const a = Math.abs(r);
-    const text = a < 9.95 ? a.toFixed(1).replace(/\.0$/, '') : String(Math.round(a));
+    const { r, text } = gfRate(s, v.depth);
     return { text, cls: text === '0' ? '' : r > 0 ? 'yel' : 'blu' };
   }
 
   private gfAt3(v: ComputerView, s: DiveSession): number {
-    const t = s.tissues.clone();
-    t.expose(depthToPressure(v.depth), s.gas, 3);
-    return Math.round(t.maxGradientPercent(depthToPressure(0)));
+    return Math.round(surfGfAfter(s, v.depth, 3));
   }
 
   /** Deep stop being suggested (see tick). */
   private deepStop(v: ComputerView, _s: DiveSession): { depth: number; remaining: number; active: boolean } | null {
-    if (!v.inDive || (this.deepState !== 'pending' && this.deepState !== 'active')) return null;
-    return { depth: this.deepDepth, remaining: this.deepRemaining, active: this.deepState === 'active' };
+    if (!v.inDive || !this.deep.shown) return null;
+    return { depth: this.deep.depth, remaining: this.deep.remaining, active: this.deep.state === 'active' };
   }
 
   private fieldValue(f: string, v: ComputerView, s: DiveSession): string {
@@ -556,9 +489,7 @@ export class MaresQuadCi extends DiveComputer {
         return f('DEEP', d ? depthText(d.depth) : '--', d ? du : '');
       }
       case 'tts5': {
-        const t = s.tissues.clone();
-        t.expose(depthToPressure(v.depth), s.gas, 5);
-        return f('TTS@+5', `${planAscent(t, v.depth, s.gas, this.decoParams(s), this.anchor).tts}:`);
+        return f('TTS@+5', `${ttsAfter(s, v.depth, 5, this.decoParams(s), this.anchor)}:`);
       }
       case 'ceil': return f('CEILING', v.ceiling > 0 ? depthText(v.ceiling) : '--', v.ceiling > 0 ? du : '');
       default: return f('TEMP', String(Math.round(tempVal(v.temperature))), tempUnit());
