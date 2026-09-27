@@ -86,4 +86,12 @@ Si vous représentez l'un de ces fabricants et souhaitez qu'un élément soit mo
 
 ## Licence
 
-[MIT](LICENSE). Le logiciel est fourni « tel quel », sans aucune garantie. Les auteurs ne sauraient être tenus responsables de son utilisation.
+Copyright © 2026 Antoine ALEXANDRE — [https://github.com/Antjac/DiveComputerSimulator](https://github.com/Antjac/DiveComputerSimulator)
+
+Logiciel libre sous [licence publique générale GNU Affero v3.0](LICENSE) (GNU AGPL) ou, à votre choix, toute version ultérieure.
+
+- **Chacun peut utiliser librement le simulateur**, y compris les moniteurs, les clubs et les centres de plongée commerciaux.
+- **Vous pouvez étudier, modifier et redistribuer le code**, à condition de conserver cette mention de copyright et de diffuser votre version sous la même licence, avec son code source complet.
+- **Cela vaut aussi en ligne :** quiconque met une version modifiée à disposition sous forme de site ou de service doit proposer à ses utilisateurs le code source complet de cette version (AGPL, article 13).
+
+Le logiciel est fourni « tel quel », sans aucune garantie. Les auteurs ne sauraient être tenus responsables de son utilisation.

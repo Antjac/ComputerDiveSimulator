@@ -266,10 +266,11 @@ const dict = {
     fr: 'Si vous représentez l’un de ces fabricants et souhaitez qu’un élément soit modifié ou retiré, écrivez à :',
     en: 'If you represent one of these manufacturers and would like something changed or removed, please write to:',
   },
+  aboutSource: { fr: 'Code source :', en: 'Source code:' },
   aboutLicenceTitle: { fr: 'Licence et responsabilité', en: 'Licence and liability' },
   aboutLicence: {
-    fr: 'Logiciel libre sous licence MIT, fourni « tel quel », sans aucune garantie. Les calculs sont des approximations. Les auteurs ne sauraient être tenus responsables de son utilisation.',
-    en: 'Free software under the MIT licence, provided “as is”, without any warranty. Calculations are approximations. The authors cannot be held liable for its use.',
+    fr: '© 2026 Antoine ALEXANDRE. Logiciel libre sous licence GNU AGPL v3 : utilisation libre pour tous ; toute version modifiée, même mise en ligne, doit publier son code source sous la même licence. Fourni « tel quel », sans aucune garantie. Les calculs sont des approximations. Les auteurs ne sauraient être tenus responsables de son utilisation.',
+    en: '© 2026 Antoine ALEXANDRE. Free software under the GNU AGPL v3 licence: free to use for everyone; any modified version, including one put online, must publish its source code under the same licence. Provided “as is”, without any warranty. Calculations are approximations. The authors cannot be held liable for its use.',
   },
   target: { fr: 'Cible', en: 'Target' },
   ascentRate: { fr: 'Vitesse verticale', en: 'Vertical speed' },

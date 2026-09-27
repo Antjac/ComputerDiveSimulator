@@ -86,4 +86,12 @@ If you represent one of these manufacturers and would like something changed or 
 
 ## Licence
 
-[MIT](LICENSE). The software is provided "as is", without any warranty. The authors cannot be held liable for its use.
+Copyright © 2026 Antoine ALEXANDRE — [https://github.com/Antjac/DiveComputerSimulator](https://github.com/Antjac/DiveComputerSimulator)
+
+Free software under the [GNU Affero General Public License v3.0](LICENSE) or (at your option) any later version.
+
+- **Everyone may use the simulator freely**, including dive instructors, clubs and commercial dive centres.
+- **You may study, modify and redistribute the code**, provided that you keep this copyright notice and distribute your version under the same licence, with its complete source code.
+- **This also applies online:** anyone who makes a modified version available as a website or service must offer its users the complete source code of that version (AGPL, section 13).
+
+The software is provided "as is", without any warranty. The authors cannot be held liable for its use.
