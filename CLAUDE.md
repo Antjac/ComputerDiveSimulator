@@ -1,4 +1,4 @@
-# Computer dive simulation — consignes pour Claude
+# Simulateur d'ordinateurs de plongée — consignes pour Claude
 
 Simulateur pédagogique d'ordinateurs de plongée (TypeScript + Vite, sans framework). L'utilisateur
 écrit en français : répondre en français. Textes de l'interface toujours en français **et** en
@@ -160,6 +160,6 @@ par un bouton ou non.
    barre du Quad Ci, jambages des lettres).
 4. Dans le navigateur, afficher chaque écran dans les états de la section 4 (ex. 40 m / 25 min puis
    remontée) et **comparer aux figures du manuel**. Fermer les onglets et arrêter le serveur ensuite.
-5. Mettre à jour le tableau des modèles du README si besoin.
+5. Mettre à jour le tableau des modèles (et le texte) dans les deux README : `README.md` (anglais) et `README.fr.md` (français).
 6. Compte rendu : ce qui a été vérifié (avec les sections du manuel), ce qui ne l'est pas, les écarts
    restants.

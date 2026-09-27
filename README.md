@@ -1,79 +1,86 @@
-# Computer dive simulation
+# Dive Computers simulator
 
-Simulateur pédagogique d'ordinateurs de plongée. On pilote un plongeur dans la colonne d'eau et on voit, en temps réel et côte à côte, comment différents ordinateurs réagissent : NDL, paliers, vitesse de remontée, alarmes, saturation, consommation de gaz, toxicité de l'oxygène.
+**English** | [Français](README.fr.md)
 
-Interface disponible en français et en anglais, unités métriques ou impériales.
+Educational dive computer simulator. You steer a diver in the water column and watch, in real time and side by side, how different dive computers react: NDL, stops, ascent rate, alarms, tissue loading, gas consumption, oxygen toxicity.
+
+User interface in English and French, metric or imperial units.
 
 > [!WARNING]
-> **Outil pédagogique uniquement. Ne l'utilisez jamais pour planifier ou conduire une vraie plongée.**
-> Les calculs sont des approximations et peuvent différer sensiblement de ceux d'un ordinateur réel. Suivez toujours votre formation, vos tables et les instructions du fabricant de votre équipement.
+> **Educational tool only. Never use it to plan or conduct a real dive.**
+> Calculations are approximations and may differ significantly from those of a real dive computer. Always follow your training, your tables and your equipment manufacturer's instructions.
 
-## Ordinateurs simulés
+## Simulated computers
 
-| Modèle | Algorithme | Fidélité |
+| Model | Algorithm | Fidelity |
 | --- | --- | --- |
-| Shearwater Perdix 2 (mode Recreational) | Bühlmann ZHL-16C + GF | Algorithme public, reproduit |
-| Garmin Descent Mk3i | Bühlmann ZHL-16C + GF | Algorithme public, reproduit |
+| Shearwater Perdix 2 (Recreational mode) | Bühlmann ZHL-16C + GF | Public algorithm, reproduced |
+| Garmin Descent Mk3i | Bühlmann ZHL-16C + GF | Public algorithm, reproduced |
 | Suunto D5 | Fused RGBM 2 | Approximation (≈) |
 | Mares Puck Pro | Mares RGBM | Approximation (≈) |
-| Mares Quad Ci | Bühlmann ZH-L16C + GF | Algorithme public, reproduit (R1, R2, T1, T2 interpolés) |
+| Mares Quad Ci | Bühlmann ZH-L16C + GF | Public algorithm, reproduced (R1, R2, T1, T2 interpolated) |
 | Mares Quad Air | Mares RGBM | Approximation (≈) |
-| Mares Genius | Bühlmann ZH-L16C + GF | Algorithme public, reproduit (R2, T1, T2 interpolés) |
+| Mares Genius | Bühlmann ZH-L16C + GF | Public algorithm, reproduced (R2, T1, T2 interpolated) |
 | Scubapro Galileo 2 (G2) | ZH-L16 ADT MB | Approximation (≈) |
 | Cressi Goa | Cressi RGBM | Approximation (≈) |
 
-Les algorithmes propriétaires (RGBM, ZH-L16 ADT MB) ne sont pas publiés : ils sont approchés à partir de Bühlmann ZHL-16C avec des facteurs de gradient et des pénalités calibrés sur des valeurs publiées. Les écrans et les règles (alarmes, paliers, verrouillages…) s'inspirent des manuels utilisateurs publics de chaque modèle.
+Proprietary algorithms (RGBM, ZH-L16 ADT MB) are unpublished: they are approximated from Bühlmann ZHL-16C with gradient factors and penalties calibrated on published values. Displays and rules (alarms, stops, lockouts…) are inspired by each model's public user manual.
 
-Dans l'application, un avertissement s'affiche à la première visite (usage pédagogique, algorithmes approchés, absence d'affiliation) et une légende ✓ / ≈ au-dessus de chaque ordinateur rappelle qu'il s'agit d'une interprétation non officielle.
+In the app, a notice is shown on every visit (educational use, approximated algorithms, no affiliation), and a ✓ / ≈ caption above each computer reminds you that it is an unofficial interpretation.
 
 > [!NOTE]
-> **Les interfaces sont des interprétations, pas des reproductions.** Elles sont inspirées des modèles cités et peuvent en différer sur de nombreux points : disposition, couleurs, polices, textes, menus, comportements, alarmes, réglages disponibles ou valeurs calculées. Seule une partie des modes et des fonctions de chaque appareil est simulée, et les fabricants peuvent faire évoluer leurs produits (firmware, affichage) sans que ce simulateur soit mis à jour. En cas de doute, le manuel officiel et l'appareil réel font foi.
+> **The displays are interpretations, not reproductions.** They are inspired by the listed models and may differ from them in many ways: layout, colours, fonts, texts, menus, behaviour, alarms, available settings or computed values. Only part of each device's modes and features is simulated, and manufacturers may update their products (firmware, display) without this simulator being updated. When in doubt, the official manual and the real device prevail.
 
-## Démarrage
+## Getting started
 
-Prérequis : Node.js 18 ou plus récent.
+Requirements: Node.js 18 or later.
 
 ```bash
 npm install
-npm run dev       # serveur de développement Vite
-npm run build     # vérification TypeScript + build de production dans dist/
-npm run preview   # sert le build de production
+npm run dev       # Vite development server
+npm run build     # TypeScript check + production build in dist/
+npm run preview   # serves the production build
 ```
 
-Scripts d'analyse en ligne de commande :
+Command-line analysis scripts:
 
 ```bash
-npm run calib     # tables de NDL par profondeur et par GF (calibration)
-npm run scenario  # rejoue un profil de plongée sur tous les ordinateurs
-npm run stops     # contrôle le comportement aux paliers de déco de chaque ordinateur
+npm run calib     # NDL tables by depth and GF (calibration)
+npm run scenario  # replays a dive profile on every computer
+npm run stops     # checks each computer's behaviour at deco stops
 ```
 
-## Commandes
+## Controls
 
-- Toucher ou cliquer (et glisser) dans l'eau, ou la molette, pour aller à une profondeur (à la dernière vitesse choisie ; 9 m/min en montée et 18 m/min en descente par défaut).
-- ▲ / ▼ (boutons ou flèches du clavier) pour régler la vitesse de montée ou de descente par pas de 1 m/min ; ■ ou `0` pour se stabiliser.
-- `+` / `−` pour accélérer ou ralentir le temps, `Espace` pour mettre en pause.
-- Les boutons des ordinateurs sont cliquables, avec appui long quand le modèle en a un. Une info-bulle indique la fonction réelle de chaque bouton pendant la plongée (d'après le manuel du fabricant) et précise ce qui n'est pas simulé ; les boutons sans aucune fonction simulée apparaissent grisés.
+- Tap or click (and drag) in the water, or use the mouse wheel, to go to a depth (at the last chosen speed; 9 m/min ascending and 18 m/min descending by default).
+- ▲ / ▼ (buttons or arrow keys) to set the ascent or descent speed in 1 m/min steps; ■ or `0` to hold depth.
+- `+` / `−` to speed up or slow down time, `Space` to pause.
+- **How to use it?** (next to the title, or "Take the tour" in the welcome notice) starts a guided tour of the interface.
+- The computers' buttons can be clicked, with a long press when the model has one. A tooltip shows each button's real function during the dive (from the manufacturer's manual) and what is not simulated; buttons with no simulated function are greyed out.
 
-## Vue 3D
+## Surface, boat and repetitive dives
 
-Le bouton **2D | 3D** en haut de la zone de plongée bascule vers une vue 3D ludique, avec trois environnements : récif corallien (platier, tombant vers le sable et patates de corail), épave (colonisée par les coraux) et tombant (plateau et paroi plongeant dans le bleu). Le plongeur nage librement : glisser horizontalement, les flèches ◀ / ▶ du clavier ou les boutons à l'écran le font tourner (tour complet possible), glisser verticalement change la profondeur visée. Clic droit ou Maj + glisser pour pivoter la caméra, double-clic pour la recentrer. Le fond, l'épave, les rochers et les coraux sont solides : le plongeur les longe au lieu de les traverser et se pose dessus s'il descend ; ils ne le font jamais remonter, le profil reste entièrement sous le contrôle de l'utilisateur. Rendu : caustiques, lumière qui s'assombrit et bleuit avec la profondeur (une lampe prend le relais), fenêtre de Snell, poissons animés, coraux et herbiers ondulants. La simulation est identique dans les deux vues ; three.js n'est chargé qu'à la première ouverture de la vue 3D.
+The tank is not refilled automatically between dives. Five seconds after surfacing during a dive (tank below 90 %), a boat comes alongside the diver and offers a full tank in a comic speech bubble, in both the 2D and 3D views. **Yes**: the diver climbs aboard, the dive ends and the tank is refilled; the next descent is a new dive. **No**: the boat leaves. A dive is also closed after 3 minutes at the surface. Tissues stay loaded from one dive to the next; the logbook shows each dive's type: consecutive (surface interval under 15 min), repetitive (under 12 h) or single.
+
+## 3D view
+
+The **2D | 3D** button at the top of the dive area switches to a playful 3D view with three environments: coral reef (reef flat, slope down to the sand and coral heads), wreck (overgrown with corals) and wall (plateau and a wall dropping into the blue). The diver swims freely: drag horizontally, use the ◀ / ▶ arrow keys or the on-screen buttons to turn (full turns allowed), drag vertically to change the target depth. Right-click or Shift + drag to orbit the camera, double-click to recentre it. The seabed, the wreck, the rocks and the corals are solid: the diver swims along them instead of through them and rests on them when descending; they never lift the diver, so the depth profile stays entirely under the user's control. Rendering: caustics, light getting darker and bluer with depth (a torch takes over), Snell's window, animated fish, swaying corals and seagrass. The simulation is the same in both views; three.js is only loaded the first time the 3D view is opened.
 
 ## Structure
 
 ```
-src/engine/      moteur : Bühlmann ZHL-16C + GF, gaz, toxicité O2 (CNS/OTU), session de plongée
-src/computers/   un fichier par ordinateur simulé (affichage + règles propres au modèle)
-src/ui/          scène 2D (colonne d'eau), vue 3D (three.js), graphiques, jauges
-scripts/         scripts de calibration et de scénarios
+src/engine/      engine: Bühlmann ZHL-16C + GF, gases, O2 toxicity (CNS/OTU), dive session
+src/computers/   one file per simulated computer (display + model-specific rules)
+src/ui/          2D scene (water column), 3D view (three.js), charts, gauges, guided tour
+scripts/         calibration and scenario scripts
 ```
 
-## Marques et affiliation
+## Trademarks and affiliation
 
-Ce projet est indépendant et **n'est ni affilié, ni approuvé, ni sponsorisé** par les fabricants cités. Shearwater, Perdix, Garmin, Descent, Suunto, Mares, Puck, Quad, Genius, Scubapro, Galileo, Cressi et Goa sont des marques de leurs propriétaires respectifs ; elles sont citées uniquement pour identifier les modèles dont les interfaces sont inspirées. Aucun logo, code ou élément graphique des fabricants n'est inclus.
+This project is independent and **is not affiliated with, endorsed or sponsored by** the manufacturers mentioned. Shearwater, Perdix, Garmin, Descent, Suunto, Mares, Puck, Quad, Genius, Scubapro, Galileo, Cressi and Goa are trademarks of their respective owners; they are only mentioned to identify the models whose displays inspired this simulator. No manufacturer logo, code or artwork is included.
 
-Si vous représentez l'un de ces fabricants et souhaitez qu'un élément soit modifié ou retiré, ouvrez une issue.
+If you represent one of these manufacturers and would like something changed or removed, please open an issue.
 
 ## Licence
 
-[MIT](LICENSE). Le logiciel est fourni « tel quel », sans aucune garantie. Les auteurs ne sauraient être tenus responsables de son utilisation.
+[MIT](LICENSE). The software is provided "as is", without any warranty. The authors cannot be held liable for its use.

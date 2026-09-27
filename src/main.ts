@@ -3,7 +3,7 @@ import { N2_HALF, SURFACE_PRESSURE, gasLabel, pressureToDepth } from './engine/b
 import { DIVE_START_DEPTH, DiveSession, RAPID_RATE, type EmergencyReason } from './engine/session';
 import { createComputers, type DiveComputer } from './computers';
 import { hmm, type ButtonAction, type ButtonHelp, type ComputerView, type SettingDef, type SettingOption } from './computers/base';
-import { I18nKey, isI18nKey, lang, setLang, t } from './i18n';
+import { I18nKey, isI18nKey, lang, langChosen, setLang, t } from './i18n';
 import { ProfileChart, TissueChart } from './ui/charts';
 import { Scene } from './ui/scene';
 import { Tour, type TourStep } from './ui/tour';
@@ -138,6 +138,7 @@ let env: Environment = ENVS.some((e) => e.id === prefs.env) ? prefs.env! : 'reef
 
 function applyI18n(): void {
   document.documentElement.lang = lang();
+  document.title = t('title');
   document.querySelectorAll<HTMLElement>('[data-i18n]').forEach((el) => {
     const key = el.dataset.i18n!;
     if (isI18nKey(key)) el.textContent = t(key);
@@ -397,6 +398,27 @@ function showIntro(): void {
     startTour();
   });
   dlg.showModal();
+}
+
+// First visit (no language saved yet): ask for the language, the browser's one preselected, then
+// show the notice. Time is paused meanwhile.
+function askLang(next: () => void): void {
+  const dlg = $<HTMLDialogElement>('lang-pick');
+  paused = true;
+  renderControls();
+  dlg.addEventListener('cancel', (e) => e.preventDefault()); // a language must be picked
+  dlg.querySelectorAll<HTMLButtonElement>('[data-pick]').forEach((b) => {
+    b.classList.toggle('primary', b.dataset.pick === lang());
+    b.addEventListener('click', () => {
+      setLang(b.dataset.pick as 'fr' | 'en');
+      applyI18n();
+      refresh(true);
+      dlg.close();
+      next();
+    });
+  });
+  dlg.showModal();
+  dlg.querySelector<HTMLButtonElement>(`[data-pick="${lang()}"]`)?.focus();
 }
 
 $('about-open').addEventListener('click', () => $<HTMLDialogElement>('about').showModal());
@@ -1027,6 +1049,7 @@ if (import.meta.env.DEV) {
 
 applyI18n();
 refresh(true);
-showIntro();
+if (langChosen()) showIntro();
+else askLang(showIntro);
 if (view === '3d') void setView('3d');
 requestAnimationFrame(frame);

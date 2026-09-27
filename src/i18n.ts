@@ -1,7 +1,7 @@
 export type Lang = 'fr' | 'en';
 
 const dict = {
-  title: { fr: 'Computer dive simulation', en: 'Computer dive simulation' },
+  title: { fr: 'Simulateur d’ordinateurs de plongée', en: 'Dive Computers simulator' },
   subtitle: {
     fr: 'Touchez ou cliquez (et glissez) dans l’eau pour aller à une profondeur (à la dernière vitesse choisie). ▲/▼ ou flèches : vitesse de montée / descente (±1 m/min), ■ ou 0 : arrêt ; +/− accélère le temps, Espace = pause.',
     en: 'Tap or click (and drag) in the water to go to a depth (at the last chosen speed). ▲/▼ or arrow keys: ascent / descent speed (±1 m/min), ■ or 0: stop; +/− changes time speed, Space pauses.',
@@ -309,6 +309,16 @@ let current: Lang = (() => {
 
 export function lang(): Lang {
   return current;
+}
+
+/** Has the user already picked a language (saved in local storage)? */
+export function langChosen(): boolean {
+  try {
+    const saved = localStorage.getItem('divesim.lang');
+    return saved === 'fr' || saved === 'en';
+  } catch {
+    return false; // storage unavailable: asked again at each visit
+  }
 }
 
 export function setLang(l: Lang): void {
