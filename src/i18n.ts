@@ -304,21 +304,19 @@ let current: Lang = (() => {
   } catch {
     /* storage unavailable */
   }
-  return navigator.language.startsWith('fr') ? 'fr' : 'en';
+  // Otherwise the browser's (i.e. usually the system's) preferred languages, in order: the first one
+  // that is French or English wins; English if neither is listed.
+  const prefs = navigator.languages?.length ? navigator.languages : [navigator.language];
+  for (const l of prefs) {
+    const code = (l ?? '').toLowerCase();
+    if (code.startsWith('fr')) return 'fr';
+    if (code.startsWith('en')) return 'en';
+  }
+  return 'en';
 })();
 
 export function lang(): Lang {
   return current;
-}
-
-/** Has the user already picked a language (saved in local storage)? */
-export function langChosen(): boolean {
-  try {
-    const saved = localStorage.getItem('divesim.lang');
-    return saved === 'fr' || saved === 'en';
-  } catch {
-    return false; // storage unavailable: asked again at each visit
-  }
 }
 
 export function setLang(l: Lang): void {
