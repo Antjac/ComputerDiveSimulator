@@ -1,6 +1,6 @@
 import { ceilingDepth, depthToPressure, ndl, pressureToDepth, type DecoParams } from '../../engine/buhlmann';
 import type { DiveSession } from '../../engine/session';
-import { DiveComputer, SettingDef, desaturationTime } from '../base';
+import { type AlertCue, type ComputerView, DiveComputer, SettingDef, desaturationTime } from '../base';
 
 
 /** Approximate GF equivalent of each safety factor (Cressi RGBM is proprietary). */
@@ -140,4 +140,25 @@ export abstract class GoaRules extends DiveComputer {
     }
   }
 
+
+  /**
+   * Acoustic alarms (instruction manual): SLOW (ascent over 12 m/min) while it lasts; NO DECO time
+   * down to 3 minutes; leaving the safety curve (deco); PO2 limit depth exceeded, until back
+   * shallower; CNS bar at 4 segments out of 5, i.e. above 60 % (temporary alarm), repeated at 100 %
+   * until the PO2 drops below 0.6 (interval not given: every minute assumed); a skipped deco stop is
+   * signalled by a continuous alarm. There is no setting to silence them (AL.SP only disables
+   * the fast ascent alarm, for instructors).
+   */
+  alertCues(v: ComputerView): AlertCue[] {
+    if (!v.inDive) return [];
+    const cues: AlertCue[] = [];
+    if (v.alarms.includes('ASCENT')) cues.push({ key: 'slow', kind: 'beep', level: 'alarm', until: 'clear', every: 2 });
+    if (!v.inDeco && v.ndl <= 3) cues.push({ key: 'ndl-3', kind: 'beep', level: 'warning', until: 'once' });
+    if (v.inDeco) cues.push({ key: 'deco', kind: 'beep', level: 'warning', until: 'once' });
+    if (v.depth > v.mod) cues.push({ key: 'po2', kind: 'beep', level: 'alarm', until: 'clear', every: 2 });
+    if (v.alarms.includes('CEILING')) cues.push({ key: 'missed-stop', kind: 'beep', level: 'alarm', until: 'clear', every: 1 });
+    if (v.cns >= 100 && v.ppO2 >= 0.6) cues.push({ key: 'cns-100', kind: 'beep', level: 'warning', until: 'clear', every: 60 });
+    else if (v.cns > 60) cues.push({ key: 'cns-4', kind: 'beep', level: 'info', until: 'once' });
+    return cues;
+  }
 }

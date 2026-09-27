@@ -1,4 +1,5 @@
 // Interface language: the static texts of the page (data-i18n attributes) and the FR / EN buttons.
+import { renderSound } from './alertSounds';
 import { isI18nKey, lang, setLang, t } from '../i18n';
 import { renderLog } from './logbook';
 import { profileChart, refresh, tissueChart } from './render';
@@ -30,6 +31,7 @@ export function setupLanguage(): void {
     b.addEventListener('click', () => {
       setLang(b.dataset.lang as 'fr' | 'en');
       applyI18n();
+      renderSound();
       refresh(true);
     }),
   );

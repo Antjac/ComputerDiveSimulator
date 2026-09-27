@@ -1,9 +1,9 @@
 import { ceilingDepth, depthToPressure, type DecoParams } from '../../../engine/buhlmann';
 import { type DiveSession } from '../../../engine/session';
-import { ComputerView, DiveComputer, SettingDef } from '../../base';
+import { type AlertCue, ComputerView, DiveComputer, SettingDef } from '../../base';
 import { divingDays, standardNoFly } from '../../common/dives';
 import { surfGfAfter, ttsAfter } from '../../common/predict';
-import { DeepStop, FastAscentZhl, MissedStop, PRESETS, quadAscentLimit } from '../common';
+import { DeepStop, FastAscentZhl, MissedStop, PRESETS, maresCues, quadAscentLimit } from '../common';
 
 const atm = (d: number) => depthToPressure(d) / 1.01325;
 const LEVELS = [{ value: 'off', label: 'OFF' }, { value: '1', label: 'LOW' }, { value: '2', label: 'MEDIUM' }, { value: '3', label: 'HIGH' }];
@@ -104,6 +104,13 @@ export abstract class GeniusRules extends DiveComputer {
       label: { fr: 'Verrou remontée', en: 'Ascent violation' },
       options: [{ value: 'on', label: 'ON' }, { value: 'off', label: 'OFF' }],
       default: 'on',
+    },
+    {
+      // §4 ALL SILENT MODE turns the audible alarms off (off by default, assumed).
+      key: 'silent',
+      label: { fr: 'Mode silencieux (ALL SILENT)', en: 'All silent' },
+      options: [{ value: 'on', label: { fr: 'Activé', en: 'On' } }, { value: 'off', label: { fr: 'Désactivé', en: 'Off' } }],
+      default: 'off',
     },
   ];
 
@@ -218,5 +225,19 @@ export abstract class GeniusRules extends DiveComputer {
   /** §10: standard 12 h (no-deco, non repetitive) or 24 h (deco and repetitive) countdown. */
   protected noFlyMin(s: DiveSession): number {
     return standardNoFly(this.longNoFly, s);
+  }
+
+  /**
+   * Audible alarms (instruction manual §5): fast ascent, MOD exceeded and missed deco stop sound while they last;
+   * CNS 100 %: 5 s in one-minute intervals; CNS 75 %%, once. §4 ALL SILENT MODE turns the audible alarms off (off by default, assumed).
+   */
+  alertCues(v: ComputerView): AlertCue[] {
+    if (this.settings.silent === 'on' || !v.inDive) return [];
+    const cues = maresCues(v);
+    if (v.cns >= 75 && v.cns < 100) cues.push({ key: 'cns-75', kind: 'beep', level: 'info', until: 'once' });
+    // TANK RESERVE alarm (with a tank module; "alarms are both visual and audible"). How it is
+    // acknowledged is not given: a button press, as on the Quad Air, assumed.
+    if (v.tank.ai && v.tank.pressure <= v.tank.reserve) cues.push({ key: 'reserve', kind: 'beep', level: 'warning', until: 'ack', every: 3 });
+    return cues;
   }
 }

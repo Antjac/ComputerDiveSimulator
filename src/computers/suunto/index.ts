@@ -2,7 +2,7 @@ import type { DiveSession } from '../../engine/session';
 import type { Lang } from '../../i18n';
 import { depthInt, depthUnit, imperial, pressText, pressUnit, tempUnit, tempVal } from '../../units';
 import { ButtonHelp, ComputerView, depthStr, hmm } from '../base';
-import { D5Rules } from './rules';
+import { type D5Notice, D5Rules } from './rules';
 
 /** Stop / ceiling values: one decimal in metres, whole feet in imperial. */
 const stopDepth = (m: number) => (imperial() ? String(depthInt(m)) : m.toFixed(1));
@@ -31,9 +31,20 @@ function minSec(seconds: number): string {
   return `${Math.floor(s / 60)}′<tspan class="su-sec">${String(s % 60).padStart(2, '0')}</tspan>`;
 }
 
+/** Warning and notification names of the §4.1 tables. */
+const NOTICE_TEXT: Record<D5Notice, string> = {
+  'cns-100': 'CNS 100%',
+  'gas-time': 'Gas time',
+  'safety-broken': 'Safety stop broken',
+  'tank-50': 'Tank pressure',
+  'cns-80': 'CNS 80%',
+};
+
 /** Suunto D5: buttons and round display, after the manual (rules in rules.ts). */
 export class SuuntoD5 extends D5Rules {
   press(button: string): boolean {
+    // §4.1: "Acknowledge the warning by pressing any button" (the press only acknowledges: assumed).
+    if (this.notices.dismiss()) return true;
     if (button === 'lower') this.setScreen((this.screen + 1) % (this.switchCount + 1));
     else if (button === 'upper') {
       this.timerRunning = !this.timerRunning;
@@ -43,6 +54,7 @@ export class SuuntoD5 extends D5Rules {
   }
 
   hold(button: string): boolean {
+    if (this.notices.dismiss()) return true;
     if (button === 'upper') {
       this.timerRunning = false;
       this.timerSec = 0;
@@ -218,8 +230,20 @@ export class SuuntoD5 extends D5Rules {
 
     const [di, dd] = depthStr(v.depth).split('.');
     const decimals = dd !== undefined ? `<tspan class="su-dec">.${dd}</tspan>` : '';
-    const po2Alarm = v.ppO2 > 1.6;
-    const ascentAlarm = this.ascentAlarm;
+    // §4.1 figure "High pO2": a yellow band across the middle, the pO2 in red under it (in place of
+    // the bottom window). Warnings and notifications pop up the same way until a button is pressed
+    // (no figure for them: same band assumed; the guide says warnings "may be red or yellow").
+    const po2Alarm = v.inDive && v.ppO2 > 1.6;
+    const notice = v.inDive ? this.notices.top : undefined;
+    let popup = '';
+    const band = (text: string) => `<g clip-path="url(#su-clip)"><rect x="0" y="142" width="300" height="62" fill="${YELLOW}"/><text x="150" y="182" class="su-t su-pop">${text}</text></g>`;
+    if (po2Alarm) {
+      popup = band('High pO<tspan class="su-sub" dy="4">2</tspan>') +
+        `<text x="150" y="222" class="su-t su-lbl su-c">pO<tspan class="su-sub" dy="3">2</tspan></text>` +
+        `<text x="150" y="261" class="su-t su-band su-red-fill">${v.ppO2.toFixed(1).replace(/^0/, '')}</text>`;
+    } else if (notice) {
+      popup = band(NOTICE_TEXT[notice]);
+    }
 
     el.innerHTML = `
       <div class="dev su">
@@ -235,21 +259,21 @@ export class SuuntoD5 extends D5Rules {
             <text x="60" y="140" class="su-t su-wave">≈</text>
             ${bar}
             <text x="98" y="81" class="su-t su-lbl">DEPTH, ${depthUnit()}</text>
-            <text x="94" y="130" class="su-t su-depth ${po2Alarm ? 'su-red blink' : ''}"><tspan class="su-arrows">${depthArrows}</tspan>${di}${decimals}</text>
-            <text x="98" y="152" class="su-t su-lbl">DIVE TIME</text>
+            <text x="94" y="130" class="su-t su-depth"><tspan class="su-arrows">${depthArrows}</tspan>${di}${decimals}</text>
+            ${popup ? '' : `<text x="98" y="152" class="su-t su-lbl">DIVE TIME</text>
             <text x="98" y="196" class="su-t su-time">${Math.floor(v.diveTime / 60)}′</text>
             ${decoTag ? `<rect x="182" y="150" width="46" height="15" rx="2" fill="${ORANGE}"/><text x="205" y="162" class="su-t su-tag">DECO</text>` : ''}
             <text x="186" y="177" class="su-t su-lbl">${rightLbl}</text>
-            <text x="186" y="203" class="su-t su-right ${rightCls}">${rightVal}</text>
-            <text x="150" y="222" class="su-t su-lbl su-c">${bandLbl}</text>
+            <text x="186" y="203" class="su-t su-right ${rightCls}">${rightVal}</text>`}
+            ${po2Alarm ? '' : `<text x="150" y="222" class="su-t su-lbl su-c">${bandLbl}</text>
             <g clip-path="url(#su-clip)">
               <rect x="0" y="227" width="300" height="42" fill="${bandCol}"/>
               <text x="150" y="261" class="su-t su-band">${bandVal}</text>
-              <rect x="136" y="277" width="28" height="6" rx="1" fill="none" stroke="#fff" stroke-width="1.5"/>
-              <rect x="138" y="279" width="18" height="2" fill="#fff"/>
-            </g>
-            ${ascentAlarm ? `<g><rect x="70" y="30" width="160" height="26" rx="4" fill="${RED}"/><text x="150" y="49" class="su-t su-alert">Ascent speed</text></g>` : ''}
-            ${v.locked ? `<text x="186" y="166" class="su-t su-lbl">LOCKED</text>` : ''}
+            </g>`}
+            <rect x="136" y="277" width="28" height="6" rx="1" fill="none" stroke="#fff" stroke-width="1.5"/>
+            <rect x="138" y="279" width="18" height="2" fill="#fff"/>
+            ${popup}
+            ${v.locked && !popup ? `<text x="186" y="166" class="su-t su-lbl">LOCKED</text>` : ''}
           </svg>
         </div>
       </div>`;

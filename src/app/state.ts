@@ -28,4 +28,6 @@ export const app = {
   sheetOpen: !compactMq.matches,
   /** 3D view, loaded on first use. */
   scene3d: null as Scene3D | null,
+  /** Alarm sounds of the computers (off until the user turns them on). */
+  sound: false,
 };

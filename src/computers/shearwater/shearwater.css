@@ -59,6 +59,10 @@
 .pd-small { font-size: 24px; line-height: 1.1; white-space: nowrap; }
 .pd-small.r { text-align: right; } .pd-small.c { font-size: 20px; }
 .pd-bottom.info .pd-cell { text-align: left; }
+/* §10 error display in the bottom row: "Error" and "Confirm" labels above the yellow message. */
+.pd-err { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+.pd-err-lbls { display: flex; justify-content: space-between; padding-right: 22%; }
+.pd-err-msg { color: #ffd400; font-size: 34px; line-height: 1.1; white-space: nowrap; }
 .pd-bottom.info .pd-cell.r { text-align: right; }
 .pd-tissues { flex: 1; }
 .pd-tbars { position: relative; height: 40px; display: flex; align-items: flex-end; gap: 3px; border-bottom: 1px solid #444; }

@@ -1,7 +1,7 @@
 import { COMPARTMENTS, DecoParams, SURFACE_PRESSURE, ceilingDepth, equilibriumDepth, firstStop } from '../../engine/buhlmann';
 import { remainingTime } from '../../engine/gas';
 import type { DiveSession } from '../../engine/session';
-import { ComputerView, DiveComputer, SettingDef } from '../base';
+import { type AlertCue, ComputerView, DiveComputer, SettingDef } from '../base';
 
 /** Ideal ascent rate by depth (G2 manual §3.7), in m/min. */
 export const IDEAL_ASCENT: [number, number][] = [
@@ -60,6 +60,13 @@ export abstract class G2Rules extends DiveComputer {
         { value: 'graphical', label: 'Graphical' },
       ],
       default: 'light',
+    },
+    {
+      // User manual §2.2.9 All-silent mode (factory setting OFF, i.e. sound on).
+      key: 'sound',
+      label: { fr: 'Son', en: 'Sound' },
+      options: [{ value: 'on', label: { fr: 'Activé', en: 'On' } }, { value: 'off', label: { fr: 'Désactivé', en: 'Off' } }],
+      default: 'on',
     },
   ];
 
@@ -189,4 +196,23 @@ export abstract class G2Rules extends DiveComputer {
     return this.activeLevel > 0 ? { ...b, ndl: `${b.ndl} (L${this.activeLevel})` } : b;
   }
 
+
+  /**
+   * Audible alarms (user manual §3.7 and following): ascent above 110 % of the ideal rate, the beeps
+   * getting faster as the excess grows; MOD exceeded, beeping incessantly while deeper; missed deco
+   * stop, a sequence of beeps while more than 0.5 m above; CNS O2 100 %, beeps for 12 s, then 5 s in
+   * 1-minute intervals. Silenced by the all-silent mode (§2.2.9).
+   */
+  alertCues(v: ComputerView): AlertCue[] {
+    if (this.settings.sound === 'off' || !v.inDive) return [];
+    const cues: AlertCue[] = [];
+    if (v.ascentLevel >= 1) {
+      const excess = v.ascentRate / idealAscent(v.depth) - 1.1;
+      cues.push({ key: 'ascent', kind: 'beep', level: v.ascentLevel >= 2 ? 'alarm' : 'warning', until: 'clear', every: Math.max(0.6, 2.5 - excess * 4) });
+    }
+    if (v.depth > v.mod) cues.push({ key: 'mod', kind: 'beep', level: 'alarm', until: 'clear', every: 1 });
+    if (v.alarms.includes('CEILING')) cues.push({ key: 'missed-stop', kind: 'beep', level: 'alarm', until: 'clear', every: 2 });
+    if (v.cns >= 100) cues.push({ key: 'cns', kind: 'beep', level: 'warning', until: 'clear', first: 12, every: 60, repeat: 5 });
+    return cues;
+  }
 }

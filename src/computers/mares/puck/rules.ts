@@ -1,7 +1,7 @@
 import { ceilingDepth, depthToPressure, ndl, pressureToDepth, type DecoParams } from '../../../engine/buhlmann';
 import { type DiveSession } from '../../../engine/session';
-import { DiveComputer, SettingDef } from '../../base';
-import { FastAscentRgbm, MissedStop, maresRgbmParams } from '../common';
+import { type AlertCue, type ComputerView, DiveComputer, SettingDef } from '../../base';
+import { FastAscentRgbm, MissedStop, maresCues, maresRgbmParams } from '../common';
 
 /**
  * Mares Puck Pro. Display and rules follow the Puck Pro instruction manual (display information,
@@ -23,6 +23,13 @@ export abstract class PuckRules extends DiveComputer {
       label: { fr: 'Facteur P', en: 'P factor' },
       options: [{ value: 'P0', label: 'P0' }, { value: 'P1', label: 'P1' }, { value: 'P2', label: 'P2' }],
       default: 'P0',
+    },
+    {
+      // §2.2.1.7 ALRM turns the audible alarms off (on by default, assumed).
+      key: 'alrm',
+      label: { fr: 'Alarmes sonores (ALRM)', en: 'Audible alarms (ALRM)' },
+      options: [{ value: 'on', label: { fr: 'Activé', en: 'On' } }, { value: 'off', label: { fr: 'Désactivé', en: 'Off' } }],
+      default: 'on',
     },
   ];
 
@@ -121,4 +128,14 @@ export abstract class PuckRules extends DiveComputer {
     }
   }
 
+
+  /**
+   * Audible alarms (instruction manual §3.2): fast ascent, MOD exceeded and missed deco stop sound while they last;
+   * CNS 100 %: 5 s in one-minute intervals. §2.2.1.7 ALRM turns the audible alarms off (on by default, assumed).
+   */
+  alertCues(v: ComputerView): AlertCue[] {
+    if (this.settings.alrm === 'off' || !v.inDive) return [];
+    const cues = maresCues(v);
+    return cues;
+  }
 }

@@ -26,6 +26,27 @@ export type AlarmCode =
 
 export type Bi = { fr: string; en: string };
 
+/**
+ * Sound (buzzer) or vibration an alert makes on the real device, per its manual. The page plays a
+ * cue when its key appears among the active ones, then repeats it as described.
+ */
+export interface AlertCue {
+  /** The condition: a cue plays when its key appears (a new key, even for the same alarm, replays). */
+  key: string;
+  /** Beeps, vibration (played as a buzzing sound, and a real vibration on phones that allow it), or both. */
+  kind: 'beep' | 'buzz' | 'both';
+  /** Sound pattern: urgent alarm, warning or short notice. */
+  level: 'alarm' | 'warning' | 'info';
+  /** Plays once, repeats while the condition lasts, or repeats until a button of the computer is pressed. */
+  until: 'once' | 'clear' | 'ack';
+  /** Seconds between repeats (real time). */
+  every?: number;
+  /** Seconds the first sound lasts (the pattern is repeated to fill it); one pattern by default. */
+  first?: number;
+  /** Seconds each repeat lasts; one pattern by default. */
+  repeat?: number;
+}
+
 /** What a button does on the real device (per its manual), and whether the simulator reproduces it. */
 export interface ButtonAction {
   real: Bi;

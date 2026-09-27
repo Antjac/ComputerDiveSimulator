@@ -26,5 +26,8 @@
 .su-band { font-size: 34px; font-weight: 600; fill: #000; text-anchor: middle; }
 .su-sec { font-size: 22px; }
 .su-wave { fill: #2fe3ff; font-size: 22px; text-anchor: middle; }
-.su-alert { fill: #000; font-weight: 700; font-size: 16px; text-anchor: middle; }
+/* §4.1 pop-ups: black text on the yellow band; the pO2 value in red under it. */
+.su-pop { fill: #000; font-size: 26px; font-weight: 600; text-anchor: middle; }
+.su-sub { font-size: 0.65em; }
+.su-red-fill { fill: #ff2d2d; }
 .su-red { fill: #ff2d2d; } .su-yellow { fill: #ffe11a; }

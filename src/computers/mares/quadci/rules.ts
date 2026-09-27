@@ -1,8 +1,8 @@
 import { ceilingDepth, depthToPressure, type DecoParams } from '../../../engine/buhlmann';
 import { type DiveSession } from '../../../engine/session';
-import { ComputerView, DiveComputer, SettingDef, desaturationTime } from '../../base';
+import { type AlertCue, ComputerView, DiveComputer, SettingDef, desaturationTime } from '../../base';
 import { divingDays } from '../../common/dives';
-import { DeepStop, FastAscentZhl, MissedStop, PRESETS, quadAscentLimit } from '../common';
+import { DeepStop, FastAscentZhl, MissedStop, PRESETS, maresCues, quadAscentLimit } from '../common';
 
 const atm = (d: number) => depthToPressure(d) / 1.01325;
 
@@ -48,6 +48,13 @@ export abstract class QuadCiRules extends DiveComputer {
       key: 'repetitive',
       label: { fr: 'Marge successives', en: 'Repetitive conserv.' }, // short: one line in the settings grid
       options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'On' }],
+      default: 'off',
+    },
+    {
+      // §3.3 ALL SILENT turns the audible alarms off (off by default, assumed).
+      key: 'silent',
+      label: { fr: 'Mode silencieux (ALL SILENT)', en: 'All silent' },
+      options: [{ value: 'on', label: { fr: 'Activé', en: 'On' } }, { value: 'off', label: { fr: 'Désactivé', en: 'Off' } }],
       default: 'off',
     },
   ];
@@ -145,5 +152,19 @@ export abstract class QuadCiRules extends DiveComputer {
 
   protected hasDesat(s: DiveSession): boolean {
     return s.log.length > 0 && s.clock < this.desatUntil;
+  }
+
+  /**
+   * Audible alarms (instruction manual, alarms): fast ascent, MOD exceeded and missed deco stop sound while they last;
+   * CNS 100 %: 5 s in one-minute intervals; CNS 75 %%, once. §3.3 ALL SILENT turns the audible alarms off (off by default, assumed).
+   */
+  alertCues(v: ComputerView): AlertCue[] {
+    if (this.settings.silent === 'on' || !v.inDive) return [];
+    const cues = maresCues(v);
+    if (v.cns >= 75 && v.cns < 100) cues.push({ key: 'cns-75', kind: 'beep', level: 'info', until: 'once' });
+    // TANK RESERVE alarm (with a tank module; "alarms are both visual and audible"). How it is
+    // acknowledged is not given: a button press, as on the Quad Air, assumed.
+    if (v.tank.ai && v.tank.pressure <= v.tank.reserve) cues.push({ key: 'reserve', kind: 'beep', level: 'warning', until: 'ack', every: 3 });
+    return cues;
   }
 }

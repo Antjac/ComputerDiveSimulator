@@ -18,6 +18,7 @@ interface Prefs {
   view: '2d' | '3d';
   env: Environment;
   advanced: boolean;
+  sound: boolean;
 }
 
 function loadPrefs(): Partial<Prefs> {
@@ -43,6 +44,7 @@ export function savePrefs(): void {
     view: app.view,
     env: app.env,
     advanced: $<HTMLDetailsElement>('advanced').open,
+    sound: app.sound,
   };
   try {
     localStorage.setItem('divesim.prefs', JSON.stringify(prefs));
@@ -71,4 +73,5 @@ export function applyPrefs(): void {
   app.view = prefs.view === '3d' ? '3d' : '2d';
   app.env = ENVS.some((e) => e.id === prefs.env) ? prefs.env! : 'reef';
   $<HTMLDetailsElement>('advanced').open = prefs.advanced === true;
+  app.sound = prefs.sound === true;
 }

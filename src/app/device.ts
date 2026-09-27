@@ -1,6 +1,7 @@
 // The computer on screen: its buttons (press, long press, pressed look), their tooltip, and its scale.
 // The device is re-rendered several times per second, so the pressed look and the tooltip are tracked
 // by button id and re-applied after each render (decorateButtons).
+import { ackAlertSounds } from './alertSounds';
 import type { ButtonAction, ButtonHelp } from '../computers/base';
 import { lang, t } from '../i18n';
 import { refresh } from './render';
@@ -93,6 +94,7 @@ export function setupDevice(): void {
     if (!btn) return;
     e.preventDefault();
     const id = btn.dataset.btn!;
+    ackAlertSounds(id); // alerts waiting for a button press stop repeating
     if (e.pointerType !== 'mouse') touchTip = { id, until: performance.now() + 3000 };
     // Phones: the "tap a button" hint is dropped once the buttons have been found.
     document.body.classList.add('dev-used');

@@ -3,7 +3,15 @@ import type { DiveSession } from '../../engine/session';
 import type { Lang } from '../../i18n';
 import { depthInt, depthText, depthUnit, imperial, pressText, pressUnit, tempUnit, tempVal } from '../../units';
 import { ButtonHelp, ComputerView, clockOfDay, leadingOnGas } from '../base';
-import { PerdixRules } from './rules';
+import { type PerdixNotice, PerdixRules } from './rules';
+
+const NOTICE_TEXT: Record<PerdixNotice, string> = {
+  'high-ppo2': 'HIGH PPO2',
+  'missed-stop': 'MISSED STOP',
+  'fast-ascent': 'FAST ASCENT',
+  'high-cns': 'HIGH CNS',
+  gas: 'T1 CRITICAL PRES',
+};
 
 const SCREWS = [[14, 14], [194, 10], [374, 14], [10, 156], [378, 156], [14, 298], [194, 302], [374, 298]]
   .map(([x, y]) => `<i class="pd-screw" style="left:${x - 5}px;top:${y - 5}px"></i>`)
@@ -15,6 +23,8 @@ export class ShearwaterPerdix extends PerdixRules {
   // one returns to the main screen, 10 s time-out); MENU returns to the main screen from an info
   // screen, and opens the menu from the main screen. Single presses only, no long press.
   press(button: string, s: DiveSession): boolean {
+    // §10: an error on display is dismissed by SELECT (then the next one, if any, shows up).
+    if (button === 'right' && this.notices.dismiss()) return true;
     if (button === 'right') this.setScreen((this.screen + 1) % (this.infoScreens(s).length + 1));
     else if (button === 'left') this.setScreen(0);
     return true;
@@ -153,6 +163,13 @@ export class ShearwaterPerdix extends PerdixRules {
       bottom = `<div class="pd-gas ${gasCls}">${gasTxt}</div>${right}`;
     } else {
       bottom = this.infoScreen(screens[screen - 1], v, s);
+    }
+    // §10 Error Displays (figure): the bottom row shows the message in yellow under "Error" and
+    // "Confirm" (SELECT), until dismissed. Message wording: the §10 table names in capitals, like
+    // the figure's "HIGH PPO2" (the gas one from the Technical manual).
+    const notice = this.notices.top;
+    if (notice && v.inDive) {
+      bottom = `<div class="pd-err"><div class="pd-err-lbls"><span class="pd-lbl">Error</span><span class="pd-lbl">Confirm</span></div><div class="pd-err-msg">${NOTICE_TEXT[notice]}</div></div>`;
     }
 
     el.innerHTML = `

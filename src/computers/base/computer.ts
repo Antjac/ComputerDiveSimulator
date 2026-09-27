@@ -3,7 +3,7 @@ import { sacBarPerMin } from '../../engine/gas';
 import { DiveSession } from '../../engine/session';
 import type { Lang } from '../../i18n';
 import { depthInt, depthUnit } from '../../units';
-import type { AlarmCode, ButtonHelp, ComputerView, SafetyState, SafetyStopDef, SettingDef } from './types';
+import type { AlarmCode, AlertCue, ButtonHelp, ComputerView, SafetyState, SafetyStopDef, SettingDef } from './types';
 import { desaturationTime } from './tissues';
 
 /**
@@ -258,6 +258,27 @@ export abstract class DiveComputer {
     } else {
       this.safetyState = 'paused';
     }
+  }
+
+  /** Buttons that acknowledge an alert (stop its repeats); null: any button. */
+  ackButtons: string[] | null = null;
+
+  /**
+   * A button was pressed. Models that keep notifications until acknowledged dismiss them in press()
+   * and return true here: their cues then disappear by themselves instead of being muted.
+   */
+  acknowledgeAlerts(_id: string): boolean {
+    return false;
+  }
+
+  /** How the alerts sound on this model (and with its current settings): beeps, vibration or both. */
+  get soundKind(): AlertCue['kind'] {
+    return 'beep';
+  }
+
+  /** Sounds or vibrations of the alerts active in `v`, per the model's manual (none by default). */
+  alertCues(_v: ComputerView): AlertCue[] {
+    return [];
   }
 
   /** Computes everything the screen needs. */

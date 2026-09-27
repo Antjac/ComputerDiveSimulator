@@ -267,6 +267,9 @@ export function planAscent(tissues: Tissues, depth: number, gas: Gas, p: DecoPar
   let first = roundUpToStop(ceilingDepth(t, a, p), p.stopStep);
   if (first > 0 && first < p.lastStop) first = p.lastStop;
   if (first < d) ascend(first);
+  // Diver already above that stop (missed stop, back at the surface): the plan sends them back down
+  // to it rather than announcing a stop at their own, too shallow, depth.
+  else if (first > d) d = first;
   const initialStop = first;
 
   let guard = 0;

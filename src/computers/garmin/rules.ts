@@ -1,7 +1,7 @@
 import type { DecoParams } from '../../engine/buhlmann';
 import type { DiveSession } from '../../engine/session';
 import { remainingTime } from '../../engine/gas';
-import { DiveComputer, SettingDef } from '../base';
+import { type AlertCue, type ComputerView, DiveComputer, SettingDef } from '../base';
 
 // Garmin conservatism presets (gradient factors).
 export const PRESETS: Record<string, [number, number]> = { low: [45, 95], medium: [40, 85], high: [35, 70] };
@@ -52,6 +52,14 @@ export abstract class DescentRules extends DiveComputer {
       options: [{ value: '3', label: '3 m' }, { value: '6', label: '6 m' }],
       default: '3',
     },
+    {
+      // Manual, dive settings: "Silent Diving: Disables all tones and vibrations for alerts during dive
+      // activities". Default not given: off assumed.
+      key: 'silent',
+      label: { fr: 'Plongée silencieuse', en: 'Silent diving' },
+      options: [{ value: 'on', label: { fr: 'Activé', en: 'On' } }, { value: 'off', label: { fr: 'Désactivé', en: 'Off' } }],
+      default: 'off',
+    },
   ];
 
   constructor() {
@@ -95,4 +103,25 @@ export abstract class DescentRules extends DiveComputer {
     return Number(this.settings.safety) * 60;
   }
 
+
+  get soundKind(): AlertCue['kind'] {
+    return 'both';
+  }
+
+  /**
+   * Dive alerts (manual, "Dive Alerts" table): each pops up with a tone and a vibration ("Sound and
+   * Vibe"), once: Approaching NDL at 10 then 5 min, NDL exceeded, ascending too fast, above the deco
+   * ceiling, PO2 above the warning value. The exact tone of each alert is not described.
+   */
+  alertCues(v: ComputerView): AlertCue[] {
+    if (this.settings.silent === 'on' || !v.inDive) return [];
+    const cues: AlertCue[] = [];
+    const pop = (key: string, level: AlertCue['level']) => cues.push({ key, kind: 'both', level, until: 'once' });
+    if (!v.inDeco && v.ndl <= 10) pop(v.ndl <= 5 ? 'ndl-5' : 'ndl-10', 'info');
+    if (v.inDeco) pop('deco', 'warning');
+    if (v.alarms.includes('ASCENT')) pop('fast-ascent', 'alarm');
+    if (v.alarms.includes('CEILING')) pop('ceiling', 'alarm');
+    if (v.depth > v.mod) pop('po2', 'alarm');
+    return cues;
+  }
 }

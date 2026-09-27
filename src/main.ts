@@ -1,6 +1,7 @@
 // Entry point: restores the preferences, wires the interface modules (src/app/), then starts the
 // simulation. Each module only declares at load time; everything runs from here, in this order.
 import './style.css';
+import { setupSound } from './app/alertSounds';
 import { setupBoat } from './app/boat';
 import { setupCompare } from './app/compare';
 import { installDevHook } from './app/devHook';
@@ -45,6 +46,7 @@ setupLogbook();
 setupCompare();
 setupRescue();
 setupBoat();
+setupSound();
 if (import.meta.env.DEV) installDevHook();
 
 applyI18n();

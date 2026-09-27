@@ -1,6 +1,7 @@
 // Rules shared by the Mares computers (from their manuals; each model cites its own sections).
 import { ndl, pressureToDepth, type DecoParams } from '../../engine/buhlmann';
 import type { DiveSession } from '../../engine/session';
+import type { AlertCue, ComputerView } from '../base';
 
 /**
  * Gradient factor sets of the ZH-L16C models (Quad Ci, Genius). The manuals give R0 (85/85),
@@ -148,4 +149,19 @@ export class DeepStop {
  */
 export function tankRange(p: number, fill: number, mid: number, low: number): 'blue' | 'green' | 'yellow' | 'red' {
   return p > (fill + mid) / 2 ? 'blue' : p > mid ? 'green' : p > low ? 'yellow' : 'red';
+}
+
+/**
+ * Audible alarms common to the Mares manuals ("Alarms are both visual and audible"): fast ascent,
+ * ppO2 above the set maximum (MOD) and missed decompression stop sound while they last; at CNS 100 %
+ * the audible signal is repeated for 5 seconds in one-minute intervals.
+ */
+export function maresCues(v: ComputerView): AlertCue[] {
+  const cues: AlertCue[] = [];
+  const alarm = (key: string) => cues.push({ key, kind: 'beep', level: 'alarm', until: 'clear', every: 2 });
+  if (v.alarms.includes('ASCENT')) alarm('fast-ascent');
+  if (v.depth > v.mod) alarm('mod');
+  if (v.alarms.includes('CEILING')) alarm('missed-stop');
+  if (v.cns >= 100) cues.push({ key: 'cns-100', kind: 'beep', level: 'warning', until: 'clear', first: 5, every: 60, repeat: 5 });
+  return cues;
 }

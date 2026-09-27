@@ -249,6 +249,8 @@ const dict = {
     en: 'Replay this tour at any time with this button. The “About” button, top right, details the simulated models and their limits. Reminder: educational tool, never for planning a real dive.',
   },
   about: { fr: 'À propos', en: 'About' },
+  soundOn: { fr: 'Sons des alarmes activés (cliquer pour couper)', en: 'Alarm sounds on (click to mute)' },
+  soundOff: { fr: 'Sons des alarmes coupés (cliquer pour les activer)', en: 'Alarm sounds off (click to turn on)' },
   close: { fr: 'Fermer', en: 'Close' },
   aboutModels: { fr: 'Ordinateurs simulés', en: 'Simulated computers' },
   aboutModel: { fr: 'Modèle', en: 'Model' },

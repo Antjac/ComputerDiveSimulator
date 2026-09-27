@@ -58,6 +58,8 @@ npm run stops     # checks each computer's behaviour at deco stops
 - **How to use it?** (next to the title, or "Take the tour" in the welcome notice) starts a guided tour of the interface.
 - The computers' buttons can be clicked, with a long press when the model has one. A tooltip shows each button's real function during the dive (from the manufacturer's manual) and what is not simulated; buttons with no simulated function are greyed out.
 
+- 🔇 / 🔊 (in the header) turns the computers' alarm sounds on or off (off by default, the choice is remembered). Each model sounds as its manual describes: beeps (Mares, Scubapro, Cressi), tones and vibration (Garmin, Suunto), vibration only for the Perdix 2. A vibration is played as a buzzing sound, shakes the computer on screen and, on phones that allow it (Android), really vibrates. Alarms that repeat until acknowledged stop when a button of the computer is pressed (SELECT on the Perdix 2). Each model's settings include its own switch (ALRM, All silent, Silent diving…).
+
 ## Surface, boat and repetitive dives
 
 The tank is not refilled automatically between dives. Five seconds after surfacing during a dive (tank below 90 %), a boat comes alongside the diver and offers a full tank in a comic speech bubble, in both the 2D and 3D views. **Yes**: the diver climbs aboard, the dive ends and the tank is refilled; the next descent is a new dive. **No**: the boat leaves. A dive is also closed after 3 minutes at the surface. Tissues stay loaded from one dive to the next; the logbook shows each dive's type: consecutive (surface interval under 15 min), repetitive (under 12 h) or single.

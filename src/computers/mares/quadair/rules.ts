@@ -1,9 +1,10 @@
 import { ceilingDepth, depthToPressure, type DecoParams } from '../../../engine/buhlmann';
 import { type DiveSession } from '../../../engine/session';
-import { ComputerView, DiveComputer, SettingDef } from '../../base';
+import { type AlertCue, ComputerView, DiveComputer, SettingDef } from '../../base';
+import { imperial } from '../../../units';
 import { standardNoFly } from '../../common/dives';
 import { ttsAfter } from '../../common/predict';
-import { FastAscentRgbm, MissedStop, maresRgbmParams } from '../common';
+import { FastAscentRgbm, MissedStop, maresCues, maresRgbmParams } from '../common';
 
 
 const atm = (d: number) => depthToPressure(d) / 1.01325;
@@ -61,6 +62,13 @@ export abstract class QuadAirRules extends DiveComputer {
       key: 'fast',
       label: { fr: 'Verrou remontée', en: 'Fast ascent lock' },
       options: [{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }],
+      default: 'on',
+    },
+    {
+      // §2.2.1.8 ALRM turns the audible alarms off (on by default, assumed).
+      key: 'alrm',
+      label: { fr: 'Alarmes sonores (ALRM)', en: 'Audible alarms (ALRM)' },
+      options: [{ value: 'on', label: { fr: 'Activé', en: 'On' } }, { value: 'off', label: { fr: 'Désactivé', en: 'Off' } }],
       default: 'on',
     },
   ];
@@ -170,5 +178,26 @@ export abstract class QuadAirRules extends DiveComputer {
   /** §3.4: standard 12 h (no-deco, non repetitive) or 24 h (deco and/or repetitive) countdown. */
   protected noFlyMin(_v: ComputerView, s: DiveSession): number {
     return standardNoFly(this.longNoFly, s);
+  }
+
+  /**
+   * Audible alarms (instruction manual §3.2): fast ascent, MOD exceeded and missed deco stop sound while they last;
+   * CNS 100 %: 5 s in one-minute intervals; half tank and reserve until a button is pressed. §2.2.1.8 ALRM turns the audible alarms off (on by default, assumed).
+   */
+  alertCues(v: ComputerView): AlertCue[] {
+    if (this.settings.alrm === 'off' || !v.inDive) return [];
+    const cues = maresCues(v);
+    // §3.2.5 (with the tank module), until a button is pressed: TTR shorter than the ascent time in
+    // deco, tank reserve (at least 50 bar), half tank (tANK WARN, 100 bar by default) — the same
+    // thresholds as the screen.
+    if (v.tank.ai) {
+      const reserveAt = imperial() ? v.tank.reserve : Math.max(50, v.tank.reserve);
+      const halfAt = imperial() ? 1500 / 14.5038 : 100;
+      const ack = (key: string, level: AlertCue['level']) => cues.push({ key, kind: 'beep', level, until: 'ack', every: 3 });
+      if (v.inDeco && v.diveTime > 120 && v.tank.gasTime !== null && v.tank.gasTime < v.tts) ack('ttr', 'alarm');
+      if (v.tank.pressure <= reserveAt) ack('reserve', 'warning');
+      else if (v.tank.pressure <= halfAt) ack('half', 'info');
+    }
+    return cues;
   }
 }

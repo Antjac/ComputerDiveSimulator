@@ -1,7 +1,10 @@
 import { type DecoParams, ndl, SURFACE_PRESSURE } from '../../engine/buhlmann';
 import type { DiveSession } from '../../engine/session';
 import { remainingTime } from '../../engine/gas';
-import { DiveComputer, SettingDef } from '../base';
+import { type AlertCue, type ComputerView, DiveComputer, SettingDef } from '../base';
+import { Notices } from '../common/notices';
+
+export type PerdixNotice = 'high-ppo2' | 'missed-stop' | 'fast-ascent' | 'high-cns' | 'gas';
 
 // Perdix 2 Recreational manual, §8.2: Low 45/95, Med 40/85, High 35/75 (not editable in Rec mode).
 export const GF_PRESETS: Record<string, [number, number]> = { low: [45, 95], med: [40, 85], high: [35, 75] };
@@ -18,8 +21,8 @@ export abstract class PerdixRules extends DiveComputer {
   readonly transmitter = 'Swift';
   readonly gasTimeName = 'GTR';
   readonly notes = {
-    fr: 'Mode Nitrox Recreational. Bouton droit (SELECT) : écrans d’info (MOD/MAX/PPO2, GF99/SurGF/CEIL, tissus, DET/Δ+5/@+5…) ; bouton gauche (MENU) : retour à l’écran principal (le menu de plongée n’est pas simulé). Aucun verrouillage en cas de palier manqué (conforme au manuel). Palier de sécurité ajouté dès 11 m et affiché dès lors (§6.1), décompte entre 2,4 et 7 m.',
-    en: 'Nitrox Recreational mode. Right button (SELECT): info screens (MOD/MAX/PPO2, GF99/SurGF/CEIL, tissues, DET/Δ+5/@+5…); left button (MENU): back to the main screen (the dive menu is not simulated). No lock-out for missed stops (as per the manual). Safety stop added beyond 11 m and shown from then on (§6.1), counting down between 2.4 and 7 m.',
+    fr: 'Mode Nitrox Recreational. Bouton droit (SELECT) : écrans d’info (MOD/MAX/PPO2, GF99/SurGF/CEIL, tissus, DET/Δ+5/@+5…) ; bouton gauche (MENU) : retour à l’écran principal (le menu de plongée n’est pas simulé). Aucun verrouillage en cas de palier manqué (conforme au manuel). Palier de sécurité ajouté dès 11 m et affiché dès lors (§6.1), décompte entre 2,4 et 7 m. Notifications du §10 (High PPO2 au-delà de 1,65 pendant 30 s, Missed Stop, Fast Ascent au-delà de 10 m/min, High CNS au-delà de 90 %) affichées en jaune en bas de l’écran jusqu’à SELECT. Vibrations (règles du manuel Tech) : début, pause et fin du palier de sécurité, notifications toutes les 10 s jusqu’à SELECT, High PPO2 jusqu’à sa résolution.',
+    en: 'Nitrox Recreational mode. Right button (SELECT): info screens (MOD/MAX/PPO2, GF99/SurGF/CEIL, tissues, DET/Δ+5/@+5…); left button (MENU): back to the main screen (the dive menu is not simulated). No lock-out for missed stops (as per the manual). Safety stop added beyond 11 m and shown from then on (§6.1), counting down between 2.4 and 7 m. §10 notifications (High PPO2 above 1.65 for 30 s, Missed Stop, Fast Ascent above 10 m/min, High CNS above 90 %) shown in yellow at the bottom of the screen until SELECT. Vibration (rules of the Tech manual): safety stop start, pause and end, notifications every 10 s until SELECT, High PPO2 until resolved.',
   };
   readonly settingDefs: SettingDef[] = [
     {
@@ -53,7 +56,37 @@ export abstract class PerdixRules extends DiveComputer {
       ],
       default: 't1gtr',
     },
+    {
+      // Technical modes manual, "Vibration Alerts" and §11.8 Alerts Setup (the Recreational manual does
+      // not mention vibration; confirmed on the device in Recreational mode). Default not given: on assumed.
+      key: 'vibration',
+      label: { fr: 'Vibrations', en: 'Vibration' },
+      options: [{ value: 'on', label: { fr: 'Activé', en: 'On' } }, { value: 'off', label: { fr: 'Désactivé', en: 'Off' } }],
+      default: 'on',
+    },
   ];
+
+  /** §10: seconds with the PPO2 above 1.65 (High PPO2) and with an ascent faster than 10 m/min (Fast Ascent). */
+  protected highPpo2Sec = 0;
+  protected fastSec = 0;
+  /** §10 error displays, highest priority first (Low PPO2 cannot occur with air or nitrox). */
+  protected notices = new Notices<PerdixNotice>(['high-ppo2', 'missed-stop', 'fast-ascent', 'high-cns', 'gas']);
+
+  /** The screen dismisses the notification itself (SELECT), see press(). */
+  acknowledgeAlerts(): boolean {
+    return true;
+  }
+
+  private updateNotices(s: DiveSession): void {
+    if (!s.inDive) return;
+    const now: PerdixNotice[] = [];
+    if (this.highPpo2Sec > 30) now.push('high-ppo2');
+    if (this.ceilingViolationSec > 0) now.push('missed-stop');
+    if (this.fastSec >= 10) now.push('fast-ascent'); // "sustained": no duration in the manual, 10 s assumed
+    if (s.oxygen.cns > 90) now.push('high-cns');
+    if (this.airIntegrated(s) && (s.outOfGas || s.tankPressure < s.tank.reserve)) now.push('gas');
+    this.notices.update(now);
+  }
 
   /** Adapt mode (§8.2): 5 min stop if the dive exceeded 30 m or the NDL fell below 5 min. */
   protected adaptLong = false;
@@ -103,6 +136,8 @@ export abstract class PerdixRules extends DiveComputer {
     super.onDiveStart(s);
     this.adaptLong = false;
     this.hadDeco = false;
+    this.highPpo2Sec = this.fastSec = 0;
+    this.notices.clear();
   }
 
   tick(s: DiveSession, dt: number): void {
@@ -111,14 +146,40 @@ export abstract class PerdixRules extends DiveComputer {
       // §8.2 Adapt: 5 min if the dive exceeds 30 m or the NDL falls below 5 minutes.
       if (!this.adaptLong && (s.depth > 30 || ndl(s.tissues, s.depth, s.gas, gfHigh) < 5)) this.adaptLong = true;
       if (!s.tissues.tolerates(SURFACE_PRESSURE, gfHigh)) this.hadDeco = true;
-    }
-    if (this.settings.safety === 'off') {
-      // Keep the rest of the bookkeeping but never request a safety stop.
-      super.tick(s, dt);
-      this.safetyState = 'none';
-      return;
+      this.highPpo2Sec = s.ppO2 > 1.65 ? this.highPpo2Sec + dt : 0;
+      this.fastSec = s.ascentRate > 10 ? this.fastSec + dt : 0;
     }
     super.tick(s, dt);
+    // Keep the rest of the bookkeeping but never request a safety stop.
+    if (this.settings.safety === 'off') this.safetyState = 'none';
+    this.updateNotices(s);
+  }
+
+
+  get soundKind(): AlertCue['kind'] {
+    return 'buzz';
+  }
+
+  /**
+   * Vibration alerts (Perdix 2 Technical modes manual, "Vibration Alerts" and §4.8; the Recreational
+   * manual says nothing about vibration, but a Perdix 2 owner confirmed that it vibrates in
+   * Recreational mode too): attention buzz when the safety stop starts, pauses or is
+   * completed; a notification vibrates when it appears and every 10 s until it is dismissed; a high
+   * PPO2 keeps vibrating until it is resolved. The Perdix 2 has no buzzer. Notifications and their
+   * triggers from the Recreational manual (§10, errors table): High PPO2 (average above 1.65 for more
+   * than 30 s), Missed Stop, Fast Ascent (sustained faster than 10 m/min), High CNS (above 90 %);
+   * dismissed with SELECT (right button).
+   */
+  alertCues(v: ComputerView): AlertCue[] {
+    if (this.settings.vibration === 'off' || !v.inDive) return [];
+    const cues: AlertCue[] = [];
+    const st = v.safety.state;
+    if (st === 'active' || st === 'paused' || st === 'done') cues.push({ key: `safety-${st}`, kind: 'buzz', level: 'info', until: 'once' });
+    // High PPO2 is a persistent condition: vibrates until resolved (Tech manual), dismissed or not.
+    if (this.highPpo2Sec > 30) cues.push({ key: 'high-ppo2-now', kind: 'buzz', level: 'alarm', until: 'clear', every: 10 });
+    // Each notification on display or waiting vibrates every 10 s until dismissed.
+    for (const key of this.notices.all) cues.push({ key, kind: 'buzz', level: 'warning', until: 'ack', every: 10 });
+    return cues;
   }
 
 }

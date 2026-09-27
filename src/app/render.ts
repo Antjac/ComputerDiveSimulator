@@ -6,6 +6,7 @@ import { ProfileChart, TissueChart } from '../ui/charts';
 import { renderGauge } from '../ui/gauge';
 import { Scene } from '../ui/scene';
 import { depthLabel, depthUnit, depthVal, rateLabel } from '../units';
+import { updateAlertSounds } from './alertSounds';
 import { updateBoat } from './boat';
 import { renderCompare } from './compare';
 import { decorateButtons, fitDevice } from './device';
@@ -57,6 +58,7 @@ export function refresh(full = false): void {
   if (full) written.delete(device);
   if (setHtml(device, out.innerHTML)) fitDevice();
   decorateButtons();
+  updateAlertSounds(v);
   renderSpg(v);
 
   // Alarms under the device
