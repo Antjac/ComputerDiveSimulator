@@ -71,7 +71,8 @@ export class Scene {
   }
 
   private resize(): void {
-    const dpr = window.devicePixelRatio || 1;
+    // Capped at 2: phones at 3× would fill 2.25 times more pixels for no visible gain.
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
     const w = this.canvas.clientWidth;
     const h = this.canvas.clientHeight;
     if (this.canvas.width !== Math.round(w * dpr) || this.canvas.height !== Math.round(h * dpr)) {

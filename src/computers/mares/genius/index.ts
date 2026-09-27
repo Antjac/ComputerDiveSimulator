@@ -162,7 +162,7 @@ export class MaresGenius extends GeniusRules {
     return `<div class="gn-col">
       ${gas}
       <span class="gn-press">${ai ? pressText(p) : ''}</span><span class="gn-pu">${ai ? pressUnit() : ''}</span>
-      <div class="gn-tank"><i class="valve"></i><div class="body"><i class="${col}" style="height:${fill}%"></i></div></div>
+      <div class="gn-tank"><i class="valve"></i><div class="body"><i class="${col}" style="height:${Math.round(fill)}%"></i></div></div>
       <span class="gn-cl">${bottomLbl}</span><span class="gn-cv">${bottomVal}</span>
     </div>`;
   }

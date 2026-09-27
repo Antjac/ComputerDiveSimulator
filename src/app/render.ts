@@ -32,29 +32,44 @@ function renderSpg(v: ComputerView): void {
   const el = $('spg');
   el.hidden = v.tank.ai;
   if (v.tank.ai) return;
-  el.innerHTML = renderGauge(v.tank.pressure, v.tank.reserve, t('spg'));
+  setHtml(el, renderGauge(v.tank.pressure, v.tank.reserve, t('spg')));
+}
+
+/** Last HTML written to each element: rewriting identical markup still costs a style and layout pass. */
+const written = new WeakMap<Element, string>();
+
+/** Sets `el`'s content only when it changed; returns whether it did. */
+function setHtml(el: Element, html: string): boolean {
+  if (written.get(el) === html) return false;
+  written.set(el, html);
+  el.innerHTML = html;
+  return true;
 }
 
 /** `full`: also re-renders the controls (settings panel, buttons' state). */
 export function refresh(full = false): void {
-  const views = computers.map((c) => [c, c.compute(session)] as const);
-  const v = views.find(([c]) => c === app.active)![1];
+  const v = app.active.compute(session);
   session.reportedCeiling = v.ceiling;
-  app.active.render($('device'), v, session, lang());
+  // The computers only set innerHTML: render into a stand-in, then touch the page only on change.
+  const out = { innerHTML: '' };
+  app.active.render(out as HTMLElement, v, session, lang());
+  const device = $('device');
+  if (full) written.delete(device);
+  if (setHtml(device, out.innerHTML)) fitDevice();
   decorateButtons();
-  fitDevice();
   renderSpg(v);
 
   // Alarms under the device
-  $('device-alarms').innerHTML = v.alarms
+  setHtml($('device-alarms'), v.alarms
     .map((a) => {
       const sev = ['ASCENT', 'CEILING', 'PPO2_HIGH', 'LOCKED', 'OUT_OF_GAS'].includes(a) ? 'crit' : a === 'DECO' ? 'serious' : 'warn';
       const icon = sev === 'crit' ? '⛔' : '⚠';
       return `<span class="alarm ${sev}">${icon} ${t(a as I18nKey)}</span>`;
     })
-    .join('');
+    .join(''));
 
-  renderCompare(views);
+  // Every computer is computed only while the comparison is on screen.
+  if (paneShown('compare')) renderCompare(computers.map((c) => [c, c === app.active ? v : c.compute(session)] as const));
 
   // Scene overlays
   scene.ceiling = v.inDive ? v.ceiling : 0;

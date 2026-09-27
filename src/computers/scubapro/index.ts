@@ -225,8 +225,8 @@ export class ScubaproG2 extends G2Rules {
           <button class="g2-btn r" data-btn="dim"></button>
           <div class="g2-screen ${this.backlit ? 'backlit' : ''}">
             <div class="g2-bar ${barCls} ${barCls === 'red' ? 'blink' : ''}">${bar}</div>
-            <div class="g2-side l"><span>O2</span><div><i style="height:${o2h}%"></i></div></div>
-            <div class="g2-side r"><span>N2</span><div><i style="height:${n2h}%" class="${v.inDeco ? 'red' : ''}"></i></div></div>
+            <div class="g2-side l"><span>O2</span><div><i style="height:${Math.round(o2h)}%"></i></div></div>
+            <div class="g2-side r"><span>N2</span><div><i style="height:${Math.round(n2h)}%" class="${v.inDeco ? 'red' : ''}"></i></div></div>
             ${grid}
           </div>
         </div>

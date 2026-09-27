@@ -3,7 +3,7 @@
 // requestAnimationFrame.
 import { placeBoatBubble } from './boat';
 import { refresh, scene } from './render';
-import { app, computers, session } from './state';
+import { app, compactMq, computers, session } from './state';
 
 /** Simulated seconds not drawn yet (the scenes animate the diver over them). */
 let pendingSimDt = 0;
@@ -41,15 +41,23 @@ export function startLoop(): void {
     }
   }, 50);
 
+  // Frame rate: full on a computer, 30 fps on phones (battery, heat). While the simulation is
+  // stopped only the fins, the bubbles and the boat still move: 15 fps in 2D, 30 fps in 3D (the
+  // camera can still be dragged around).
   let lastFrame = performance.now();
   const frame = (now: number): void => {
+    requestAnimationFrame(frame);
+    const stopped = app.paused || !!session.emergency;
+    const is3d = app.view === '3d' && !!app.scene3d;
+    const minGap = stopped ? 1000 / (is3d ? 30 : 15) : compactMq.matches ? 1000 / 30 : 0;
+    // 2 ms slack: rAF timestamps jitter around the display's refresh period.
+    if (now - lastFrame < minGap - 2) return;
     const realDt = Math.min(0.1, (now - lastFrame) / 1000);
     lastFrame = now;
-    if (app.view === '3d' && app.scene3d) app.scene3d.draw(pendingSimDt, realDt);
+    if (is3d) app.scene3d!.draw(pendingSimDt, realDt);
     else scene.draw(pendingSimDt, realDt);
     pendingSimDt = 0;
     placeBoatBubble();
-    requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
 }

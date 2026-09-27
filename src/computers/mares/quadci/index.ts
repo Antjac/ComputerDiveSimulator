@@ -211,9 +211,9 @@ export class MaresQuadCi extends QuadCiRules {
     if (!forceN2 && v.ascentRate > 0.5) {
       const pct = v.ascentRate / quadAscentLimit(v.depth);
       const cls = pct > 1 ? 'red' : pct > 0.8 ? 'yellow' : 'green';
-      return `<div class="qc-bar speed ${cls}"><i style="width:${Math.min(100, pct * 100)}%"></i></div>`;
+      return `<div class="qc-bar speed ${cls}"><i style="width:${Math.round(Math.min(100, pct * 100))}%"></i></div>`;
     }
-    return `<div class="qc-bar n2"><i style="width:${Math.min(100, v.n2Load)}%"></i>${label ? '<em>N2</em>' : ''}</div>`;
+    return `<div class="qc-bar n2"><i style="width:${Math.round(Math.min(100, v.n2Load))}%"></i>${label ? '<em>N2</em>' : ''}</div>`;
   }
 
   /** Lower divider of FULL: tank pressure graph in the pressure range colour, battery at the end. */
@@ -221,7 +221,7 @@ export class MaresQuadCi extends QuadCiRules {
     // No tank module: the lower divider replicates the upper one (§11), without a second N2 caption.
     if (!v.tank.ai) return this.n2Bar(v, true, false);
     const fill = Math.max(0, Math.min(100, (v.tank.pressure / v.tank.fill) * 100));
-    return `<div class="qc-bar tank ${this.tankColor(v)}"><i style="width:${fill}%"></i><span class="qc-batt"></span></div>`;
+    return `<div class="qc-bar tank ${this.tankColor(v)}"><i style="width:${Math.round(fill)}%"></i><span class="qc-batt"></span></div>`;
   }
 
   /** Right part of the dive time row: no deco, deco stop, safety or deep stop, or an alarm. */
@@ -404,7 +404,7 @@ export class MaresQuadCi extends QuadCiRules {
       const gfHigh = v.gfHigh;
       const scale = Math.max(120, ...g);
       const rate = this.gfRate(v, s);
-      const bars = g.map((x, i) => `<i class="${s.tissues.n2[i] + s.tissues.he[i] < inspired ? 'yellow' : 'blue'}" style="height:${Math.max(2, (Math.max(0, x) / scale) * 100)}%" title="${i + 1}"></i>`).join('');
+      const bars = g.map((x, i) => `<i class="${s.tissues.n2[i] + s.tissues.he[i] < inspired ? 'yellow' : 'blue'}" style="height:${Math.round(Math.max(2, (Math.max(0, x) / scale) * 100))}%" title="${i + 1}"></i>`).join('');
       const tank = v.tank.ai ? `<div class="qc-f"><em class="cy">G1</em><b>${pressText(v.tank.pressure)}<u>${pressUnit().toUpperCase()}</u></b></div>` : '';
       return `${top}<div class="qc-tissue">${bars}<b style="bottom:${(gfHigh / scale) * 100}%"></b><em style="bottom:${(gfHigh / scale) * 100}%">${gfHigh}</em></div>
         <div class="qc-row low sm">${`<div class="qc-f"><em class="cy">DTIME</em><b>${mmss(v.diveTime)}</b></div>`}${tank}<div class="qc-f"><em class="cy">GF@SURF / RATE</em><b class="${rate.cls}">${Math.round(v.surfGf)}/${rate.text}</b></div></div>`;

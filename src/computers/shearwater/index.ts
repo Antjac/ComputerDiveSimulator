@@ -126,7 +126,7 @@ export class ShearwaterPerdix extends PerdixRules {
     const ndlCls = v.inDeco ? 'red' : v.ndl < 5 ? 'yellow' : '';
     const ndlVal = v.inDeco ? 0 : Math.min(99, v.ndl);
     const load = Math.min(100, v.n2Load);
-    const n2Bar = `<div class="pd-n2"><div class="pd-n2-fill" style="height:${load}%"></div><span>N<sub>2</sub></span></div>`;
+    const n2Bar = `<div class="pd-n2"><div class="pd-n2-fill" style="height:${Math.round(load)}%"></div><span>N<sub>2</sub></span></div>`;
 
     // --- Bottom row (configurable) or info screen ---
     const gasCls = v.inDive && v.depth > v.mod ? 'red blink' : '';
@@ -264,7 +264,7 @@ function tissueBars(t: Tissues, pAmb: number): string {
     .map((x) => {
       const h = Math.max(4, Math.min(100, 50 + x / 2));
       const c = x < 0 ? '#2fbf4a' : x < 70 ? '#e8d23a' : '#e63b2e';
-      return `<i style="height:${h}%;background:${c}"></i>`;
+      return `<i style="height:${Math.round(h)}%;background:${c}"></i>`;
     })
     .join('')}<b style="bottom:50%"></b></div>`;
 }
