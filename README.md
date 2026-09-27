@@ -17,6 +17,8 @@ Interface disponible en français et en anglais, unités métriques ou impérial
 | Suunto D5 | Fused RGBM 2 | Approximation (≈) |
 | Mares Puck Pro | Mares RGBM | Approximation (≈) |
 | Mares Quad Ci | Bühlmann ZH-L16C + GF | Algorithme public, reproduit (R1, R2, T1, T2 interpolés) |
+| Mares Quad Air | Mares RGBM | Approximation (≈) |
+| Mares Genius | Bühlmann ZH-L16C + GF | Algorithme public, reproduit (R2, T1, T2 interpolés) |
 | Scubapro Galileo 2 (G2) | ZH-L16 ADT MB | Approximation (≈) |
 | Cressi Goa | Cressi RGBM | Approximation (≈) |
 
@@ -68,7 +70,7 @@ scripts/         scripts de calibration et de scénarios
 
 ## Marques et affiliation
 
-Ce projet est indépendant et **n'est ni affilié, ni approuvé, ni sponsorisé** par les fabricants cités. Shearwater, Perdix, Garmin, Descent, Suunto, Mares, Puck, Quad, Scubapro, Galileo, Cressi et Goa sont des marques de leurs propriétaires respectifs ; elles sont citées uniquement pour identifier les modèles dont les interfaces sont inspirées. Aucun logo, code ou élément graphique des fabricants n'est inclus.
+Ce projet est indépendant et **n'est ni affilié, ni approuvé, ni sponsorisé** par les fabricants cités. Shearwater, Perdix, Garmin, Descent, Suunto, Mares, Puck, Quad, Genius, Scubapro, Galileo, Cressi et Goa sont des marques de leurs propriétaires respectifs ; elles sont citées uniquement pour identifier les modèles dont les interfaces sont inspirées. Aucun logo, code ou élément graphique des fabricants n'est inclus.
 
 Si vous représentez l'un de ces fabricants et souhaitez qu'un élément soit modifié ou retiré, ouvrez une issue.
 

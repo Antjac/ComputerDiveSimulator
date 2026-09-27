@@ -9,7 +9,8 @@ import { depthInt, depthText, depthUnit } from '../units';
 
 export interface SettingOption {
   value: string;
-  label: string;
+  /** A device value ("R0", "On"…) or, for words, both languages. */
+  label: string | { fr: string; en: string };
 }
 
 export interface SettingDef {

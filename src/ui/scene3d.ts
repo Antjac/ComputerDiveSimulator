@@ -639,6 +639,8 @@ export class Scene3D {
   environment: Environment = 'reef';
   /** Called once the user has interacted with the view (to hide the hint). */
   onInteract: (() => void) | null = null;
+  /** Boat offering a full tank (main.ts): comes alongside the diver while true, leaves otherwise. */
+  boatWanted = false;
 
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
@@ -686,6 +688,12 @@ export class Scene3D {
   private ceilingDisc!: THREE.Mesh;
   private safetyTube!: THREE.Mesh;
 
+  private boat = new THREE.Group();
+  private boatPos = 0; // 0 = away (hidden), 1 = alongside
+  private boatDock = new THREE.Vector3();
+  private boatDir = new THREE.Vector3(); // direction it comes from (and leaves to)
+  private boatAt: { x: number; top: number; bottom: number } | null = null;
+
   private yaw = 0;
   private camPos = new THREE.Vector3();
   private drag: { x: number; y: number; target: number; heading: number; yaw: number; orbit: boolean } | null = null;
@@ -706,6 +714,7 @@ export class Scene3D {
     this.buildDiver();
     this.buildAmbience();
     this.buildOverlays();
+    this.buildBoat();
     this.bindInput();
   }
 
@@ -927,6 +936,80 @@ export class Scene3D {
     this.bubbles.count = 0;
     this.bubbles.frustumCulled = false;
     this.scene.add(this.bubbles);
+  }
+
+  /** Small dive boat (about 7 m), bow along +z; seen from below: red antifouling, keel, outboard. */
+  private buildBoat(): void {
+    const white = new THREE.MeshStandardMaterial({ color: 0xf2f4f6, roughness: 0.6 });
+    const red = new THREE.MeshStandardMaterial({ color: 0x8e2a22, roughness: 0.8 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x2b3036, roughness: 0.5, metalness: 0.3 });
+    // Hull side profile (z along the boat, y up), extruded across its width.
+    const profile = new THREE.Shape();
+    profile.moveTo(-3.4, -0.55);
+    profile.lineTo(2.1, -0.55);
+    profile.quadraticCurveTo(3.3, -0.4, 3.7, 0.55);
+    profile.lineTo(-3.4, 0.55);
+    profile.closePath();
+    const hullGeo = (depth: number) => {
+      const g = new THREE.ExtrudeGeometry(profile, { depth, bevelEnabled: false });
+      g.translate(0, 0, -depth / 2);
+      g.rotateY(-Math.PI / 2); // profile x → boat z
+      return g;
+    };
+    const hull = new THREE.Mesh(hullGeo(2.4), white);
+    // Antifouling: a slightly wider copy clipped to the part under the waterline.
+    const bottom = new THREE.Mesh(hullGeo(2.44), red);
+    bottom.scale.set(1.01, 1, 1.01);
+    red.clippingPlanes = [new THREE.Plane(new THREE.Vector3(0, -1, 0), 0)];
+    const keel = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.25, 5), red);
+    keel.position.set(0, -0.66, 0.1);
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.1, 2), white);
+    cabin.position.set(0, 1.1, 0.4);
+    const motor = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.3, 0.35), dark);
+    motor.position.set(0, -0.1, -3.6);
+    const prop = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.06, 12), dark);
+    prop.rotation.x = Math.PI / 2;
+    prop.position.set(0, -0.65, -3.8);
+    const ladder = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.4, 0.06), dark);
+    ladder.position.set(0.7, -0.35, -3.45);
+    this.boat.add(hull, bottom, keel, cabin, motor, prop, ladder);
+    this.boat.visible = false;
+    this.scene.add(this.boat);
+    this.renderer.localClippingEnabled = true;
+  }
+
+  /** Crosses in front of the diver and stops broadside, about 9 m ahead of them. */
+  private updateBoat(dt: number, pos: THREE.Vector3, fwd: THREE.Vector3): void {
+    if (this.boatPos === 0 && this.boatWanted) {
+      this.boatDock.set(pos.x, 0, pos.z).addScaledVector(fwd, 9);
+      this.boatDir.set(fwd.z, 0, -fwd.x);
+    }
+    this.boatPos = clamp(this.boatPos + ((this.boatWanted ? 1 : -1) * dt) / 2.5, 0, 1);
+    this.boat.visible = this.boatPos > 0;
+    this.boatAt = null;
+    if (!this.boat.visible) return;
+    const e = 1 - Math.pow(1 - this.boatPos, 3);
+    // Arrives bow first and leaves the same way, ahead.
+    this.boat.position.copy(this.boatDock).addScaledVector(this.boatDir, (this.boatWanted ? 45 : -45) * (1 - e));
+    this.boat.position.y = Math.sin(this.time * 1.1) * 0.06;
+    this.boat.rotation.set(0, Math.atan2(-this.boatDir.x, -this.boatDir.z), Math.sin(this.time * 0.9) * 0.03);
+    if (this.boatPos < 1) return;
+    // Anchors for the speech bubble (top of the cabin, keel), in CSS px of the canvas; kept inside
+    // the view (top centre when the boat is behind the camera) so the question stays on screen.
+    const w = this.canvas.clientWidth;
+    const h = this.canvas.clientHeight;
+    const top = this.boat.position.clone().add(new THREE.Vector3(0, 1.7, 0)).project(this.camera);
+    const keel = this.boat.position.clone().add(new THREE.Vector3(0, -0.8, 0)).project(this.camera);
+    const toY = (v: number) => ((1 - clamp(v, -0.9, 0.9)) / 2) * h;
+    this.boatAt =
+      top.z < 1 && keel.z < 1
+        ? { x: ((clamp(top.x, -0.9, 0.9) + 1) / 2) * w, top: toY(Math.max(top.y, keel.y)), bottom: toY(Math.min(top.y, keel.y)) }
+        : { x: w / 2, top: toY(0.9), bottom: toY(0.9) };
+  }
+
+  /** Boat alongside (else null): centre, top of the cabin and keel, in CSS px of the canvas. */
+  boatAnchor(): { x: number; top: number; bottom: number } | null {
+    return this.boatAt;
   }
 
   private buildOverlays(): void {
@@ -1385,6 +1468,7 @@ export class Scene3D {
     this.updateBubbles(simDt, dt, pos, fwd);
     this.updateFish(dt, pos);
     this.updateTurtle(dt);
+    this.updateBoat(realDt, pos, fwd);
 
     // Overlays around the diver.
     const target = Math.min(s.targetDepth, s.seabed);
@@ -1427,7 +1511,8 @@ export class Scene3D {
     }
     if (dt > 0) this.turnVel += (turn - this.turnVel) * Math.min(1, dt * 4);
     here = this.footprint(this.px, this.pz, this.heading);
-    const step = SWIM_SPEED * dt * (1 - Math.min(0.5, Math.abs(turn) * 0.4));
+    // The diver waits (no swimming ahead) while the boat is there, so as not to swim through it.
+    const step = this.boatPos > 0 ? 0 : SWIM_SPEED * dt * (1 - Math.min(0.5, Math.abs(turn) * 0.4));
     if (step > 0) {
       // Barely moved for a while (wedged in a nook): back off a little while turning away.
       this.stuckTimer += dt;

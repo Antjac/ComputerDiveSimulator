@@ -1,4 +1,4 @@
-import { AIR, Gas, Tissues, depthToPressure } from './buhlmann';
+import { AIR, Gas, SURFACE_PRESSURE, Tissues, depthToPressure } from './buhlmann';
 import { OxygenTracker } from './oxygen';
 
 export const DIVE_START_DEPTH = 1.2; // m
@@ -8,6 +8,36 @@ const MAX_ASCENT = 22; // m/min (deliberately above computer limits so alarms ca
 const ACCEL = 0.15; // m/s²
 const DEFAULT_ASCENT = 9; // m/min, within every computer's ascent limit
 const DEFAULT_DESCENT = 18; // m/min
+
+// Rescue alert: situations that stop the simulation, judged on the diver's physical state and never
+// on a computer model. These thresholds are teaching choices, not taken from any manual.
+/** Rapid ascent: every ascent that ends near the surface is judged — at the surface, or at a stop
+ *  in the last RAPID_STOP_ZONE metres (the 3 min "palier de principe" at 3 m, a safety stop), so
+ *  that doing that stop never hides a rapid ascent. An ascent starts at the bottom or after a
+ *  steady depth held RAPID_STOP_S; its average speed is taken over its last RAPID_REF_DEPTH metres
+ *  (at least 3 m of ascent)… The alert is raised on reaching the surface. */
+export const RAPID_REF_DEPTH = 10; // m
+export const RAPID_STOP_S = 30; // s at a steady depth (±0.3 m)
+export const RAPID_STOP_ZONE = 6; // m
+/** …above this speed, well over the usual 9–10 m/min. */
+export const RAPID_RATE = 15; // m/min
+/** Missed stops: on surfacing, a compartment beyond its surface M-value (pure Bühlmann ZH-L16C,
+ *  GF 100 %), so decompression stops were due whatever the computer. Skipping the palier de
+ *  principe / safety stop never triggers it. */
+export const MISSED_DECO_GF = 100; // %
+
+export type EmergencyReason = 'OUT_OF_AIR' | 'RAPID_ASCENT' | 'MISSED_DECO';
+export interface Emergency {
+  reasons: EmergencyReason[];
+  clock: number; // session clock (s)
+  depth: number; // m, where it happened
+  /** RAPID_ASCENT: the fastest ascent judged, average speed (m/min) from `fromDepth` to `toDepth`. */
+  rate?: number;
+  fromDepth?: number;
+  toDepth?: number;
+  /** MISSED_DECO: highest gradient at the surface (%). */
+  surfGf?: number;
+}
 
 export interface ProfileSample {
   t: number; // s since dive start
@@ -87,6 +117,18 @@ export class DiveSession {
   diveAlarms = new Set<string>();
   /** Current ceiling reported by the active computer, stored in the profile. */
   reportedCeiling = 0;
+  /** Rescue alert for a rapid ascent or missed stops (optional); an empty tank always raises one. */
+  rescueAlert = false;
+  /** Set when the simulation must stop (see Emergency); cleared by reset(). */
+  emergency: Emergency | null = null;
+  /** [clock, depth] over the last minutes of the dive, to measure the final ascent. */
+  private track: [number, number][] = [];
+  /** Steady stretch in progress (depth ±0.3 m since `steadySince`), judged once it lasts RAPID_STOP_S. */
+  private steadyDepth = 0;
+  private steadySince = 0;
+  private steadyJudged = false;
+  /** Fastest ascent over RAPID_RATE this dive, reported on surfacing. */
+  private rapid: { rate: number; fromDepth: number; toDepth: number } | null = null;
 
   // Gas supply.
   tank: Tank = { volume: 12, fill: 200, reserve: 50 };
@@ -197,6 +239,10 @@ export class DiveSession {
     if (!this.inDive && this.depth > DIVE_START_DEPTH) this.startDive();
 
     if (this.inDive) {
+      this.track.push([this.clock, this.depth]);
+      while (this.track.length > 2 && this.clock - this.track[0][0] > 600) this.track.shift();
+      this.watchStops();
+      if (this.rescueAlert && prevDepth >= DIVE_START_DEPTH && this.depth < DIVE_START_DEPTH) this.checkSurfacing();
       this.diveTime += dt;
       this.depthIntegral += this.depth * dt;
       this.maxDepth = Math.max(this.maxDepth, this.depth);
@@ -215,6 +261,63 @@ export class DiveSession {
     }
   }
 
+  /** Arrival at the surface: too fast over the last metres, or with stops still due. */
+  private checkSurfacing(): void {
+    const reasons: EmergencyReason[] = [];
+    const e: Omit<Emergency, 'reasons'> = { clock: this.clock, depth: this.depth };
+    const surfGf = this.tissues.maxGradientPercent(SURFACE_PRESSURE);
+    if (surfGf > MISSED_DECO_GF) {
+      reasons.push('MISSED_DECO');
+      e.surfGf = surfGf;
+    }
+    this.noteAscent(this.track.length - 1);
+    if (this.rapid) {
+      reasons.push('RAPID_ASCENT');
+      Object.assign(e, this.rapid);
+    }
+    if (reasons.length) this.raise({ ...e, reasons });
+  }
+
+  /** A stop held RAPID_STOP_S in the last metres: judge the ascent that led to it. */
+  private watchStops(): void {
+    if (Math.abs(this.depth - this.steadyDepth) > 0.3) {
+      this.steadyDepth = this.depth;
+      this.steadySince = this.clock;
+      this.steadyJudged = false;
+    } else if (!this.steadyJudged && this.clock - this.steadySince >= RAPID_STOP_S) {
+      this.steadyJudged = true;
+      if (this.depth <= RAPID_STOP_ZONE && this.depth >= DIVE_START_DEPTH) {
+        this.noteAscent(this.track.findIndex(([t]) => t >= this.steadySince));
+      }
+    }
+  }
+
+  /** Average speed of the ascent ending at track[end], kept if it is the fastest over RAPID_RATE. */
+  private noteAscent(end: number): void {
+    const tr = this.track;
+    if (end < 1) return;
+    // Start of the ascent, walking back: a shallower point (descent before it) or a steady depth
+    // held RAPID_STOP_S (a stop); short hesitations are part of it.
+    let k = end; // where the ascent resumed after the steady stretch being examined
+    for (let i = end - 1; i >= 0; i--) {
+      const [t, d] = tr[i];
+      if (d > tr[k][1] + 0.3) k = i;
+      else if (d < tr[k][1] - 0.3 || tr[k][0] - t >= RAPID_STOP_S) break;
+    }
+    const [tEnd, to] = tr[end];
+    const ref = Math.min(to + RAPID_REF_DEPTH, tr[k][1]);
+    if (ref - to < 3) return; // too short to judge
+    // Last moment of that ascent at or below the reference depth.
+    const from = tr.slice(k, end + 1).reverse().find(([, d]) => d >= ref);
+    if (!from || tEnd <= from[0]) return;
+    const rate = ((from[1] - to) / (tEnd - from[0])) * 60;
+    if (rate > RAPID_RATE && rate > (this.rapid?.rate ?? 0)) this.rapid = { rate, fromDepth: from[1], toDepth: to };
+  }
+
+  private raise(e: Emergency): void {
+    if (!this.emergency) this.emergency = e;
+  }
+
   /** Gas consumption: RMV scaled by ambient pressure, drawn from the tank. */
   private breathe(prevDepth: number, minutes: number, dt: number): void {
     const inWater = Math.max(prevDepth, this.depth) > 0.5;
@@ -223,6 +326,8 @@ export class DiveSession {
       const liters = this.rmv * pAtm * minutes;
       this.gasUsed += liters;
       this.tankPressure = Math.max(0, this.tankPressure - liters / this.tank.volume);
+      // Out of air in the water: always stops the simulation.
+      if (this.tankPressure <= 0) this.raise({ reasons: ['OUT_OF_AIR'], clock: this.clock, depth: this.depth });
     }
     this.historyTimer += dt;
     if (this.historyTimer >= 5) {
@@ -232,7 +337,8 @@ export class DiveSession {
     }
   }
 
-  /** Fresh tank (done automatically when a new dive starts after the previous one was closed). */
+  /** Fresh tank: at reset, when the tank model is changed at the surface, or handed from the boat
+   *  (boardBoat). There is no automatic refill between dives. */
   refillTank(): void {
     this.tankPressure = this.tank.fill;
     this.pressureHistory = [];
@@ -242,8 +348,14 @@ export class DiveSession {
     return this.tankPressure <= 0;
   }
 
+  /** A full tank handed from the boat at the surface: the diver climbs aboard, so the dive in
+   *  progress ends now and the next descent is a new dive (consecutive or repetitive). */
+  boardBoat(): void {
+    if (this.inDive && this.depth < DIVE_START_DEPTH) this.endDive();
+    this.refillTank();
+  }
+
   private startDive(): void {
-    if (this.lastDiveEnd !== null) this.refillTank();
     this.tankAtStart = this.tankPressure;
     this.gasUsed = 0;
     this.inDive = true;
@@ -256,6 +368,8 @@ export class DiveSession {
     this.surfaceTimer = 0;
     this.sampleTimer = 0;
     this.profile = [{ t: 0, depth: 0, ceiling: 0 }];
+    this.track = [];
+    this.rapid = null;
     this.diveAlarms.clear();
     this.listeners.forEach((l) => l('start'));
   }
@@ -308,6 +422,9 @@ export class DiveSession {
     this.profile = [];
     this.log = [];
     this.diveAlarms.clear();
+    this.track = [];
+    this.rapid = null;
+    this.emergency = null;
   }
 
 }

@@ -8,6 +8,19 @@ import { sevenSeg } from './segments';
 const PERSONAL: Record<string, number> = { P0: 0.9, P1: 0.83, P2: 0.76 };
 
 /**
+ * Approximation of Mares RGBM (Wienke), shared by the models that use it (Puck Pro, Quad Air):
+ * Bühlmann with a GF per P factor, and a repetitive-dive penalty fading over the surface interval.
+ */
+export function maresRgbmParams(pFactor: string, s: DiveSession | null): DecoParams {
+  const g = PERSONAL[pFactor] ?? PERSONAL.P0;
+  const p: DecoParams = { gfLow: g - 0.1, gfHigh: g, lastStop: 3, stopStep: 3, ascentRate: 10 };
+  if (!s || s.lastDiveEnd === null) return p;
+  const si = ((s.inDive ? s.diveStart : s.clock) - s.lastDiveEnd) / 60;
+  const drop = 0.1 * Math.exp(-si / 150);
+  return { ...p, gfLow: p.gfLow - drop, gfHigh: p.gfHigh - drop };
+}
+
+/**
  * Mares Puck Pro. Display and rules follow the Puck Pro instruction manual (display information,
  * alarms, missed deco stop, uncontrolled ascent). Mares RGBM (Wienke) itself is proprietary: it is
  * approximated with Bühlmann + a repetitive-dive penalty.
@@ -54,16 +67,11 @@ export class MaresPuck extends DiveComputer {
   }
 
   baseParams(): DecoParams {
-    const g = PERSONAL[this.settings.personal] ?? PERSONAL.P0;
-    return { gfLow: g - 0.1, gfHigh: g, lastStop: 3, stopStep: 3, ascentRate: 10 };
+    return maresRgbmParams(this.settings.personal, null);
   }
 
   decoParams(s: DiveSession): DecoParams {
-    const p = this.baseParams();
-    if (s.lastDiveEnd === null) return p;
-    const si = ((s.inDive ? s.diveStart : s.clock) - s.lastDiveEnd) / 60;
-    const drop = 0.1 * Math.exp(-si / 150);
-    return { ...p, gfLow: p.gfLow - drop, gfHigh: p.gfHigh - drop };
+    return maresRgbmParams(this.settings.personal, s);
   }
 
   /** Fast-ascent alarm from 10 m/min. */

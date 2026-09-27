@@ -8,7 +8,7 @@ import { ButtonHelp, ComputerView, DiveComputer, SettingDef, clockOfDay, desatur
  * Gradient factor sets. The manual gives R0 (85/85), R2 (60/70), R3 (50/60), T0 (30/85) and
  * T3 (25/40); R1, T1 and T2 are interpolated.
  */
-const PRESETS: Record<string, [number, number]> = {
+export const PRESETS: Record<string, [number, number]> = {
   R0: [85, 85], R1: [70, 80], R2: [60, 70], R3: [50, 60],
   T0: [30, 85], T1: [28, 70], T2: [27, 55], T3: [25, 40],
 };
@@ -69,7 +69,7 @@ export class MaresQuadCi extends DiveComputer {
     },
     {
       key: 'repetitive',
-      label: { fr: 'Conservatisme successives', en: 'Repetitive conservatism' },
+      label: { fr: 'Marge successives', en: 'Repetitive conserv.' }, // short: one line in the settings grid
       options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'On' }],
       default: 'off',
     },

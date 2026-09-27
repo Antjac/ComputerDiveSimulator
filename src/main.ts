@@ -1,11 +1,12 @@
 import './style.css';
 import { N2_HALF, SURFACE_PRESSURE, gasLabel, pressureToDepth } from './engine/buhlmann';
-import { DiveSession } from './engine/session';
+import { DIVE_START_DEPTH, DiveSession, RAPID_RATE, type EmergencyReason } from './engine/session';
 import { createComputers, type DiveComputer } from './computers';
-import { hmm, type ButtonAction, type ButtonHelp, type ComputerView, type SettingDef } from './computers/base';
+import { hmm, type ButtonAction, type ButtonHelp, type ComputerView, type SettingDef, type SettingOption } from './computers/base';
 import { I18nKey, isI18nKey, lang, setLang, t } from './i18n';
 import { ProfileChart, TissueChart } from './ui/charts';
 import { Scene } from './ui/scene';
+import { Tour, type TourStep } from './ui/tour';
 import type { Environment, Scene3D } from './ui/scene3d';
 import { renderGauge } from './ui/gauge';
 import {
@@ -31,6 +32,7 @@ interface Prefs {
   rmv: number;
   reserve: number;
   transmitter: boolean;
+  rescue: boolean;
   view: '2d' | '3d';
   env: Environment;
   advanced: boolean;
@@ -55,6 +57,7 @@ function savePrefs(): void {
     rmv: session.rmv,
     reserve: session.tank.reserve,
     transmitter: session.transmitterOn,
+    rescue: session.rescueAlert,
     view,
     env,
     advanced: $<HTMLDetailsElement>('advanced').open,
@@ -102,6 +105,7 @@ if (prefs.units === 'imperial') setUnits('imperial');
 if (prefs.rmv) session.rmv = prefs.rmv;
 if (prefs.reserve) session.tank.reserve = prefs.reserve;
 if (prefs.transmitter === false) session.transmitterOn = false;
+session.rescueAlert = prefs.rescue === true; // off unless chosen
 applyTank();
 
 session.on((e) => {
@@ -152,6 +156,9 @@ function applyI18n(): void {
   renderLog();
 }
 
+/** Setting option text: device values as printed, words in the interface language. */
+const optText = (o: SettingOption) => (typeof o.label === 'string' ? o.label : o.label[lang()]);
+
 function renderControls(): void {
   const sel = $<HTMLSelectElement>('computer-select');
   sel.innerHTML = computers
@@ -172,18 +179,22 @@ function renderControls(): void {
   // Essential settings (screen layout) are always shown, the others only in the advanced section.
   const settingField = (def: SettingDef) => `<label class="field"><span>${def.label[lang()]}</span>
     <select data-setting="${def.key}">${def.options
-      .map((o) => `<option value="${o.value}" ${active.settings[def.key] === o.value ? 'selected' : ''}>${o.label}</option>`)
+      .map((o) => `<option value="${o.value}" ${active.settings[def.key] === o.value ? 'selected' : ''}>${optText(o)}</option>`)
       .join('')}</select></label>`;
   const advDefs = active.settingDefs.filter((d) => !d.essential);
   $('computer-settings').innerHTML = active.settingDefs.filter((d) => d.essential).map(settingField).join('');
   $('computer-settings-adv').innerHTML = advDefs.map(settingField).join('');
   // Collapsed: remind the values in use, so a changed setting is not forgotten.
-  const optLabel = (def: SettingDef) => `${def.label[lang()]} ${def.options.find((o) => o.value === active.settings[def.key])?.label ?? ''}`;
+  const optLabel = (def: SettingDef) => {
+    const o = def.options.find((x) => x.value === active.settings[def.key]);
+    return `${def.label[lang()]} ${o ? optText(o) : ''}`;
+  };
   $('adv-summary').textContent = [
-    ...advDefs.map(optLabel),
+    // Same order as the fields: the dive, then the computer.
+    units() === 'imperial' ? t('imperialShort') : '',
     tankLabel(TANKS.find((k) => k.id === tankId)!),
     imperial() ? `${(session.rmv / 28.3168).toFixed(2)} cuft/min` : `${session.rmv} L/min`,
-    units() === 'imperial' ? t('imperialShort') : '',
+    ...advDefs.map(optLabel),
   ].filter(Boolean).join(' · ');
 
   const gasSel = $<HTMLSelectElement>('gas-select');
@@ -202,6 +213,7 @@ function renderControls(): void {
     `<option value="${l}" ${session.rmv === l ? 'selected' : ''}>${imperial() ? `${(l / 28.3168).toFixed(2)} cuft/min` : `${l} L/min`}</option>`).join('');
   $<HTMLSelectElement>('reserve-select').innerHTML = RESERVES.map((b) =>
     `<option value="${b}" ${session.tank.reserve === b ? 'selected' : ''}>${pressText(b)} ${pressUnit()}</option>`).join('');
+  $<HTMLSelectElement>('rescue-select').innerHTML = `<option value="off" ${session.rescueAlert ? '' : 'selected'}>${t('disabled')}</option><option value="on" ${session.rescueAlert ? 'selected' : ''}>${t('enabled')}</option>`;
   const txSel = $<HTMLSelectElement>('tx-select');
   txSel.innerHTML = `<option value="on" ${session.transmitterOn ? 'selected' : ''}>${t('on')}</option><option value="off" ${session.transmitterOn ? '' : 'selected'}>${t('off')}</option>`;
   $('tx-hint').textContent = active.transmitter ? `${t('transmitterModel')} : ${active.transmitter}` : t('noTransmitter');
@@ -215,7 +227,11 @@ function renderControls(): void {
 
   $('speed-group').innerHTML = SPEEDS.map((s) => `<button data-speed="${s}" class="${s === speed ? 'on' : ''}">×${s}</button>`).join('');
   $('btn-pause').textContent = paused ? `▶ ${t('play')}` : `❚❚ ${t('pause')}`;
-  $<HTMLButtonElement>('btn-skip').disabled = session.inDive;
+  // After a rescue alert, only a reset restarts the simulation.
+  const stopped = !!session.emergency;
+  $<HTMLButtonElement>('btn-pause').disabled = stopped;
+  $<HTMLButtonElement>('btn-skip').disabled = session.inDive || stopped;
+  $('speed-group').querySelectorAll('button').forEach((b) => (b.disabled = stopped));
 }
 
 $('computer-select').addEventListener('change', (e) => {
@@ -277,6 +293,12 @@ $('reserve-select').addEventListener('change', (e) => {
   session.tank.reserve = Number((e.target as HTMLSelectElement).value);
   savePrefs();
   refresh();
+});
+
+$('rescue-select').addEventListener('change', (e) => {
+  session.rescueAlert = (e.target as HTMLSelectElement).value === 'on';
+  savePrefs();
+  renderControls();
 });
 
 $('tx-select').addEventListener('change', (e) => {
@@ -356,29 +378,23 @@ $('speed-group').addEventListener('click', (e) => {
   renderControls();
 });
 
-// First-visit notice: educational use, approximated algorithms, no affiliation. Time is paused
-// while it is shown.
-const INTRO_KEY = 'divesim.intro.v1';
+// Notice shown on every page load: educational use, approximated algorithms, no affiliation.
+// Time is paused while it is shown.
 function showIntro(): void {
-  try {
-    if (localStorage.getItem(INTRO_KEY)) return;
-  } catch {
-    /* storage unavailable: show it every time */
-  }
   const dlg = $<HTMLDialogElement>('intro');
   const wasPaused = paused;
   paused = true;
   renderControls();
   dlg.addEventListener('cancel', (e) => e.preventDefault()); // must be acknowledged with the button
-  $('intro-ok').addEventListener('click', () => {
-    try {
-      localStorage.setItem(INTRO_KEY, '1');
-    } catch {
-      /* storage unavailable */
-    }
+  const close = () => {
     dlg.close();
     paused = wasPaused;
     renderControls();
+  };
+  $('intro-ok').addEventListener('click', close);
+  $('intro-tour').addEventListener('click', () => {
+    close();
+    startTour();
   });
   dlg.showModal();
 }
@@ -400,8 +416,10 @@ $('btn-skip').addEventListener('click', () => {
   refresh(true);
 });
 
-$('btn-reset').addEventListener('click', () => {
+$('btn-reset').addEventListener('click', resetAll);
+function resetAll(): void {
   session.reset();
+  rescueHidden = false;
   for (const c of computers) {
     c.locked = false;
     c.onDiveStart(session);
@@ -410,7 +428,7 @@ $('btn-reset').addEventListener('click', () => {
   renderLog();
   renderControls();
   refresh(true);
-});
+}
 
 document.querySelectorAll<HTMLButtonElement>('[data-lang]').forEach((b) =>
   b.addEventListener('click', () => {
@@ -420,16 +438,97 @@ document.querySelectorAll<HTMLButtonElement>('[data-lang]').forEach((b) =>
   }),
 );
 
-// Side panel tabs.
+// Side panel tabs. On phones (same media query as style.css) the tabs sit in a bottom bar and open
+// a sheet over the water column: closed at start, a tap on the open tab (or ✕) closes it.
+const compactMq = window.matchMedia('(max-width: 640px), (max-height: 500px) and (orientation: landscape)');
 let activeTab = 'settings';
+let sheetOpen = !compactMq.matches;
+function showTabs(redraw = true): void {
+  const open = sheetOpen || !compactMq.matches;
+  document.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((x) => x.classList.toggle('on', open && x.dataset.tab === activeTab));
+  document.querySelectorAll<HTMLElement>('[data-pane]').forEach((p) => (p.hidden = !open || p.dataset.pane !== activeTab));
+  $('sheet').classList.toggle('open', open);
+  if (redraw) refresh();
+}
 document.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) =>
   b.addEventListener('click', () => {
+    sheetOpen = !(compactMq.matches && sheetOpen && activeTab === b.dataset.tab);
     activeTab = b.dataset.tab!;
-    document.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((x) => x.classList.toggle('on', x === b));
-    document.querySelectorAll<HTMLElement>('[data-pane]').forEach((p) => (p.hidden = p.dataset.pane !== activeTab));
-    refresh();
+    showTabs();
   }),
 );
+$('sheet-close').addEventListener('click', () => {
+  sheetOpen = false;
+  showTabs();
+});
+compactMq.addEventListener('change', () => showTabs());
+showTabs(false);
+// The sheet covers the water column exactly, never the computer.
+function placeSheet(): void {
+  const sp = document.querySelector('.scene-panel')!.getBoundingClientRect();
+  const pr = document.querySelector('.side-panel')!.getBoundingClientRect();
+  const st = $('sheet').style;
+  st.setProperty('--sheet-left', `${sp.left - pr.left}px`);
+  st.setProperty('--sheet-w', `${sp.width}px`);
+  st.setProperty('--sheet-h', `${pr.top - sp.top}px`);
+}
+new ResizeObserver(placeSheet).observe(document.querySelector('.scene-panel')!);
+
+// Phones: the notice under the device and the algorithm notes are cut to one line; a tap unfolds them.
+for (const id of ['device-caption', 'algo-info']) $(id).addEventListener('click', () => $(id).classList.toggle('unfold'));
+
+// Guided tour ("How to use it?" button and intro notice). Time is paused while it runs; the tab,
+// the phone sheet and the settings scroll are put back as they were at the end.
+const tour = new Tour(() => ({
+  prev: t('tourPrev'),
+  next: t('tourNext'),
+  done: t('tourDone'),
+  close: t('close'),
+  counter: (i, n) => `${i} / ${n}`,
+}));
+const q = (sel: string) => document.querySelector(sel);
+const tabStep = (tab: string, title: I18nKey, body: I18nKey, targets?: () => (Element | null)[]): TourStep => ({
+  before: () => {
+    activeTab = tab;
+    sheetOpen = true;
+    showTabs();
+  },
+  targets: targets ?? (() => [q(`[data-tab="${tab}"]`), q(`[data-pane="${tab}"]`)]),
+  title: () => t(title),
+  body: () => t(body),
+});
+const TOUR: TourStep[] = [
+  { title: () => t('tourWelcomeT'), body: () => t('tourWelcomeB') },
+  { targets: () => [q('.header-actions .field')], title: () => t('tourComputerT'), body: () => t('tourComputerB') },
+  { targets: () => [q('.scene-panel')], title: () => t('tourSceneT'), body: () => t('tourSceneB') },
+  { targets: () => [q('.scene-ctl:not(.turn)')], title: () => t('tourRateT'), body: () => t('tourRateB') },
+  { targets: () => [q('.scene-top')], title: () => t('tourViewT'), body: () => t('tourViewB') },
+  { targets: () => [$('device'), $('spg'), $('device-alarms')], title: () => t('tourDeviceT'), body: () => t('tourDeviceB') },
+  { targets: () => [q('.profile-box')], optional: true, title: () => t('tourProfileT'), body: () => t('tourProfileB') },
+  // Phones: the tab is in the bottom bar, below the sheet, and would stretch the spotlight over the
+  // time controls (next step).
+  tabStep('settings', 'tourSettingsT', 'tourSettingsB', () =>
+    [compactMq.matches ? null : q('[data-tab="settings"]'), $('algo-info'), $('advanced')]),
+  tabStep('settings', 'tourTimeT', 'tourTimeB', () => [$('speed-group').parentElement, q('[data-pane="settings"] .button-row')]),
+  tabStep('compare', 'tourCompareT', 'tourCompareB'),
+  tabStep('tissues', 'tourTissuesT', 'tourTissuesB'),
+  tabStep('log', 'tourLogT', 'tourLogB'),
+  { targets: () => [$('tour-open')], title: () => t('tourEndT'), body: () => t('tourEndB') },
+];
+function startTour(): void {
+  if (tour.running) return;
+  const saved = { paused, activeTab, sheetOpen, scroll: q('[data-pane="settings"]')!.scrollTop };
+  paused = true;
+  renderControls();
+  tour.start(TOUR, () => {
+    ({ paused, activeTab, sheetOpen } = saved);
+    showTabs();
+    q('[data-pane="settings"]')!.scrollTop = saved.scroll;
+    renderControls();
+    $('tour-open').focus();
+  });
+}
+$('tour-open').addEventListener('click', startTour);
 
 // Device buttons. The device is re-rendered several times per second, so the pressed look and the
 // tooltip are tracked by button id and re-applied after each render (decorateButtons).
@@ -497,6 +596,8 @@ $('device').addEventListener('pointerdown', (e) => {
   e.preventDefault();
   const id = btn.dataset.btn!;
   if (e.pointerType !== 'mouse') touchTip = { id, until: performance.now() + 3000 };
+  // Phones: the "tap a button" hint is dropped once the buttons have been found.
+  document.body.classList.add('dev-used');
   // Buttons with a simulated long press act on release (or after HOLD_MS); the others at once.
   const holdable = !!active.buttons()[id]?.hold?.simulated;
   pressed = { id, held: false, timer: 0 };
@@ -559,6 +660,7 @@ window.addEventListener('keydown', (e) => {
   else if (e.key === '0' || e.key === 'Enter') session.setRate(0);
   else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && view === '3d' && scene3d) scene3d.steer(e.key === 'ArrowLeft' ? -1 : 1);
   else if (e.key === ' ') {
+    if (session.emergency) return;
     paused = !paused;
     renderControls();
   } else if (e.key === '+' || e.key === '=' || e.key === '-') {
@@ -626,8 +728,11 @@ function refresh(full = false): void {
     scene3d.ceiling = scene.ceiling;
     scene3d.safetyBand = scene.safetyBand;
     scene3d.stopDepth = scene.stopDepth;
-    scene3d.paused = paused;
+    scene3d.paused = paused || !!session.emergency;
   }
+
+  renderRescue();
+  updateBoat();
 
   // HUD
   $('hud-clock').textContent = `${t('simClock')} ${fmtClock(session.clock)}`;
@@ -649,7 +754,7 @@ function refresh(full = false): void {
   profileChart.unit = depthUnit();
   const shown = samples.map((p) => ({ t: p.t, depth: depthVal(p.depth), ceiling: depthVal(p.ceiling) }));
   if ($('profile').clientWidth > 0) profileChart.draw(shown);
-  if (activeTab === 'tissues') renderTissues(v);
+  if (activeTab === 'tissues' && (sheetOpen || !compactMq.matches)) renderTissues(v);
   if (full) renderControls();
 }
 
@@ -687,18 +792,24 @@ function renderSpg(v: ComputerView): void {
   el.innerHTML = renderGauge(v.tank.pressure, v.tank.reserve, t('spg'));
 }
 
+/** Dive type from the surface interval before it (s): under 15 min consecutive, under 12 h repetitive. */
+function diveType(si: number | null): I18nKey {
+  if (si === null || si >= 12 * 3600) return 'diveSingle';
+  return si < 15 * 60 ? 'diveConsecutive' : 'diveRepetitive';
+}
+
 function renderLog(): void {
   const el = $('logbook');
   if (!session.log.length) {
     el.innerHTML = `<p class="muted">${t('noDives')}</p>`;
     return;
   }
-  const head = `<thead><tr><th>#</th><th>${t('duration')}</th><th>${t('maxDepth')}</th><th>${t('avgDepth')}</th><th>${t('gas')}</th><th>${t('minTemp')}</th><th>${t('si')}</th><th>${t('tankCol')}</th><th>CNS</th><th>${t('alarms')}</th></tr></thead>`;
+  const head = `<thead><tr><th>#</th><th>${t('duration')}</th><th>${t('maxDepth')}</th><th>${t('avgDepth')}</th><th>${t('gas')}</th><th>${t('minTemp')}</th><th>${t('si')}</th><th title="${t('diveTypeHelp')}">${t('diveType')}</th><th>${t('tankCol')}</th><th>CNS</th><th>${t('alarms')}</th></tr></thead>`;
   const rows = session.log
     .map((d, i) => `<tr data-log="${i}" class="${i === selectedLog ? 'active' : ''}">
       <td>${d.number}</td><td class="num">${Math.round(d.duration / 60)} min</td><td class="num">${depthLabel(d.maxDepth)}</td>
       <td class="num">${depthLabel(d.avgDepth)}</td><td>${gasLabel(d.gas)}</td><td class="num">${tempVal(d.minTemp).toFixed(0)} ${tempUnit()}</td>
-      <td class="num">${d.surfaceIntervalBefore === null ? '—' : hmm(d.surfaceIntervalBefore / 60)}</td>
+      <td class="num">${d.surfaceIntervalBefore === null ? '—' : hmm(d.surfaceIntervalBefore / 60)}</td><td>${t(diveType(d.surfaceIntervalBefore))}</td>
       <td class="num">${pressText(d.tankStart)} → ${pressText(d.tankEnd)} ${pressUnit()}</td><td class="num">${d.cnsEnd.toFixed(0)} %</td>
       <td>${d.alarms.length ? d.alarms.map((a) => (isI18nKey(a) ? t(a) : a)).join(', ') : t('none')}</td></tr>`)
     .reverse()
@@ -724,6 +835,122 @@ $('compare-table').addEventListener('click', (e) => {
 });
 
 // ---------------------------------------------------------------------------
+// Rescue alert (session.emergency): blue beacon over the water column, simulation stopped until a
+// reset. Judged on the diver's state, not on the computer (see engine/session.ts).
+
+let rescueHidden = false;
+let rescueShown = '';
+function renderRescue(): void {
+  const e = session.emergency;
+  $('scene-panel').classList.toggle('emergency', !!e);
+  $('rescue').hidden = !e || rescueHidden;
+  $('rescue-mini').hidden = !e || !rescueHidden;
+  if (!e) {
+    rescueShown = '';
+    return;
+  }
+  const key = `${lang()}|${units()}|${e.clock}`;
+  if (key === rescueShown) return;
+  const first = rescueShown === '';
+  rescueShown = key;
+  renderControls();
+  const line: Record<EmergencyReason, () => string> = {
+    OUT_OF_AIR: () => t('rescueAirB').replace('{depth}', depthLabel(e.depth)),
+    RAPID_ASCENT: () => t('rescueRapidB')
+      .replace('{rate}', rateLabel(e.rate ?? 0))
+      .replace('{from}', depthLabel(e.fromDepth ?? 0, 0))
+      // Ascent judged at a stop in the last metres (palier de principe…) or at the surface.
+      .replace('{to}', (e.toDepth ?? 0) < DIVE_START_DEPTH ? t('rescueToSurface') : depthLabel(e.toDepth ?? 0, 0))
+      .replace('{max}', imperial() ? rateLabel(RAPID_RATE) : `${RAPID_RATE} m/min`),
+    MISSED_DECO: () => t('rescueDecoB').replace('{gf}', String(Math.round(e.surfGf ?? 0))),
+  };
+  const title: Record<EmergencyReason, I18nKey> = { OUT_OF_AIR: 'rescueAirT', RAPID_ASCENT: 'rescueRapidT', MISSED_DECO: 'rescueDecoT' };
+  $('rescue-title').textContent = e.reasons.map((r) => t(title[r])).join(' · ');
+  $('rescue-body').innerHTML = e.reasons.map((r) => `<p>${line[r]()}</p>`).join('') + `<p class="muted">${t('rescueFoot')}</p>`;
+  if (first && !rescueHidden) $('rescue-reset').focus({ preventScroll: true });
+}
+$('rescue-reset').addEventListener('click', resetAll);
+$('rescue-hide').addEventListener('click', () => {
+  rescueHidden = true;
+  renderRescue();
+});
+$('rescue-mini').addEventListener('click', () => {
+  rescueHidden = false;
+  renderRescue();
+});
+
+// ---------------------------------------------------------------------------
+// Boat at the surface: BOAT_DELAY s after surfacing during a dive, with the tank below
+// BOAT_MAX_FILL (or after the dive, until the next descent), a boat comes alongside and offers a full tank. Yes: the diver climbs aboard, the
+// dive ends and the tank is refilled (session.boardBoat), so the next descent is a new dive. No: it
+// leaves. It also leaves if the diver goes back down. Offered once per surfacing.
+
+const BOAT_DELAY = 5; // s at the surface (simulated time)
+const BOAT_MAX_FILL = 0.9;
+let boat: 'away' | 'ask' | 'reply' = 'away';
+let boatAsked = false;
+let boatTimer = 0;
+
+const tankText = () => `${pressText(session.tankPressure)} ${pressUnit()}`;
+function setBoat(state: typeof boat, text = ''): void {
+  boat = state;
+  scene.boatWanted = state !== 'away';
+  if (scene3d) scene3d.boatWanted = scene.boatWanted;
+  clearTimeout(boatTimer);
+  if (state === 'reply') boatTimer = window.setTimeout(() => setBoat('away'), 2600);
+  $('boat-text').textContent = text;
+  $('boat-note').hidden = $('boat-btns').hidden = state !== 'ask';
+}
+function updateBoat(): void {
+  const s = session;
+  const underwater = s.depth >= DIVE_START_DEPTH;
+  if (underwater) boatAsked = false;
+  // Gone back down, rescue alert, or reset.
+  if (boat === 'ask' && (underwater || s.emergency || (!s.inDive && s.lastDiveEnd === null))) setBoat('away');
+  // At the surface during a dive, or after one (the dive may have been closed between two checks at
+  // high time speeds).
+  const surfaced = s.inDive ? s.surfaceTimer >= BOAT_DELAY : s.lastDiveEnd !== null;
+  if (boat === 'away' && !boatAsked && !underwater && surfaced && !s.emergency && s.tankPressure < s.tank.fill * BOAT_MAX_FILL) {
+    boatAsked = true;
+    setBoat('ask');
+  }
+  if (boat === 'ask') $('boat-text').textContent = t('boatAsk').replace('{p}', tankText());
+  if (scene3d) scene3d.boatWanted = scene.boatWanted; // the 3D view may have been opened since
+}
+$('boat-yes').addEventListener('click', () => {
+  session.boardBoat();
+  setBoat('reply', t('boatYesReply').replace('{p}', tankText()));
+  refresh(true);
+});
+$('boat-no').addEventListener('click', () => setBoat('reply', t('boatNoReply')));
+
+/** The speech bubble points at the boat once it is alongside: above it if there is room, else below. */
+function placeBoatBubble(): void {
+  const el = $('boat-offer');
+  const a = boat === 'away' ? null : view === '3d' && scene3d ? scene3d.boatAnchor() : scene.boatAnchor();
+  el.hidden = !a;
+  if (!a) return;
+  const pr = $('scene-panel').getBoundingClientRect();
+  const cr = $(view === '3d' ? 'scene3d' : 'scene').getBoundingClientRect();
+  const ax = cr.left - pr.left + a.x;
+  const top = cr.top - pr.top + a.top;
+  const bottom = cr.top - pr.top + a.bottom;
+  const bw = el.offsetWidth;
+  const bh = el.offsetHeight;
+  const below = top - 14 - bh < 8;
+  let y = below ? bottom + 14 : top - 14 - bh;
+  // Short water column (phones): no room above or below, the bubble stays whole, without its tail.
+  const fits = y + bh <= pr.height - 8;
+  if (!fits) y = Math.max(8, pr.height - bh - 8);
+  const x = Math.max(8, Math.min(ax - bw * 0.65, pr.width - bw - 8));
+  el.style.left = `${x}px`;
+  el.style.top = `${y}px`;
+  el.style.setProperty('--tail', `${Math.max(14, Math.min(ax - x, bw - 14))}px`);
+  el.classList.toggle('above', !below);
+  el.classList.toggle('no-tail', !fits);
+}
+
+// ---------------------------------------------------------------------------
 // Simulation loop
 
 function advance(seconds: number, maxStep = 1): void {
@@ -733,6 +960,7 @@ function advance(seconds: number, maxStep = 1): void {
     session.step(dt);
     for (const c of computers) c.tick(session, dt);
     left -= dt;
+    if (session.emergency) break; // rescue alert: the simulation stops here
   }
 }
 
@@ -745,7 +973,7 @@ setInterval(() => {
   const now = performance.now();
   const realDt = Math.min(60, (now - lastTick) / 1000);
   lastTick = now;
-  if (!paused) {
+  if (!paused && !session.emergency) {
     const simDt = realDt * speed;
     // Coarser steps for big jumps (background tab, surface interval): Schreiner stays exact on
     // linear segments, only the kinematics and timers get less granular.
@@ -766,6 +994,7 @@ function frame(now: number): void {
   if (view === '3d' && scene3d) scene3d.draw(pendingSimDt, realDt);
   else scene.draw(pendingSimDt, realDt);
   pendingSimDt = 0;
+  placeBoatBubble();
   requestAnimationFrame(frame);
 }
 

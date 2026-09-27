@@ -15,7 +15,7 @@ export interface DevHook {
 type Box = { left: number; right: number; top: number; bottom: number };
 interface Item { t: string; el: Element; rc: Box }
 
-const SCREENS = '.pd-screen, .qc-screen, .g2-screen, .mr-lcd, .cg-lcd, .gm-screen, .su-screen';
+const SCREENS = '.pd-screen, .qc-screen, .qa-lcd, .gn-screen, .g2-screen, .mr-lcd, .cg-lcd, .gm-screen, .su-screen';
 const ctx = document.createElement('canvas').getContext('2d')!;
 
 /** Ink box of a text run: the line box shrunk to the glyphs actually drawn. */
@@ -125,7 +125,8 @@ export function diveStates(h: DevHook): Record<string, (c: DiveComputer) => void
     s.ascentSpeed = 9;
     s.gas = { o2: 0.21, he: 0 };
     s.transmitterOn = true;
-    s.rmv = 20;
+    // Low enough for the long deco dives to end with gas left (an empty tank stops the simulation).
+    s.rmv = 12;
   };
   const go = (depth: number, sec: number) => {
     s.setTarget(depth);

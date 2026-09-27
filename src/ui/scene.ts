@@ -21,6 +21,10 @@ export class Scene {
   ceiling = 0;
   safetyBand = false;
   stopDepth = 0;
+  /** Boat offering a full tank (main.ts): comes alongside the diver while true, leaves otherwise. */
+  boatWanted = false;
+  private boatPos = 0; // 0 = off screen, 1 = alongside
+  private boatAt: { x: number; top: number; bottom: number } | null = null;
 
   constructor(private canvas: HTMLCanvasElement, private session: DiveSession) {
     this.ctx = canvas.getContext('2d')!;
@@ -240,9 +244,94 @@ export class Scene {
     }
     this.bubbles = this.bubbles.filter((b) => b.depth > 0);
 
+    // Boat: sails in from the right (real time, so it is seen at any time speed), stops just ahead
+    // of the diver, then turns round and leaves to the right (never over the diver).
+    this.boatPos = Math.max(0, Math.min(1, this.boatPos + (this.boatWanted ? 1 : -1) * realDt / 1.6));
+    this.boatAt = null;
+    if (this.boatPos > 0) {
+      const e = 1 - Math.pow(1 - this.boatPos, 3); // eases in on arrival
+      const dock = Math.min(cx + 100, w - 46);
+      const x = w + 70 + (dock - w - 70) * e;
+      const y = SKY + Math.sin(performance.now() / 700) * 1.2;
+      this.drawBoat(x, y, !this.boatWanted);
+      if (this.boatPos === 1) this.boatAt = { x: x + 6, top: y - 34, bottom: y + 9 };
+    }
+
     // Diver
     this.finPhase += realDt * (2 + Math.abs(s.velocity) * 8);
     this.drawDiver(cx, this.depthToY(s.depth), s.velocity);
+  }
+
+  /** Boat alongside (else null): centre, top of the mast and bottom of the hull, in CSS px of the canvas. */
+  boatAnchor(): { x: number; top: number; bottom: number } | null {
+    return this.boatAt;
+  }
+
+  /** Dive boat on the waterline `y`, bow to the left (to the right when `leaving`). */
+  private drawBoat(x: number, y: number, leaving: boolean): void {
+    const { ctx } = this;
+    ctx.save();
+    ctx.translate(x, y);
+    if (leaving) ctx.scale(-1, 1);
+    // Mast and diver-down flag (red, white diagonal).
+    ctx.strokeStyle = '#55606b';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(26, -8);
+    ctx.lineTo(26, -33);
+    ctx.stroke();
+    ctx.fillStyle = '#e03a2f';
+    ctx.fillRect(27, -33, 13, 9);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(27, -33);
+    ctx.lineTo(40, -24);
+    ctx.stroke();
+    // Cabin with windows.
+    ctx.fillStyle = '#f4f6f8';
+    ctx.beginPath();
+    ctx.roundRect(-6, -22, 26, 16, [5, 3, 0, 0]);
+    ctx.fill();
+    ctx.fillStyle = '#6fc4ea';
+    ctx.fillRect(-2, -18, 7, 5);
+    ctx.fillRect(8, -18, 8, 5);
+    // Hull: white topsides, red antifouling under the waterline.
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(-50, -9);
+    ctx.lineTo(44, -8);
+    ctx.lineTo(43, 0);
+    ctx.lineTo(-40, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#1f6fa8';
+    ctx.fillRect(-44, -4, 86, 2);
+    ctx.fillStyle = 'rgba(160, 40, 34, 0.85)';
+    ctx.beginPath();
+    ctx.moveTo(-40, 0);
+    ctx.lineTo(43, 0);
+    ctx.lineTo(40, 7);
+    ctx.quadraticCurveTo(-18, 9, -40, 0);
+    ctx.closePath();
+    ctx.fill();
+    // Outboard motor and ladder at the stern.
+    ctx.fillStyle = '#2b3036';
+    ctx.fillRect(44, -12, 6, 9);
+    ctx.fillRect(46, -3, 2, 12);
+    ctx.strokeStyle = '#c9d0d6';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (let k = 0; k < 3; k++) {
+      ctx.moveTo(36, -6 + k * 5);
+      ctx.lineTo(41, -6 + k * 5);
+    }
+    ctx.moveTo(36, -8);
+    ctx.lineTo(36, 8);
+    ctx.moveTo(41, -8);
+    ctx.lineTo(41, 8);
+    ctx.stroke();
+    ctx.restore();
   }
 
   private drawDiver(x: number, y: number, v: number): void {

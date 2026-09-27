@@ -12,7 +12,10 @@
   <body>
     <header class="app-header">
       <div class="brand">
-        <h1 data-i18n="title"></h1>
+        <div class="brand-row">
+          <h1 data-i18n="title"></h1>
+          <button class="btn tour-open" id="tour-open" data-i18n-title="tourOpen"><span data-i18n="tourOpen"></span><span class="icon" aria-hidden="true">?</span></button>
+        </div>
         <p class="sub" data-i18n="subtitle"></p>
       </div>
       <div class="header-actions">
@@ -20,7 +23,7 @@
           <span data-i18n="computer"></span>
           <select id="computer-select"></select>
         </label>
-        <button class="btn" id="about-open" data-i18n="about"></button>
+        <button class="btn" id="about-open" data-i18n-title="about"><span data-i18n="about"></span><span class="icon" aria-hidden="true">i</span></button>
         <div class="seg-toggle" role="group" aria-label="Language">
           <button data-lang="fr">FR</button><button data-lang="en">EN</button>
         </div>
@@ -28,7 +31,7 @@
     </header>
 
     <main class="app">
-      <section class="panel scene-panel">
+      <section class="panel scene-panel" id="scene-panel">
         <canvas id="scene" aria-label="Water column"></canvas>
         <canvas id="scene3d" aria-label="3D dive view" hidden></canvas>
         <div class="scene-top">
@@ -46,6 +49,29 @@
         <div class="scene-ctl turn" id="turn-ctl" hidden>
           <button data-turn="-1" aria-label="Turn left">◀</button>
           <button data-turn="1" aria-label="Turn right">▶</button>
+        </div>
+        <!-- Rescue alert (main.ts, renderRescue): the simulation is stopped. -->
+        <div class="rescue" id="rescue" role="alertdialog" aria-labelledby="rescue-title" aria-describedby="rescue-body" hidden>
+          <div class="rescue-card">
+            <div class="beacon" aria-hidden="true"><i class="beam"></i><i class="glint"></i></div>
+            <p class="rescue-stop" data-i18n="rescueStop"></p>
+            <h2 id="rescue-title"></h2>
+            <div id="rescue-body"></div>
+            <div class="button-row">
+              <button class="btn primary" id="rescue-reset" data-i18n="rescueReset"></button>
+              <button class="btn" id="rescue-hide" data-i18n="rescueHide"></button>
+            </div>
+          </div>
+        </div>
+        <button class="rescue-mini" id="rescue-mini" data-i18n-title="rescueShow" hidden><span class="beacon" aria-hidden="true"><i class="beam"></i><i class="glint"></i></span></button>
+        <!-- Boat offering a full tank at the surface (main.ts, updateBoat). -->
+        <div class="boat-offer" id="boat-offer" role="dialog" aria-labelledby="boat-text" hidden>
+          <p id="boat-text"></p>
+          <p class="boat-note" id="boat-note" data-i18n="boatAskNote"></p>
+          <div class="boat-btns" id="boat-btns">
+            <button class="btn primary" id="boat-yes" data-i18n="boatYes"></button>
+            <button class="btn" id="boat-no" data-i18n="boatNo"></button>
+          </div>
         </div>
         <div class="scene-hud">
           <span id="hud-clock"></span>
@@ -73,21 +99,26 @@
           <button data-tab="log" data-i18n="logShort"></button>
         </nav>
 
+        <div class="sheet" id="sheet">
+        <button class="sheet-close" id="sheet-close" data-i18n-title="close" aria-label="Close">✕</button>
         <div class="tab-body" data-pane="settings">
           <div id="algo-info" class="algo-info"></div>
           <div class="settings-grid">
             <div id="computer-settings" class="contents"></div>
             <label class="field"><span data-i18n="gas"></span><select id="gas-select"></select></label>
+            <label class="field"><span data-i18n="rescueAlert"></span><select id="rescue-select"></select></label>
+            <p class="muted small grid-hint" data-i18n="rescueHelp"></p>
           </div>
           <details class="advanced" id="advanced">
             <summary><span data-i18n="advanced"></span> <span class="adv-sum" id="adv-summary"></span></summary>
             <div class="settings-grid">
-              <div id="computer-settings-adv" class="contents"></div>
-              <label class="field"><span data-i18n="site"></span><select id="site-select"></select></label>
+              <!-- The dive itself first, then the computer. -->
               <label class="field"><span data-i18n="units"></span><select id="units-select"></select></label>
+              <label class="field"><span data-i18n="site"></span><select id="site-select"></select></label>
               <label class="field"><span data-i18n="tank"></span><select id="tank-select"></select></label>
-              <label class="field"><span data-i18n="rmv"></span><select id="rmv-select"></select></label>
               <label class="field"><span data-i18n="reserve"></span><select id="reserve-select"></select></label>
+              <label class="field"><span data-i18n="rmv"></span><select id="rmv-select"></select></label>
+              <div id="computer-settings-adv" class="contents"></div>
               <label class="field"><span data-i18n="transmitter"></span><select id="tx-select"></select></label>
               <p class="muted small tx-hint" id="tx-hint"></p>
             </div>
@@ -129,6 +160,7 @@
         <div class="tab-body" data-pane="log" hidden>
           <div id="logbook"></div>
         </div>
+        </div>
       </section>
     </main>
     <dialog class="modal intro" id="intro" aria-labelledby="intro-title">
@@ -136,7 +168,10 @@
       <p class="lead" data-i18n="introEdu"></p>
       <p data-i18n="introApprox"></p>
       <p data-i18n="introBrands"></p>
-      <button class="btn primary" id="intro-ok" data-i18n="introOk"></button>
+      <div class="modal-actions">
+        <button class="btn" id="intro-tour" data-i18n="introTour"></button>
+        <button class="btn primary" id="intro-ok" data-i18n="introOk"></button>
+      </div>
     </dialog>
     <dialog class="modal about" id="about" aria-labelledby="about-title">
       <h2 id="about-title" data-i18n="about"></h2>
