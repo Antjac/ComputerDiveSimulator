@@ -269,6 +269,7 @@ const dict = {
     en: 'If you represent one of these manufacturers and would like something changed or removed, please write to:',
   },
   aboutSource: { fr: 'Code source :', en: 'Source code:' },
+  helpSource: { fr: 'Code source, suggestions et signalements sur GitHub :', en: 'Source code, suggestions and issues on GitHub:' },
   aboutLicenceTitle: { fr: 'Licence et responsabilité', en: 'Licence and liability' },
   aboutLicence: {
     fr: '© 2026 Antoine ALEXANDRE. Logiciel libre sous licence GNU AGPL v3 : utilisation libre pour tous ; toute version modifiée, même mise en ligne, doit publier son code source sous la même licence. Fourni « tel quel », sans aucune garantie. Les calculs sont des approximations. Les auteurs ne sauraient être tenus responsables de son utilisation.',

@@ -36,7 +36,7 @@ select:disabled { opacity: 0.55; }
 .adv-sum { display: block; margin-top: 2px; font-size: 11px; color: var(--muted); }
 .help summary { cursor: pointer; color: var(--ink-2); font-size: 13px; }
 .help p { font-size: 12px; color: var(--ink-2); }
-.help a.mail { color: var(--accent); }
+.help a { color: var(--accent); overflow-wrap: anywhere; }
 .disclaimer { font-size: 11px; color: var(--muted); margin: auto 0 0; }
 
 /* Tables */
