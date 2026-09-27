@@ -1,5 +1,6 @@
 // Scenery tables: corals and fish species.
 import * as THREE from 'three';
+import { kelpGeometry } from './creatures';
 import { barrelGeometry, brainGeometry, branchGeometry, fanGeometry, grassGeometry, tableGeometry, tubeGeometry, whipGeometry } from './geometry';
 import { Environment } from './sites';
 
@@ -26,6 +27,8 @@ export const CORALS: CoralKind[] = [
   { geo: fanGeometry, count: { reef: 260, wreck: 180, wall: 700 }, colors: [0xd04a6a, 0xe0803a, 0xb040a0, 0xe8d070], size: [0.6, 1.8], fan: true, sway: 0.03, doubleSide: true },
   { geo: whipGeometry, count: { reef: 600, wreck: 320, wall: 700 }, colors: [0xa050c0, 0xe0c040, 0xd05050, 0xe8e0c8], size: [0.6, 1.4], sway: 0.1 },
   { geo: grassGeometry, count: { reef: 1800, wreck: 500, wall: 0 }, colors: [0x5a8a3a, 0x6f9a40, 0x4a7a3a], size: [0.7, 1.4], grass: true, sway: 0.5, doubleSide: true },
+  // Last, so that adding it left the other corals where they were.
+  { geo: kelpGeometry, count: { reef: 260, wreck: 220, wall: 380 }, colors: [0x6b6a2a, 0x7a6a30, 0x4f6a2e, 0x8a7a3a], size: [0.7, 1.3], sway: 0.07, doubleSide: true },
 ];
 
 export interface Species {

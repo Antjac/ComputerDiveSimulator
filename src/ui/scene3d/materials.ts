@@ -10,6 +10,8 @@ export interface Look {
   ripples?: boolean;
   sway?: number;
   fish?: boolean;
+  /** Tail beat of the fish, in rad/s (9 by default: small reef fish). */
+  swimRate?: number;
 }
 
 export const VERT_HEAD = /* glsl */ `
@@ -36,7 +38,7 @@ export const VERT_BEGIN = /* glsl */ `
 }
 #endif
 #ifdef FISH
-transformed.x += sin(uTime * 9.0 + aPhase - position.z * 6.0) * 0.1 * (1.0 - smoothstep(-0.6, 0.3, position.z));
+transformed.x += sin(uTime * FISH_RATE + aPhase - position.z * 6.0) * 0.1 * (1.0 - smoothstep(-0.6, 0.3, position.z));
 vFishY = position.y;
 #endif
 `;
@@ -122,7 +124,7 @@ export function patch<M extends THREE.MeshStandardMaterial>(mat: M, look: Look):
   if (look.ripples) defs.push('#define RIPPLES');
   if (look.caustics) defs.push('#define CAUSTICS');
   if (look.sway) defs.push(`#define SWAY ${look.sway.toFixed(3)}`);
-  if (look.fish) defs.push('#define FISH');
+  if (look.fish) defs.push('#define FISH', `#define FISH_RATE ${(look.swimRate ?? 9).toFixed(3)}`);
   const head = defs.join('\n');
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uTime = fx.uTime;

@@ -4,6 +4,7 @@ import { fanAlpha, fishGeometry, rockGeometry } from './geometry';
 import { fx, patch } from './materials';
 import { clamp, fbm, mulberry32, noise, ramp, wrapAngle } from './math';
 import { AREA, CLEARANCE, Environment, WORLD, WRECK_H, WRECK_HEADING, WRECK_L, WRECK_ROLL, WRECK_W, floorDepth, startOf, wallEdge, wreckTop } from './sites';
+import { SeaLife } from './life';
 import { SolidGrid } from './solids';
 import { buildAmbience, buildBoat, buildDiver, buildOverlays } from './models';
 import { CORALS, CoralKind, SPECIES, School, Species } from './species';
@@ -39,6 +40,7 @@ export class Scene3D {
   private turtleCenter = new THREE.Vector2();
   private turtleAngle = 0;
   private wreck: { x: number; z: number; y: number; cos: number; sin: number } | null = null;
+  private life: SeaLife | null = null;
 
   private hemi = new THREE.HemisphereLight(0xbfe9ff, 0x2a2418, 1);
   private sun = new THREE.DirectionalLight(0xffffff, 2);
@@ -285,6 +287,19 @@ export class Scene3D {
     this.placeDiver(sx, sz, sh);
     this.turtleCenter.set(sx + Math.sin(sh) * 22, sz + Math.cos(sh) * 22);
     this.buildTurtle();
+    this.life = new SeaLife(
+      {
+        env,
+        site,
+        baseGround: (x, z) => this.baseGround(x, z),
+        groundAt: (x, z) => this.groundAt(x, z),
+        floorAt: (x, z) => this.floorAt(x, z),
+        randomSpot: (r, radius) => this.randomSpot(r, radius),
+      },
+      rnd,
+      [this.px, this.pz],
+    );
+    this.world.add(this.life.group);
   }
 
   private placeDiver(x: number, z: number, h: number): void {
@@ -649,6 +664,7 @@ export class Scene3D {
     this.updateBubbles(simDt, dt, pos, fwd);
     this.updateFish(dt, pos);
     this.updateTurtle(dt);
+    this.life?.update(dt, this.time, pos, this.camera.position);
     this.updateBoat(realDt, pos, fwd);
 
     // Overlays around the diver.
