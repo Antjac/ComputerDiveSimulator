@@ -1,7 +1,7 @@
 // Regression snapshots for refactoring: replays dive states on every computer (both unit systems,
 // every display layout, every simulated button press) and records the computed view and the screen
 // HTML. `npm run snapshot -- --save` stores the baseline in .snapshots/; `npm run snapshot` compares
-// with it and lists every difference (the first ones are written to .snapshots/diff/);
+// with it and lists the differences (one per state × computer is written to .snapshots/diff/);
 // `npm run snapshot -- <id>` compares one computer only.
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -129,12 +129,18 @@ if (save) {
     console.log(`✓ ${n} snapshots identical`);
   } else {
     mkdirSync(`${DIR}/diff`, { recursive: true });
-    diff.slice(0, 5).forEach((k, i) => {
+    // The first difference of each state × computer.
+    const firsts = [...new Map(diff.map((k) => [k.split(' | ').slice(0, 2).join(' | '), k])).values()];
+    firsts.forEach((k, i) => {
       writeFileSync(`${DIR}/diff/${i}-before.txt`, `${k}\n${base[k] ?? '(missing)'}`);
       writeFileSync(`${DIR}/diff/${i}-after.txt`, `${k}\n${out[k] ?? '(missing)'}`);
     });
     console.log(`✗ ${diff.length} of ${keys.size} snapshots differ (first ones in ${DIR}/diff/):`);
-    diff.slice(0, 20).forEach((k) => console.log(`  ${k}`));
+    // Grouped by state and computer, then the first keys in full.
+    const groups = new Map<string, number>();
+    for (const k of diff) { const g = k.split(' | ').slice(0, 2).join(' | '); groups.set(g, (groups.get(g) ?? 0) + 1); }
+    groups.forEach((n, g) => console.log(`  ${String(n).padStart(4)}  ${g}`));
+    diff.slice(0, 5).forEach((k) => console.log(`  ${k}`));
     argv.exit(1);
   }
 }

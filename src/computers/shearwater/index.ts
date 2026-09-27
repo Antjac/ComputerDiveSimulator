@@ -98,10 +98,19 @@ export class ShearwaterPerdix extends PerdixRules {
         title = '<div class="pd-title">SAFETY STOP</div>';
         stopBody = '<div class="pd-stop green">Complete</div>';
       } else {
-        const hint = stopState === 'paused' ? (v.depth < this.safetyStop.top ? '<span class="pd-down yellow">▼</span>' : '<span class="pd-down yellow">▲</span>') : '';
-        title = '<div class="pd-title">SAFETY STOP</div>';
-        stopBody = `<div class="pd-stop">${hint}${Math.floor(v.safety.remaining / 60)}:${String(Math.floor(v.safety.remaining % 60)).padStart(2, '0')}</div>`;
+        // §6.1 (figures): added beyond 11 m, blue title and white time; counting down, green title
+        // and green check mark; paused, yellow title, yellow ▼ / ▲ and the time on a yellow background.
+        const paused = stopState === 'paused';
+        const hint = paused ? `<span class="pd-down yellow">${v.depth < this.safetyStop.top ? '▼' : '▲'}</span>`
+          : stopState === 'active' ? '<span class="pd-down green">✓</span>' : '';
+        const time = `${Math.floor(v.safety.remaining / 60)}:${String(Math.floor(v.safety.remaining % 60)).padStart(2, '0')}`;
+        title = `<div class="pd-title${paused ? ' yellow' : stopState === 'active' ? ' green' : ''}">SAFETY STOP</div>`;
+        stopBody = `<div class="pd-stop">${hint}${paused ? `<span class="pd-hl">${time}</span>` : time}</div>`;
       }
+    } else if (v.inDive && this.settings.safety === 'off' && this.hadDeco) {
+      // §6.2 "Deco Stops Complete" (figure): with safety stops off, blue title and green "Complete".
+      title = '<div class="pd-title">DECO STOP</div>';
+      stopBody = '<div class="pd-stop green">Complete</div>';
     } else if (surfacedEarly) {
       title = '<div class="pd-title">SAFETY STOP</div>';
       stopBody = '<div class="pd-stop"><span class="pd-down yellow blink">▼</span></div>';

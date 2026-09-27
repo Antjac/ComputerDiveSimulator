@@ -284,6 +284,13 @@ export function planAscent(tissues: Tissues, depth: number, gas: Gas, p: DecoPar
     if (last && last.depth === stopDepth) last.minutes += resolution;
     else stops.push({ depth: stopDepth, minutes: resolution });
   }
+  // A ceiling means the diver may not go straight up (NDL at 0): even when the gas released during
+  // the ascent would clear it on the way, show a minimal stop rather than a "deco" state without any.
+  // Same test as ceilingDepth() > 0, so that a positive ceiling always comes with a stop.
+  if (!stops.length && !tissues.tolerates(SURFACE_PRESSURE, p.gfHigh)) {
+    stops.push({ depth: Math.max(p.lastStop, initialStop), minutes: resolution });
+    time += resolution;
+  }
 
   return { stops, tts: Math.ceil(time - 1e-6), firstStop: stops.length ? stops[0].depth : initialStop > 0 ? initialStop : 0 };
 }

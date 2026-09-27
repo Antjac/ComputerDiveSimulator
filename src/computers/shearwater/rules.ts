@@ -1,4 +1,4 @@
-import { type DecoParams } from '../../engine/buhlmann';
+import { type DecoParams, ndl, SURFACE_PRESSURE } from '../../engine/buhlmann';
 import type { DiveSession } from '../../engine/session';
 import { remainingTime } from '../../engine/gas';
 import { DiveComputer, SettingDef } from '../base';
@@ -18,8 +18,8 @@ export abstract class PerdixRules extends DiveComputer {
   readonly transmitter = 'Swift';
   readonly gasTimeName = 'GTR';
   readonly notes = {
-    fr: 'Mode Nitrox Recreational. Bouton droit (SELECT) : écrans d’info (MOD/MAX/PPO2, GF99/SurGF/CEIL, tissus, DET/Δ+5/@+5…) ; bouton gauche (MENU) : retour à l’écran principal (le menu de plongée n’est pas simulé). Aucun verrouillage en cas de palier manqué (conforme au manuel).',
-    en: 'Nitrox Recreational mode. Right button (SELECT): info screens (MOD/MAX/PPO2, GF99/SurGF/CEIL, tissues, DET/Δ+5/@+5…); left button (MENU): back to the main screen (the dive menu is not simulated). No lock-out for missed stops (as per the manual).',
+    fr: 'Mode Nitrox Recreational. Bouton droit (SELECT) : écrans d’info (MOD/MAX/PPO2, GF99/SurGF/CEIL, tissus, DET/Δ+5/@+5…) ; bouton gauche (MENU) : retour à l’écran principal (le menu de plongée n’est pas simulé). Aucun verrouillage en cas de palier manqué (conforme au manuel). Palier de sécurité ajouté dès 11 m et affiché dès lors (§6.1), décompte entre 2,4 et 7 m.',
+    en: 'Nitrox Recreational mode. Right button (SELECT): info screens (MOD/MAX/PPO2, GF99/SurGF/CEIL, tissues, DET/Δ+5/@+5…); left button (MENU): back to the main screen (the dive menu is not simulated). No lock-out for missed stops (as per the manual). Safety stop added beyond 11 m and shown from then on (§6.1), counting down between 2.4 and 7 m.',
   };
   readonly settingDefs: SettingDef[] = [
     {
@@ -55,7 +55,7 @@ export abstract class PerdixRules extends DiveComputer {
     },
   ];
 
-  /** Adapt mode: 5 min stop if the dive exceeded 30 m or the NDL fell below 5 min. */
+  /** Adapt mode (§8.2): 5 min stop if the dive exceeded 30 m or the NDL fell below 5 min. */
   protected adaptLong = false;
 
   constructor() {
@@ -96,13 +96,22 @@ export abstract class PerdixRules extends DiveComputer {
     return Number(v) * 60 || 180;
   }
 
+  /** Deco stops were required during this dive (§6.2: "Complete" once cleared, safety stop off). */
+  protected hadDeco = false;
+
   onDiveStart(s: DiveSession): void {
     super.onDiveStart(s);
     this.adaptLong = false;
+    this.hadDeco = false;
   }
 
   tick(s: DiveSession, dt: number): void {
-    if (s.inDive && s.depth > 30) this.adaptLong = true;
+    if (s.inDive) {
+      const gfHigh = this.decoParams(s).gfHigh;
+      // §8.2 Adapt: 5 min if the dive exceeds 30 m or the NDL falls below 5 minutes.
+      if (!this.adaptLong && (s.depth > 30 || ndl(s.tissues, s.depth, s.gas, gfHigh) < 5)) this.adaptLong = true;
+      if (!s.tissues.tolerates(SURFACE_PRESSURE, gfHigh)) this.hadDeco = true;
+    }
     if (this.settings.safety === 'off') {
       // Keep the rest of the bookkeeping but never request a safety stop.
       super.tick(s, dt);
