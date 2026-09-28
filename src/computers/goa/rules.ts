@@ -98,6 +98,8 @@ export abstract class GoaRules extends DiveComputer {
   onDiveEnd(s: DiveSession): void {
     const desat = desaturationTime(s.tissues) * 60;
     this.desatUntil = s.clock + desat;
+    // "If the maximum ascent rate of 12 m/min is exceeded for a prolonged period of time", the next
+    // dive during the desaturation is more conservative. The duration is not given: 30 s assumed.
     this.penaltyUntil = this.fastSec > 30 ? s.clock + desat : -Infinity;
     this.noFlyHours = this.locked ? 48 : this.hadDeco || this.repetitiveDive ? 24 : 12;
   }

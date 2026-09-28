@@ -37,7 +37,7 @@
 .mr-n2 i { width: 12px; height: 9px; background: rgba(20, 26, 16, 0.08); }
 .mr-n2 i.on { background: #141a10; }
 .mr-icons { position: absolute; top: 90px; left: 26px; display: flex; flex-direction: column; gap: 3px; }
-.mr-fast { background: #141a10; color: #c9d1c0; font-size: 10px; padding: 0 3px; border-radius: 2px; transform: skewX(-8deg); }
+.mr-slow, .mr-fast { background: #141a10; color: #c9d1c0; font-size: 10px; padding: 0 3px; border-radius: 2px; transform: skewX(-8deg); }
 .mr-glass { font-size: 16px; font-style: normal; }
 
 .mr-btn.pressed { translate: 0 2px; box-shadow: inset 0 1px 2px #6f7880; }

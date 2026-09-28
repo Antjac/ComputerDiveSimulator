@@ -116,8 +116,13 @@ export class MaresPuck extends PuckRules {
     const n2 = Array.from({ length: 10 }, (_, i) => `<i class="${i < segs ? 'on' : ''}"></i>`).join('');
 
     const icons: string[] = [];
-    if (this.ascentAlarm || this.fastViolation) icons.push(`<span class="mr-fast ${this.fastViolation ? '' : 'blink'}">fast</span>`);
-    if (this.decoViolation || (bottomTimer && !this.fastViolation)) icons.push('<span class="mr-glass">⧗</span>');
+    // §3.2.1 and its figures: "slow" blinks (with the speed) from 10 m/min; "fast" blinks as well above
+    // 12 m/min deeper than 12 m, and stays steady once it is a dive violation, then throughout the
+    // following dives in bottom timer mode. §3.2.4.1: hourglass after a missed deco stop.
+    if (this.ascentAlarm) icons.push('<span class="mr-slow blink">slow</span>');
+    if (this.fastViolation || (bottomTimer && this.lockedFast)) icons.push('<span class="mr-fast">fast</span>');
+    else if (this.fast.active) icons.push('<span class="mr-fast blink">fast</span>');
+    if (this.decoViolation || (bottomTimer && this.lockedDeco)) icons.push('<span class="mr-glass">⧗</span>');
 
     el.innerHTML = `
       <div class="dev mr">

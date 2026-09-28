@@ -44,6 +44,9 @@ export abstract class PuckRules extends DiveComputer {
   protected fastViolation = false;
   protected missed = new MissedStop('rgbm');
   protected decoViolation = false;
+  /** Violations behind the bottom timer mode, whose symbols stay on during the next dives (§3.2.1, §3.2.4.1). */
+  protected lockedFast = false;
+  protected lockedDeco = false;
   protected ndlTimer = 0;
   protected lastNdl = 99;
 
@@ -86,7 +89,11 @@ export abstract class PuckRules extends DiveComputer {
 
   onDiveEnd(s: DiveSession): void {
     // After a violation, the following dives run in bottom timer mode only.
-    if (this.fastViolation || this.decoViolation) this.lock(s);
+    if (this.fastViolation || this.decoViolation) {
+      this.lock(s);
+      this.lockedFast = this.fastViolation;
+      this.lockedDeco = this.decoViolation;
+    }
   }
 
   tick(s: DiveSession, dt: number): void {
