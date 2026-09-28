@@ -40,6 +40,29 @@ function box(l1: string, l2: string, cls = ''): string {
   return `<div class="ln-box ${cls}"><div>${l1}</div><div class="l2">${l2}</div></div>`;
 }
 
+/**
+ * Matrix punctuation, after the figures (§3.2, §3.4, §3.7, §3.9.2: "30.03.23", "47:49", "2.32",
+ * "T1:21%", "18%", "75%"). The device's small font is 5 × 6 pixels: the point is one pixel on the
+ * bottom row, the colon two pixels (3rd and 5th rows), each with a blank column on both sides; the
+ * percent sign is drawn below. The dot-matrix font used here (5 × 7) draws them with crosses: they
+ * are drawn by luna.css instead, on its grid (the colon on its 3rd and 6th rows: deduced).
+ */
+const PCT_ROWS = ['XX..X', 'XX.X.', '..X..', '.X.XX', 'X..XX']; // §3.4 figures, top row blank
+const PCT = `<svg class="ln-pc" viewBox="0 0 6 7">${PCT_ROWS.flatMap((row, r) =>
+  [...row].map((c, x) => (c === 'X' ? `<rect x="${x}" y="${r + 2}" width="0.86" height="0.86"/>` : ''))).join('')}</svg>`;
+function matrixPunct(html: string): string {
+  return html.replace(/>([^<]+)</g, (_, text: string) =>
+    `>${text.replace(/[.:%]/g, (c) => (c === '%' ? PCT : `<i class="ln-p${c === ':' ? ' colon' : ''}"></i>`))}<`);
+}
+
+/**
+ * §1.2 and §3.2 figures: "Do not dive" is a circle crossed from top left to bottom right, "Do not
+ * fly" a plane seen from above (nose to the upper right) in a circle crossed by a bar.
+ */
+const NO_DIVE_ICON = '<svg class="ln-ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.6" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M5.2 5.2 18.8 18.8" stroke="currentColor" stroke-width="2.6"/></svg>';
+const NO_FLY_ICON = '<svg class="ln-ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.8" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M2.6 10.4 21.4 15.2" stroke="currentColor" stroke-width="1.9"/>'
+  + '<g transform="rotate(-25 12 12)" fill="currentColor"><path d="M4.5 11.1H17.6Q20.6 12 17.6 12.9H4.5Z"/><path d="M11.4 11.2 7.2 4.6H9L14.6 11.2ZM11.4 12.8 7.2 19.4H9L14.6 12.8Z"/><path d="M5.6 11.2 3.8 8.2H5L7.4 11.2ZM5.6 12.8 3.8 15.8H5L7.4 12.8Z"/></g></svg>';
+
 /** Scubapro Luna 2.0 AI: two buttons and a monochrome segment + dot-matrix display. */
 export class ScubaproLuna extends LunaRules {
   private idx = 0;
@@ -199,7 +222,7 @@ export class ScubaproLuna extends LunaRules {
       topRight = sevenSeg(noFly ? `${noFly}h` : '', 3, 'ln-seg');
     }
     const icons = !v.inDive
-      ? `${noDive || v.locked ? '<span class="ln-ico nodive">⊘</span>' : ''}${noFly ? '<span class="ln-ico nofly">✈</span>' : ''}`
+      ? `${noDive || v.locked ? NO_DIVE_ICON : ''}${noFly ? NO_FLY_ICON : ''}`
       : '';
 
     // Matrix area.
@@ -345,7 +368,7 @@ export class ScubaproLuna extends LunaRules {
             <div class="ln-top r">${topRight}</div>
             <div class="ln-icons">${icons}</div>
             <div class="ln-side">${diver}${bell}</div>
-            <div class="ln-matrix">${matrix}</div>
+            <div class="ln-matrix">${matrixPunct(matrix)}</div>
             <div class="ln-batt"><i></i><i></i><i></i><i></i></div>
             <div class="ln-strip"></div>
             <div class="ln-bar">${bar}</div>

@@ -31,6 +31,7 @@
 .ln-lbl { position: absolute; top: 152px; font-size: 13px; }
 .ln-lbl.l { left: 20px; } .ln-lbl.r { right: 44px; }
 .ln-icons { position: absolute; top: 12px; left: 168px; display: flex; gap: 4px; font-size: 20px; }
+.ln-ico { width: 22px; height: 22px; }
 /* Left column: dive mode symbol and alarm bell. */
 .ln-side { position: absolute; left: 4px; top: 58px; width: 78px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .ln-diver { width: 78px; }
@@ -43,6 +44,11 @@
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   font-family: 'Doto', 'Roboto Mono', monospace; font-weight: 900; font-size: 22px; line-height: 1.05; letter-spacing: 0.5px;
 }
+/* "." and ":" of the matrix: pixels of the font grid (pitch 0.1em, pixel 0.086em); a blank column on each side, as in the figures (the font leaves one after each letter). */
+.ln-p { display: inline-block; position: relative; width: 0.2em; height: 0.7em; }
+.ln-p::before, .ln-p.colon::after { content: ''; position: absolute; left: 0; width: 0.086em; height: 0.086em; background: currentColor; }
+.ln-p::before { top: 0.607em; } .ln-p.colon::before { top: 0.207em; } .ln-p.colon::after { top: 0.507em; }
+.ln-pc { display: inline-block; width: 0.6em; height: 0.7em; fill: currentColor; }
 .ln-l { white-space: nowrap; } .ln-l.big { font-size: 40px; } .ln-l.mid { font-size: 30px; } .ln-l.inv { background: #f2f2f2; color: #050505; padding: 0 3px; }
 .ln-box {
   width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
