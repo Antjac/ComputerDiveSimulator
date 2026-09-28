@@ -9,6 +9,7 @@ import { depthLabel, depthUnit, depthVal, rateLabel } from '../units';
 import { updateAlertSounds } from './alertSounds';
 import { updateBoat } from './boat';
 import { renderCompare } from './compare';
+import { updateExercise } from './exercises';
 import { decorateButtons, fitDevice } from './device';
 import { renderRescue } from './rescue';
 import { renderControls } from './settings';
@@ -87,6 +88,7 @@ export function refresh(full = false): void {
 
   renderRescue();
   updateBoat();
+  updateExercise(v);
 
   // HUD
   $('hud-clock').textContent = `${t('simClock')} ${fmtClock(session.clock)}`;

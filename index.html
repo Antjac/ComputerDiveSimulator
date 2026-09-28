@@ -84,6 +84,7 @@
         <p class="device-caption" id="device-caption"></p>
         <div id="device" class="device-host"></div>
         <div id="spg" class="spg" hidden></div>
+        <div id="ex-banner" class="ex-banner" hidden></div>
         <div id="device-alarms" class="alarms" aria-live="polite"></div>
         <div class="device-hint" id="device-hint"></div>
         <div class="btn-tip" id="btn-tip" role="tooltip" hidden></div>
@@ -98,6 +99,7 @@
           <button data-tab="compare" data-i18n="compareShort"></button>
           <button data-tab="tissues" data-i18n="tissuesShort"></button>
           <button data-tab="log" data-i18n="logShort"></button>
+          <button data-tab="exercises" data-i18n="exercisesShort"></button>
         </nav>
 
         <div class="sheet" id="sheet">
@@ -120,7 +122,7 @@
               <label class="field"><span data-i18n="reserve"></span><select id="reserve-select"></select></label>
               <label class="field"><span data-i18n="rmv"></span><select id="rmv-select"></select></label>
               <div id="computer-settings-adv" class="contents"></div>
-              <label class="field"><span data-i18n="transmitter"></span><select id="tx-select"></select></label>
+              <label class="field" id="tx-field"><span data-i18n="transmitter"></span><select id="tx-select"></select></label>
               <p class="muted small tx-hint" id="tx-hint"></p>
             </div>
           </details>
@@ -143,6 +145,7 @@
         </div>
 
         <div class="tab-body" data-pane="compare" hidden>
+          <p class="compare-note" data-i18n="compareNote"></p>
           <table class="compare" id="compare-table"></table>
         </div>
 
@@ -157,6 +160,10 @@
           </div>
           <p class="muted small" id="tissues-help"></p>
           <div class="chart-wrap grow"><canvas id="tissues"></canvas><div class="tooltip" id="tissue-tip" hidden></div></div>
+        </div>
+
+        <div class="tab-body" data-pane="exercises" hidden>
+          <div id="exercises" class="exercises"></div>
         </div>
 
         <div class="tab-body" data-pane="log" hidden>

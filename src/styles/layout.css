@@ -151,11 +151,9 @@
   #compare-table th { top: -46px; }
   #compare-table :is(th, td):nth-child(2) { display: none; }
 
-  /* One line each; a tap unfolds them (main.ts). */
+  /* One line; a tap unfolds it (tabs.ts). The model's notes fold on every screen (settings.ts). */
   .device-caption { cursor: pointer; }
   .device-caption:not(.unfold) span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-  .algo-info { cursor: pointer; }
-  .algo-info:not(.unfold) p { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
   .dev-used .device-hint { display: none; }
   .alarms { min-height: 0; }
 

@@ -44,5 +44,5 @@ export function setupTabs(): void {
   new ResizeObserver(placeSheet).observe(document.querySelector('.scene-panel')!);
 
   // Phones: the notice under the device and the algorithm notes are cut to one line; a tap unfolds them.
-  for (const id of ['device-caption', 'algo-info']) $(id).addEventListener('click', () => $(id).classList.toggle('unfold'));
+  $('device-caption').addEventListener('click', () => $('device-caption').classList.toggle('unfold'));
 }

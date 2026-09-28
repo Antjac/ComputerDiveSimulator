@@ -15,6 +15,7 @@ npm run calib      # tables de NDL (calibration des algorithmes approchés)
 npm run snapshot   # non-régression : vues et HTML de tous les ordinateurs × états × unités × mises en page
                    # comparés à .snapshots/baseline.json (-- --save pour la créer avant un refactoring,
                    # -- <id> pour un seul ordinateur). Un changement voulu d'affichage la rend obsolète.
+npm run exercises  # joue chaque exercice de l'onglet Exercices sur chaque ordinateur : tous doivent être réussis
 ```
 
 ## Architecture en bref
@@ -25,15 +26,18 @@ npm run snapshot   # non-régression : vues et HTML de tous les ordinateurs × �
 - `src/computers/base/` : classe `DiveComputer` (`computer.ts` : paliers, palier de sécurité,
   violations, verrouillage, `compute()` → `ComputerView`), types, formats, calculs sur les tissus.
 - `src/computers/common/` : utilitaires partagés (prédictions GF/TTS, jours de plongée, acquittement
-  des alarmes, afficheurs 7 segments) ; `src/computers/mares/common.ts` : règles communes aux Mares ;
-  `src/computers/scubapro/common.ts` : règles communes aux Scubapro (vitesse idéale, niveaux MB, PDIS, SOS, RBT).
+  des alarmes, afficheurs 7 segments et à matrice de points) ; `src/computers/mares/common.ts` : règles communes aux Mares ;
+  `src/computers/scubapro/common.ts` : règles communes aux Scubapro (vitesse idéale, niveaux MB, PDIS, SOS, RBT) ;
+  `src/computers/cressi/common.ts` : règles communes aux Cressi (RGBM ≈, deep stop, mode ERROR, pénalités),
+  `cressi/lcd.ts` + `lcd.css` : l'afficheur segmenté commun au Goa et au Donatello.
 - Un dossier par modèle (`src/computers/<marque>/` ou `mares/<modèle>/`) : `rules.ts` (classe
   abstraite `XRules extends DiveComputer` : réglages, algorithme, paliers, alarmes — ce qu'on vérifie
   dans le manuel), `index.ts` (classe finale : écrans, boutons, rendu HTML), sa feuille `.css`
   (importée dans `src/style.css`). Enregistré dans `src/computers/index.ts`.
 - `src/app/` : l'interface, un module par fonction (`state.ts` état partagé, `settings.ts`,
   `diveControls.ts`, `tabs.ts`, `render.ts`, `loop.ts` boucle de simulation, `rescue.ts`,
-  `devHook.ts`…). Les modules ne font que déclarer ; `src/main.ts` les branche dans l'ordre.
+  `devHook.ts`, `exercises.ts` onglet Exercices et `exerciseDefs.ts` ses exercices…). Les modules ne
+  font que déclarer ; `src/main.ts` les branche dans l'ordre.
 - `src/ui/` : scène 2D, graphiques, visite guidée ; `src/ui/scene3d/` : vue 3D (three.js, chargée à
   la demande). `src/styles/` : feuilles de la page.
 
@@ -162,9 +166,10 @@ par un bouton ou non.
 ## Vérifier avant de rendre la main
 
 1. `npm run build`.
-2. `npm run stops -- <id>` : « ✓ stops OK », plus les réactions au-dessus du palier de 6 m
+2. `npm run exercises` : « ✓ every exercise passed on every computer ».
+3. `npm run stops -- <id>` : « ✓ stops OK », plus les réactions au-dessus du palier de 6 m
    conformes au manuel (niveau d'alarme, verrouillage ou non après 3 min).
-3. **Mise en page** (`npm run dev`, puis dans la console de la page, après avoir mis la simulation en
+4. **Mise en page** (`npm run dev`, puis dans la console de la page, après avoir mis la simulation en
    pause) : `__divesim.layout.sweep(['decoDeep', 'safetyActive'], '<id>')` passe l'ordinateur dans
    chaque mise en page, métrique et impérial, et chaque écran accessible par ses boutons, et signale
    tout texte qui déborde de sa case ou de l'écran, en chevauche un autre ou est recouvert.
@@ -173,8 +178,8 @@ par un bouton ou non.
    { layout, units, presses })` reproduit un cas pour le regarder. **Confirmer chaque signalement à
    l'écran** : certains sont voulus (alerte en surimpression sur le Garmin, libellé « N2 » sous la
    barre du Quad Ci, jambages des lettres).
-4. Dans le navigateur, afficher chaque écran dans les états de la section 4 (ex. 40 m / 25 min puis
+5. Dans le navigateur, afficher chaque écran dans les états de la section 4 (ex. 40 m / 25 min puis
    remontée) et **comparer aux figures du manuel**. Fermer les onglets et arrêter le serveur ensuite.
-5. Mettre à jour le tableau des modèles (et le texte) dans les deux README : `README.md` (anglais) et `README.fr.md` (français).
-6. Compte rendu : ce qui a été vérifié (avec les sections du manuel), ce qui ne l'est pas, les écarts
+6. Mettre à jour le tableau des modèles (et le texte) dans les deux README : `README.md` (anglais) et `README.fr.md` (français).
+7. Compte rendu : ce qui a été vérifié (avec les sections du manuel), ce qui ne l'est pas, les écarts
    restants.

@@ -1,0 +1,65 @@
+/* Suunto Zoop Novo: round case with scalloped bezel, four buttons (SELECT and MODE on the upper
+   sides, DOWN and UP at the bottom, as in the quick guide), monochrome LCD: seven-segment depth and
+   bottom row, dot-matrix centre field. Every item sits at a fixed place, as in the guide's figures. */
+.zn-case {
+  position: relative; width: 340px; height: 340px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 30%, #4a4f57, #16181b 70%);
+  box-shadow: 0 16px 30px rgba(0,0,0,0.55), inset 0 0 0 9px #26292e, inset 0 0 0 12px #6b7079;
+  display: grid; place-items: center;
+}
+.zn-btn { position: absolute; width: 26px; height: 26px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #d9dde2, #7c838c 70%); box-shadow: 0 0 0 3px #2c3036, 0 2px 4px rgba(0,0,0,0.6); }
+.zn-btn.select { left: 8px; top: 157px; }
+.zn-btn.mode { right: 8px; top: 157px; }
+.zn-btn.down { left: 118px; bottom: 10px; }
+.zn-btn.up { right: 118px; bottom: 10px; }
+.zn-btn.pressed { scale: 0.92; }
+.zn-lcd {
+  position: relative; width: 236px; height: 236px; border-radius: 22px 22px 38px 38px / 90px 90px 30px 30px;
+  background: radial-gradient(circle at 45% 35%, #d5dbd1, #a9b2a3);
+  box-shadow: inset 0 3px 12px rgba(0,0,0,0.45);
+  color: #151a14; font-family: 'Roboto Condensed', sans-serif; font-weight: 700;
+}
+.zn-lcd.backlit { background: radial-gradient(circle at 45% 35%, #e3fff0, #94e0bd); box-shadow: inset 0 3px 12px rgba(0,0,0,0.3), 0 0 18px rgba(130, 240, 190, 0.5); }
+.zn-lcd .seg-on, .zn-lcd .dm-on { fill: #151a14; } .zn-lcd .seg-ghost { fill: rgba(21, 26, 20, 0.07); }
+.zn-at { position: absolute; line-height: 1; white-space: nowrap; }
+.zn-u { font-style: normal; font-size: 11px; margin-left: 2px; }
+/* Top: icons and depth. */
+.zn-ic-alarm { left: 26px; top: 34px; font-size: 9px; }
+.zn-ic-alarm b { display: inline-block; width: 7px; height: 3px; background: currentColor; margin-left: 1px; vertical-align: middle; }
+.zn-ic-nofly { left: 22px; top: 48px; font-size: 7px; display: flex; align-items: flex-end; }
+.zn-ic-nofly svg { width: 16px; height: 10px; }
+.zn-ic-nofly small { font-size: 7px; margin-left: 1px; }
+.zn-ic-att { right: 22px; top: 50px; width: 13px; height: 12px; }
+.zn-ic-att svg { width: 100%; height: 100%; display: block; }
+.zn-depth { right: 46px; top: 22px; display: flex; align-items: flex-end; }
+.zn-depth .seg { height: 40px; }
+.zn-ac { right: 30px; top: 22px; font-size: 9px; }
+.zn-clock { left: 0; right: 0; top: 78px; display: flex; justify-content: center; }
+.zn-clock .seg { height: 56px; }
+/* Captions over the centre field, white on black. */
+.zn-rev { top: 68px; font-size: 8.5px; letter-spacing: 0.4px; background: #151a14; color: #d5dbd1; padding: 1px 3px; }
+.zn-l-ceil { left: 30px; } .zn-l-stop { left: 96px; } .zn-l-asc { left: 140px; }
+/* Dot-matrix centre field: a small text row, two big figures, a second text row. */
+.dm { display: block; }
+.zn-line1 { left: 30px; top: 84px; } .zn-line2 { left: 30px; top: 142px; }
+.zn-dm-s { height: 15px; }
+.zn-dm-b { height: 34px; }
+.zn-left { left: 28px; top: 92px; display: flex; align-items: center; gap: 4px; }
+.zn-right { right: 34px; top: 92px; }
+.zn-line1 + .zn-right, .zn-line1 ~ .zn-right { top: 104px; }
+.zn-arrow { display: block; width: 14px; height: 26px; }
+.zn-arrow svg { width: 100%; height: 100%; fill: #151a14; }
+.zn-l-ndl { right: 30px; top: 160px; font-size: 8.5px; letter-spacing: 0.3px; }
+/* Ascent rate bar, right edge. */
+.zn-bar { right: 16px; top: 80px; display: flex; flex-direction: column; gap: 2px; }
+.zn-bar i { width: 6px; height: 12px; background: rgba(21, 26, 20, 0.08); }
+.zn-bar i.on { background: #151a14; }
+/* Bottom row. */
+.zn-bl-top, .zn-br-top { top: 172px; font-size: 8.5px; }
+.zn-bl-top { left: 40px; } .zn-br-top { right: 50px; }
+.zn-bl, .zn-br { top: 182px; display: flex; align-items: flex-end; }
+.zn-bl { left: 34px; } .zn-br { right: 36px; }
+.zn-bl .seg, .zn-br .seg { height: 26px; }
+.zn-wd { font-size: 24px; font-style: italic; }
+.zn-bl-lbl, .zn-br-lbl { top: 212px; font-size: 8px; letter-spacing: 0.3px; }
+.zn-bl-lbl { left: 70px; } .zn-br-lbl { right: 44px; }

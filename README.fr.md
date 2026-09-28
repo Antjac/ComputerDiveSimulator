@@ -17,6 +17,7 @@ Interface disponible en français et en anglais, unités métriques ou impérial
 | Shearwater Perdix 2 (mode Recreational) | Bühlmann ZHL-16C + GF | Algorithme public, reproduit |
 | Garmin Descent Mk3i | Bühlmann ZHL-16C + GF | Algorithme public, reproduit |
 | Suunto D5 | Fused RGBM 2 | Approximation (≈) |
+| Suunto Zoop Novo | Suunto RGBM | Approximation (≈) |
 | Mares Puck Pro | Mares RGBM | Approximation (≈) |
 | Mares Quad Ci | Bühlmann ZH-L16C + GF | Algorithme public, reproduit (R1, R2, T1, T2 interpolés) |
 | Mares Quad Air | Mares RGBM | Approximation (≈) |
@@ -24,6 +25,7 @@ Interface disponible en français et en anglais, unités métriques ou impérial
 | Scubapro Galileo 2 (G2) | ZH-L16 ADT MB | Approximation (≈) |
 | Scubapro Luna 2.0 AI | ZH-L16 ADT MB ou ZH-L16C + GF | Approximation (≈) pour ADT MB, reproduit pour ZH-L16C + GF |
 | Cressi Goa | Cressi RGBM | Approximation (≈) |
+| Cressi Donatello | Cressi RGBM | Approximation (≈) |
 
 Les algorithmes propriétaires (RGBM, ZH-L16 ADT MB) ne sont pas publiés : ils sont approchés à partir de Bühlmann ZHL-16C avec des facteurs de gradient et des pénalités calibrés sur des valeurs publiées. Les écrans et les règles (alarmes, paliers, verrouillages…) s'inspirent des manuels utilisateurs publics de chaque modèle.
 
@@ -61,6 +63,10 @@ npm run stops     # contrôle le comportement aux paliers de déco de chaque ord
 
 - 🔇 / 🔊 (dans l'en-tête) active ou coupe les sons des alarmes des ordinateurs (coupés par défaut, le choix est mémorisé). Chaque modèle sonne comme le décrit son manuel : bips (Mares, Scubapro, Cressi), sons et vibrations (Garmin, Suunto), vibrations seules pour le Perdix 2. Une vibration est jouée comme un bourdonnement, fait trembler l'ordinateur à l'écran et, sur les téléphones qui le permettent (Android), vibre vraiment. Les alarmes qui se répètent jusqu'à acquittement s'arrêtent quand on appuie sur un bouton de l'ordinateur (SELECT sur le Perdix 2). Les réglages de chaque modèle comprennent son propre interrupteur (ALRM, All silent, Silent diving…).
 
+## Exercices
+
+L'onglet **Exercices** propose des situations à provoquer et observer, pour un élève en autonomie : arriver au bout du temps sans palier, remonter trop vite, faire le palier de sécurité, faire ses paliers de décompression, passer au-dessus d'un palier, dépasser la profondeur maximale du mélange, faire une plongée successive. Chaque exercice remet la plongée à zéro et démarre, en pause, dans une situation décrite (par exemple « à 25 m depuis 10 min ») ; le simulateur vérifie l'état du plongeur pour savoir s'il est réussi. Le bilan liste ce que l'ordinateur choisi a signalé et quand, et ce que disent ses règles (d'après son manuel). Les exercices portent sur les comportements (quel signal, quand, quelles conséquences), pas sur les durées de palier, qui ne sont qu'approchées pour les algorithmes propriétaires. Les exercices réussis sont mémorisés dans le navigateur, par ordinateur : refaire un exercice avec un autre modèle montre à quel point leurs réactions diffèrent.
+
 ## Surface, bateau et plongées successives
 
 Le bloc n'est pas rempli automatiquement entre deux plongées. Cinq secondes après être remonté en surface au cours d'une plongée (bloc sous 90 %), un bateau vient se placer près du plongeur et propose un bloc plein, dans une bulle de BD, en vue 2D comme en 3D. **Oui** : le plongeur remonte à bord, la plongée est terminée et le bloc est rempli ; la descente suivante est une nouvelle plongée. **Non** : le bateau repart. La plongée est aussi clôturée après 3 minutes en surface. Les tissus restent chargés d'une plongée à l'autre ; le carnet indique le type de chaque plongée : consécutive (moins de 15 min d'intervalle surface), successive (moins de 12 h) ou simple.
@@ -73,9 +79,10 @@ Le bouton **2D | 3D** en haut de la zone de plongée bascule vers une vue 3D lud
 
 ```
 src/engine/      moteur : Bühlmann ZHL-16C + GF, gaz, toxicité O2 (CNS/OTU), session de plongée
-src/computers/   un dossier par ordinateur simulé : rules.ts (règles propres au modèle),
+src/computers/   un dossier par ordinateur simulé (regroupés par marque quand ils partagent des
+                 règles : mares/, scubapro/, cressi/, suunto/) : rules.ts (règles propres au modèle),
                  index.ts (affichage et boutons), sa feuille de style ; base/ et common/ sont partagés
-src/app/         interface : réglages, onglets, dialogues, visite guidée, carnet, boucle de simulation
+src/app/         interface : réglages, onglets, dialogues, visite guidée, carnet, exercices, boucle de simulation
 src/ui/          scène 2D (colonne d'eau), vue 3D (scene3d/, three.js), graphiques, jauges, visite
 src/styles/      feuilles de style de la page (celles des ordinateurs sont à côté de leur code)
 scripts/         scripts de calibration, de scénarios et de non-régression (snapshot)
@@ -83,7 +90,7 @@ scripts/         scripts de calibration, de scénarios et de non-régression (sn
 
 ## Marques et affiliation
 
-Ce projet est indépendant et **n'est ni affilié, ni approuvé, ni sponsorisé** par les fabricants cités. Shearwater, Perdix, Garmin, Descent, Suunto, Mares, Puck, Quad, Genius, Scubapro, Galileo, Luna, Cressi et Goa sont des marques de leurs propriétaires respectifs ; elles sont citées uniquement pour identifier les modèles dont les interfaces sont inspirées. Aucun logo, code ou élément graphique des fabricants n'est inclus.
+Ce projet est indépendant et **n'est ni affilié, ni approuvé, ni sponsorisé** par les fabricants cités. Shearwater, Perdix, Garmin, Descent, Suunto, Zoop, Mares, Puck, Quad, Genius, Scubapro, Galileo, Luna, Cressi, Goa et Donatello sont des marques de leurs propriétaires respectifs ; elles sont citées uniquement pour identifier les modèles dont les interfaces sont inspirées. Aucun logo, code ou élément graphique des fabricants n'est inclus.
 
 Si vous représentez l'un de ces fabricants et souhaitez qu'un élément soit modifié ou retiré, ouvrez une issue.
 

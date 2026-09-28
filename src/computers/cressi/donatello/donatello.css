@@ -1,0 +1,35 @@
+/* Cressi Donatello: round watch, one button under the screen. The segmented LCD is the Goa's
+   (../lcd.css), cut flat at the top and bottom as in the manual's figures; a few items sit elsewhere. */
+.cd-case {
+  position: relative; width: 330px; height: 330px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 30%, #3a3d42, #101113 70%);
+  box-shadow: 0 16px 30px rgba(0,0,0,0.55), inset 0 0 0 6px #1b1c1f;
+  display: grid; place-items: center;
+}
+.cd-lug { position: absolute; left: 50%; width: 150px; height: 44px; translate: -50% 0; background: linear-gradient(90deg, #111214, #26282c 50%, #111214); z-index: -1; }
+.cd-lug.top { top: -30px; border-radius: 14px 14px 4px 4px; }
+.cd-lug.bottom { bottom: -30px; border-radius: 4px 4px 14px 14px; }
+.cd-bezel {
+  width: 286px; height: 286px; border-radius: 50%; display: grid; place-items: center;
+  background: repeating-conic-gradient(#2b2e33 0 3deg, #1d1f23 3deg 6deg);
+  box-shadow: inset 0 0 0 3px #70757c, inset 0 0 0 12px #202226;
+}
+.cd .cg-lcd { clip-path: inset(18px 0 22px 0); }
+.cd-btn {
+  position: absolute; left: 50%; bottom: 8px; width: 50px; height: 20px; translate: -50% 0; border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 35%, #f0564f, #a3201a 75%); box-shadow: 0 2px 4px rgba(0,0,0,0.6);
+}
+.cd-btn.pressed { translate: -50% 2px; }
+/* NITROX under the mode (top right), the CNS bar just below it (p. 24-25 figures). */
+.cd .cg-nitrox { left: 160px; top: 64px; }
+.cd .cg-cns { left: 136px; top: 73px; }
+/* Bottom row: average depth ("A.16") left of the temperature (p. 23). */
+.cd .cg-avg { left: 60px; top: 174px; }
+.cd .cg-avg .seg { height: 30px; }
+/* DECO icon with its arrows, DECO below it (p. 29). */
+.cd .cg-deco-icon { left: 24px; top: 44px; width: 19px; height: 19px; }
+.cd .cg-deco-lbl { left: 22px; top: 66px; font-size: 9px; letter-spacing: 0.4px; }
+.cd .cg-mute { left: 206px; top: 161px; width: 16px; height: 13px; }
+.cd .cg-mute svg { width: 100%; height: 100%; }
+/* NO FLY right of its countdown (p. 8). */
+.cd .cg-btag { left: 176px; right: auto; top: 196px; }

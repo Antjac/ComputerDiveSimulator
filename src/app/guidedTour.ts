@@ -41,6 +41,7 @@ const TOUR: TourStep[] = [
   tabStep('compare', 'tourCompareT', 'tourCompareB'),
   tabStep('tissues', 'tourTissuesT', 'tourTissuesB'),
   tabStep('log', 'tourLogT', 'tourLogB'),
+  tabStep('exercises', 'tourExercisesT', 'tourExercisesB'),
   { targets: () => [$('tour-open')], title: () => t('tourEndT'), body: () => t('tourEndB') },
 ];
 

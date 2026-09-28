@@ -1,7 +1,7 @@
-import type { DiveSession } from '../../engine/session';
-import type { Lang } from '../../i18n';
-import { depthInt, depthUnit, imperial, pressText, pressUnit, tempUnit, tempVal } from '../../units';
-import { ButtonHelp, ComputerView, depthStr, hmm } from '../base';
+import type { DiveSession } from '../../../engine/session';
+import type { Lang } from '../../../i18n';
+import { depthInt, depthUnit, imperial, pressText, pressUnit, tempUnit, tempVal } from '../../../units';
+import { ButtonHelp, ComputerView, depthStr, hmm } from '../../base';
 import { type D5Notice, D5Rules } from './rules';
 
 /** Stop / ceiling values: one decimal in metres, whole feet in imperial. */

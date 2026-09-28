@@ -25,10 +25,12 @@ export function renderControls(): void {
       <td><span class="badge small ${c.exact ? 'exact' : 'approx'}">${c.exact ? '✓ ' + t('exact') : '≈ ' + t('approx')}</span></td></tr>`).join('');
   $('device-caption').innerHTML = `<span class="badge small ${active.exact ? 'exact' : 'approx'}">${active.exact ? '✓' : '≈'}</span>
     <span>${active.name} · ${t(active.exact ? 'captionExact' : 'captionApprox')}</span>`;
+  // The model's notes are long: folded by default, and kept open or folded when the panel is redrawn.
+  const notesOpen = $('algo-info').querySelector('details')?.open ?? false;
   $('algo-info').innerHTML = `
     <div class="muted">${t('algorithm')} : ${active.algorithm}</div>
     <span class="badge ${active.exact ? 'exact' : 'approx'}">${active.exact ? '✓ ' + t('exact') : '≈ ' + t('approx')}</span>
-    <p>${active.notes[lang()]}</p>`;
+    <details class="model-notes" ${notesOpen ? 'open' : ''}><summary>${t('modelNotes')}</summary><p>${active.notes[lang()]}</p></details>`;
 
   // Essential settings (screen layout) are always shown, the others only in the advanced section.
   const settingField = (def: SettingDef) => `<label class="field"><span>${def.label[lang()]}</span>
@@ -72,6 +74,8 @@ export function renderControls(): void {
   const txSel = $<HTMLSelectElement>('tx-select');
   txSel.innerHTML = `<option value="on" ${session.transmitterOn ? 'selected' : ''}>${t('on')}</option><option value="off" ${session.transmitterOn ? '' : 'selected'}>${t('off')}</option>`;
   $('tx-hint').textContent = active.transmitter ? `${t('transmitterModel')} : ${active.transmitter}` : t('noTransmitter');
+  // Models without a transmitter: nothing to switch on or off, only the hint remains.
+  $('tx-field').style.display = active.transmitter ? '' : 'none';
   gasSel.disabled = session.inDive;
   gasSel.title = session.inDive ? t('gasLocked') : '';
 

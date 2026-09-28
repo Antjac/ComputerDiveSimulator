@@ -1,9 +1,9 @@
-import type { DecoParams } from '../../engine/buhlmann';
-import type { DiveSession } from '../../engine/session';
-import { depthToPressure } from '../../engine/buhlmann';
-import { type AlertCue, ComputerView, DiveComputer, SettingDef } from '../base';
-import { Notices } from '../common/notices';
-import { ppo2Setting } from '../common/ppo2';
+import type { DecoParams } from '../../../engine/buhlmann';
+import type { DiveSession } from '../../../engine/session';
+import { depthToPressure } from '../../../engine/buhlmann';
+import { type AlertCue, ComputerView, DiveComputer, SettingDef } from '../../base';
+import { Notices } from '../../common/notices';
+import { ppo2Setting } from '../../common/ppo2';
 
 /** §4.1 warnings (acknowledged with any button), then notifications. */
 export type D5Notice = 'cns-100' | 'tank-50' | 'gas-time' | 'safety-broken' | 'cns-80';

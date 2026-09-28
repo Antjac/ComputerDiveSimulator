@@ -1,8 +1,8 @@
-import type { DiveSession } from '../../engine/session';
-import type { Lang } from '../../i18n';
-import { depthInt, depthText, tempVal } from '../../units';
-import { ButtonHelp, ComputerView, clockOfDay } from '../base';
-import { sevenSeg } from '../common/segments';
+import type { DiveSession } from '../../../engine/session';
+import type { Lang } from '../../../i18n';
+import { depthInt, depthText, tempVal } from '../../../units';
+import { ButtonHelp, ComputerView, clockOfDay } from '../../base';
+import { type CressiFields, cressiLcd, seg, stopPair } from '../lcd';
 import { GoaRules } from './rules';
 
 /** Cressi Goa: buttons and segmented LCD, after the manual (rules in rules.ts). */
@@ -53,12 +53,10 @@ export class CressiGoa extends GoaRules {
   }
 
   // -------------------------------------------------------------------------
-  // Display, laid out as the LCD in the manual's figures: a top row (MAX | DIVE.T fields), two
-  // lines with the DEPTH / NO DECO captions, the big depth and no-deco figures with the ascent rate
-  // dots between them, and a bottom row (temperature, DEC, time...).
+  // Display, laid out as the LCD in the manual's figures (shared with the Donatello: ../lcd.ts).
 
   render(el: HTMLElement, v: ComputerView, s: DiveSession, _lang: Lang): void {
-    const f: GoaFields = {};
+    const f: CressiFields = {};
     const mmss = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
     const hm = (min: number) => `${Math.floor(min / 60)}:${String(Math.floor(min % 60)).padStart(2, '0')}`;
     const { h, m } = clockOfDay(s);
@@ -135,10 +133,11 @@ export class CressiGoa extends GoaRules {
       f.ndl = seg(String(Math.min(99, v.ndl)), 2);
       f.ndlLbl = true;
       f.ndlBlink = !v.inDeco && v.ndl <= 3;
-      f.sf = true;
+      f.sf = `SF${this.settings.sf.slice(2)}`;
+      f.pen = this.penaltyActive;
       f.temp = temp;
       f.cns = true;
-      f.dots = v.ascentRate >= 12 ? 3 : v.ascentRate >= 8 ? 2 : v.ascentRate >= 4 ? 1 : 0;
+      f.dots = this.ascentDots(v.ascentRate);
       f.po2 = v.depth > v.mod;
 
       const deep = this.deepState === 'active' || this.deepState === 'pending';
@@ -176,92 +175,8 @@ export class CressiGoa extends GoaRules {
         <div class="cg-case">
           <button class="cg-btn up" data-btn="up"></button>
           <button class="cg-btn down" data-btn="down"></button>
-          <div class="cg-lcd ${this.backlit ? 'backlit' : ''}">${this.lcd(f, s)}</div>
+          <div class="cg-lcd ${this.backlit ? 'backlit' : ''}">${cressiLcd(f, s)}</div>
         </div>
       </div>`;
   }
-
-  private lcd(f: GoaFields, s: DiveSession): string {
-    const cnsSegs = Math.min(5, Math.ceil(s.oxygen.cns / 20 - 1e-6));
-    const dots = f.dots ?? 0;
-    const nitrox = s.gas.o2 > 0.21;
-    const parts: string[] = [];
-    const put = (cls: string, html: string) => parts.push(`<div class="cg-at ${cls}">${html}</div>`);
-
-    if (f.tlLbl !== undefined && f.tlLbl !== '') put('cg-lbl-tl', f.tlLbl);
-    if (f.trLbl !== undefined) put('cg-lbl-tr', f.trLbl);
-    if (f.tl) put('cg-tl', f.tl + (f.tlUnit ? `<i class="cg-u">${f.tlUnit}</i>` : ''));
-    if (f.tl || f.tr) put('cg-sep', '');
-    if (f.tr) put('cg-tr', f.tr + (f.trUnit ? `<i class="cg-u">${f.trUnit}</i>` : ''));
-    if (f.stopIcon) put(`cg-stop ${f.stopIcon === 'blink' ? 'blink' : ''}`, '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="2.2"/><rect x="5" y="8.4" width="10" height="3.2" fill="currentColor"/></svg>');
-    if (f.cns) {
-      put(`cg-cns ${s.oxygen.cns >= 80 ? 'blink' : ''}`, `<b>O<sub>2</sub></b>${Array.from({ length: 5 }, (_, i) => `<i class="${i < cnsSegs ? 'on' : ''}" style="height:${4 + i * 2}px"></i>`).join('')}`);
-    }
-    if (f.deepStop) put('cg-deep', 'DEEP STOP');
-    if (f.clock) {
-      put('cg-lines', '');
-      put('cg-clock', f.clock);
-    } else if (f.depth || f.ndl) {
-      put('cg-lines', '');
-      if (f.depthLbl) put('cg-lbl-depth', `${f.depthLbl} <span>m</span>`);
-      if (f.ndlLbl) put('cg-lbl-ndl', f.ndlLbl === 'deco' ? 'min <span class="off">NO</span> DECO' : `min <span class="${f.ndlBlink ? 'blink' : ''}">NO DECO</span>`);
-      if (f.depth) put(`cg-depth ${f.po2 ? 'blink' : ''}`, f.depth);
-      if (f.ndl) put(`cg-ndl ${f.ndlBlink ? 'blink' : ''}`, f.ndl);
-      if (f.ndlLbl === 'deco') put('cg-total', 'TOTAL');
-    }
-    if (f.up) put(`cg-arrow up ${f.up === 'blink' ? 'blink' : ''}`, '▲');
-    if (f.down) put(`cg-arrow down ${f.down === 'blink' ? 'blink' : ''}`, '▼');
-    if (dots > 0) {
-      put(`cg-dots ${dots === 3 ? 'blink' : ''}`, `${dots === 3 ? '<b class="cg-excl">!</b>' : ''}${'<i></i>'.repeat(dots)}`);
-      if (dots === 3) put('cg-slow blink', 'SLOW');
-    }
-    if (nitrox && (f.depth || f.ndl)) put('cg-nitrox', 'NITROX');
-    if (f.sf) put('cg-sf', `SF${this.settings.sf.slice(2)}`);
-    if (f.po2) put('cg-po2 blink', 'PO<sub>2</sub>');
-    if (this.penaltyActive && f.sf) put('cg-pen', '!');
-    if (f.decBottom) put('cg-dec blink', seg('dEC', 3));
-    if (f.temp) put('cg-temp', seg(f.temp, 2) + '<i class="cg-u">°C</i>');
-    if (f.bottom) put('cg-bottom', f.bottom);
-    if (f.bottomTag) put('cg-btag', f.bottomTag);
-    return parts.join('');
-  }
-}
-
-interface GoaFields {
-  tl?: string;
-  tlLbl?: string;
-  tlUnit?: string;
-  tr?: string;
-  trLbl?: string;
-  trUnit?: string;
-  depthLbl?: string;
-  depth?: string;
-  ndl?: string;
-  ndlLbl?: boolean | 'deco';
-  ndlBlink?: boolean;
-  clock?: string;
-  bottom?: string;
-  bottomTag?: string;
-  temp?: string;
-  sf?: boolean;
-  cns?: boolean;
-  dots?: number;
-  po2?: boolean;
-  deepStop?: boolean;
-  stopIcon?: '' | 'on' | 'blink';
-  decBottom?: boolean;
-  up?: '' | 'on' | 'blink';
-  down?: '' | 'on' | 'blink';
-}
-
-/** Seven-segment text sized by its slot. */
-function seg(text: string, cells: number, cls = ''): string {
-  return sevenSeg(text, cells, `cg-seg ${cls}`);
-}
-
-/** Stop depth and minutes in the top-left field ("3 m  1 min"), each as wide as its digits. */
-function stopPair(depth: number, minutes: number): string {
-  const d = String(depth);
-  const m = String(minutes);
-  return seg(d, d.length) + '<i class="cg-u">m</i>' + seg(m, m.length);
 }

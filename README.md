@@ -17,6 +17,7 @@ User interface in English and French, metric or imperial units.
 | Shearwater Perdix 2 (Recreational mode) | Bühlmann ZHL-16C + GF | Public algorithm, reproduced |
 | Garmin Descent Mk3i | Bühlmann ZHL-16C + GF | Public algorithm, reproduced |
 | Suunto D5 | Fused RGBM 2 | Approximation (≈) |
+| Suunto Zoop Novo | Suunto RGBM | Approximation (≈) |
 | Mares Puck Pro | Mares RGBM | Approximation (≈) |
 | Mares Quad Ci | Bühlmann ZH-L16C + GF | Public algorithm, reproduced (R1, R2, T1, T2 interpolated) |
 | Mares Quad Air | Mares RGBM | Approximation (≈) |
@@ -24,6 +25,7 @@ User interface in English and French, metric or imperial units.
 | Scubapro Galileo 2 (G2) | ZH-L16 ADT MB | Approximation (≈) |
 | Scubapro Luna 2.0 AI | ZH-L16 ADT MB or ZH-L16C + GF | Approximation (≈) for ADT MB, reproduced for ZH-L16C + GF |
 | Cressi Goa | Cressi RGBM | Approximation (≈) |
+| Cressi Donatello | Cressi RGBM | Approximation (≈) |
 
 Proprietary algorithms (RGBM, ZH-L16 ADT MB) are unpublished: they are approximated from Bühlmann ZHL-16C with gradient factors and penalties calibrated on published values. Displays and rules (alarms, stops, lockouts…) are inspired by each model's public user manual.
 
@@ -61,6 +63,10 @@ npm run stops     # checks each computer's behaviour at deco stops
 
 - 🔇 / 🔊 (in the header) turns the computers' alarm sounds on or off (off by default, the choice is remembered). Each model sounds as its manual describes: beeps (Mares, Scubapro, Cressi), tones and vibration (Garmin, Suunto), vibration only for the Perdix 2. A vibration is played as a buzzing sound, shakes the computer on screen and, on phones that allow it (Android), really vibrates. Alarms that repeat until acknowledged stop when a button of the computer is pressed (SELECT on the Perdix 2). Each model's settings include its own switch (ALRM, All silent, Silent diving…).
 
+## Exercises
+
+The **Exercises** tab offers situations to provoke and observe, for a student on their own: run out of no-deco time, ascend too fast, do the safety stop, do decompression stops, go above a stop, go past the gas's maximum depth, make a repetitive dive. Each exercise resets the dive and starts, paused, from a described situation (e.g. "at 25 m for 10 min"); the simulator checks the diver's state to tell whether it is passed. The debrief lists what the chosen computer signalled and when, and what its rules say (from its manual). Exercises are about behaviour (which signal, when, what follows), not about stop times, which are only approximated for proprietary algorithms. Passed exercises are remembered in the browser, per computer: doing one again with another model shows how differently they react.
+
 ## Surface, boat and repetitive dives
 
 The tank is not refilled automatically between dives. Five seconds after surfacing during a dive (tank below 90 %), a boat comes alongside the diver and offers a full tank in a comic speech bubble, in both the 2D and 3D views. **Yes**: the diver climbs aboard, the dive ends and the tank is refilled; the next descent is a new dive. **No**: the boat leaves. A dive is also closed after 3 minutes at the surface. Tissues stay loaded from one dive to the next; the logbook shows each dive's type: consecutive (surface interval under 15 min), repetitive (under 12 h) or single.
@@ -73,9 +79,10 @@ The **2D | 3D** button at the top of the dive area switches to a playful 3D view
 
 ```
 src/engine/      engine: Bühlmann ZHL-16C + GF, gases, O2 toxicity (CNS/OTU), dive session
-src/computers/   one folder per simulated computer: rules.ts (model-specific rules),
+src/computers/   one folder per simulated computer (grouped by brand when they share rules:
+                 mares/, scubapro/, cressi/, suunto/): rules.ts (model-specific rules),
                  index.ts (display and buttons), its style sheet; base/ and common/ are shared
-src/app/         interface: settings, tabs, dialogs, guided tour, logbook, simulation loop
+src/app/         interface: settings, tabs, dialogs, guided tour, logbook, exercises, simulation loop
 src/ui/          2D scene (water column), 3D view (scene3d/, three.js), charts, gauges, tour
 src/styles/      page style sheets (the computers' sheets live next to their code)
 scripts/         calibration, scenario and regression (snapshot) scripts
@@ -83,7 +90,7 @@ scripts/         calibration, scenario and regression (snapshot) scripts
 
 ## Trademarks and affiliation
 
-This project is independent and **is not affiliated with, endorsed or sponsored by** the manufacturers mentioned. Shearwater, Perdix, Garmin, Descent, Suunto, Mares, Puck, Quad, Genius, Scubapro, Galileo, Luna, Cressi and Goa are trademarks of their respective owners; they are only mentioned to identify the models whose displays inspired this simulator. No manufacturer logo, code or artwork is included.
+This project is independent and **is not affiliated with, endorsed or sponsored by** the manufacturers mentioned. Shearwater, Perdix, Garmin, Descent, Suunto, Zoop, Mares, Puck, Quad, Genius, Scubapro, Galileo, Luna, Cressi, Goa and Donatello are trademarks of their respective owners; they are only mentioned to identify the models whose displays inspired this simulator. No manufacturer logo, code or artwork is included.
 
 If you represent one of these manufacturers and would like something changed or removed, please open an issue.
 

@@ -1,0 +1,11 @@
+/* Cressi Goa: round watch, two buttons on the right. The segmented LCD is in ../lcd.css. */
+.cg-case {
+  position: relative; width: 330px; height: 330px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 30%, #33363b, #0e0f11 70%);
+  box-shadow: 0 16px 30px rgba(0,0,0,0.55), inset 0 0 0 10px #1b1c1f, inset 0 0 0 13px #5d6268;
+  display: grid; place-items: center;
+}
+.cg-btn { position: absolute; width: 16px; height: 34px; border-radius: 5px; background: linear-gradient(90deg, #6b7178, #d5d9dd); }
+.cg-btn.up { right: 22px; top: 60px; transform: rotate(-35deg); }
+.cg-btn.down { right: 22px; bottom: 60px; transform: rotate(35deg); }
+.cg-btn.up.pressed { translate: -2px 2px; } .cg-btn.down.pressed { translate: -2px -2px; }
