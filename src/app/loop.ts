@@ -41,15 +41,16 @@ export function startLoop(): void {
     }
   }, 50);
 
-  // Frame rate: full on a computer, 30 fps on phones (battery, heat). While the simulation is
-  // stopped only the fins, the bubbles and the boat still move: 15 fps in 2D, 30 fps in 3D (the
+  // Frame rate (battery, heat): the 2D scene only has slow movements (waves, bubbles, diver), 30 fps
+  // everywhere; the 3D one runs at full rate on a computer, 30 fps on phones. While the simulation
+  // is stopped only the fins, the bubbles and the boat still move: 15 fps in 2D, 30 fps in 3D (the
   // camera can still be dragged around).
   let lastFrame = performance.now();
   const frame = (now: number): void => {
     requestAnimationFrame(frame);
     const stopped = app.paused || !!session.emergency;
     const is3d = app.view === '3d' && !!app.scene3d;
-    const minGap = stopped ? 1000 / (is3d ? 30 : 15) : compactMq.matches ? 1000 / 30 : 0;
+    const minGap = stopped ? 1000 / (is3d ? 30 : 15) : !is3d || compactMq.matches ? 1000 / 30 : 0;
     // 2 ms slack: rAF timestamps jitter around the display's refresh period.
     if (now - lastFrame < minGap - 2) return;
     const realDt = Math.min(0.1, (now - lastFrame) / 1000);

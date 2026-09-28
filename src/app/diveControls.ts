@@ -59,22 +59,35 @@ export function resetAll(): void {
 export function setupDiveControls(): void {
   // Vertical speed controls: each step changes the speed by 1 m/min (▲ = faster up / slower down).
   // Keeping a button pressed repeats the step.
+  // Pressed look set by hand: touch screens do not always show :active.
   let rateRepeat = 0;
-  const stopRateRepeat = () => window.clearTimeout(rateRepeat);
+  const stopRateRepeat = () => {
+    window.clearTimeout(rateRepeat);
+    document.querySelectorAll('.scene-ctl .pressed').forEach((x) => x.classList.remove('pressed'));
+  };
   document.querySelectorAll<HTMLButtonElement>('[data-move]').forEach((b) => {
     b.addEventListener('pointerdown', (e) => {
       e.preventDefault();
+      // Keeps receiving the pointer when the finger slides a little off the button.
+      b.setPointerCapture(e.pointerId);
       const step = Number(b.dataset.move);
       const repeat = (delay: number) => {
         session.nudgeRate(step);
         rateRepeat = window.setTimeout(() => repeat(120), delay);
       };
       stopRateRepeat();
+      b.classList.add('pressed');
       repeat(400);
     });
-    for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, stopRateRepeat);
+    for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) b.addEventListener(ev, stopRateRepeat);
   });
-  document.querySelector('[data-stop]')!.addEventListener('click', () => session.setRate(0));
+  // On press, like ▲ and ▼ (click kept for the keyboard).
+  const stopBtn = document.querySelector<HTMLButtonElement>('[data-stop]')!;
+  stopBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    session.setRate(0);
+  });
+  stopBtn.addEventListener('click', () => session.setRate(0));
   document.querySelectorAll<HTMLButtonElement>('[data-turn]').forEach((b) =>
     b.addEventListener('click', () => app.scene3d?.steer(Number(b.dataset.turn), Math.PI / 4)),
   );
