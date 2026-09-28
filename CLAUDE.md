@@ -19,7 +19,7 @@ npm run snapshot   # non-régression : vues et HTML de tous les ordinateurs × �
 
 ## Architecture en bref
 
-- `src/engine/buhlmann.ts` : ZHL-16C + GF (méthode d'Erik Baker), `planAscent`, `firstStop`, `ndl`.
+- `src/engine/buhlmann.ts` : ZHL-16C + GF (méthode d'Erik Baker), `planAscent`, `ceilingDepth`, `updateAnchor`, `ndl`.
 - `src/engine/session.ts` : état **physique** du plongeur (profondeur, tissus, gaz, bloc). Les
   ordinateurs le lisent, ne le modifient jamais. Les tissus sont **partagés** par tous les modèles.
 - `src/computers/base/` : classe `DiveComputer` (`computer.ts` : paliers, palier de sécurité,
@@ -111,9 +111,11 @@ en page ne valent pas forcément pour l'autre.
   préciser dans les notes.
 
 ### 6. Paliers de décompression
-- Premier palier et ancre GF bas : premier palier atteint en remontant au GF bas, conservé ensuite
-  (`firstStop` + `this.anchor`). **Ne jamais ramener l'ancre à la profondeur du plongeur** : la durée
-  d'un palier ne doit jamais augmenter à l'arrivée.
+- Ancre GF bas, comme dans Subsurface (`gf_low_pressure_this_dive`) : plafond GF bas le plus profond
+  de la plongée, non arrondi, au moins 1 bar sous la surface (`updateAnchor`, `this.anchor`), mise à
+  jour aussi pendant la remontée simulée par `planAscent`. Elle ne fait que descendre : ni plafond ni
+  palier ne remontent tant qu'on reste au fond. **Ne jamais ramener l'ancre à la profondeur du
+  plongeur** : la durée d'un palier ne doit jamais augmenter à l'arrivée.
 - Affichage du palier : profondeur, durée (minutes seules ou mm:ss, arrondi), durée totale (TTS/DTR),
   plafond continu ou paliers de 3 m (le D5 raisonne en plafond continu).
 - Indicateur d'approche (ex. Perdix 2 : jaune + ↑ à moins de 5,1 m ; Garmin : « Approaching Deco

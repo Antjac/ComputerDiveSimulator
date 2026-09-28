@@ -168,7 +168,25 @@ export interface DecoPlan {
   firstStop: number; // m, 0 when no deco
 }
 
-/** GF interpolated at a depth, given the anchor (first stop depth computed with GF low). */
+/**
+ * GF low anchor, as in Subsurface (core/deco.cpp, gf_low_pressure_this_dive): the deepest GF low
+ * ceiling reached during the dive, not rounded to the stop grid, and never shallower than 1 bar below
+ * the surface (gf_low_position_min). The GF goes linearly from GF low there to GF high at the surface,
+ * so the anchor never jumps by a whole stop and the ceiling cannot rise while the diver stays at depth.
+ */
+export const ANCHOR_MIN = 1.0 / BAR_PER_METRE;
+
+/** Depth of the GF low ceiling (not rounded), 0 when none. */
+export function gfLowCeiling(t: Tissues, p: DecoParams): number {
+  return Math.max(0, pressureToDepth(t.ceilingPressure(p.gfLow)));
+}
+
+/** The anchor after the tissues' current state is taken into account (it only ever deepens). */
+export function updateAnchor(anchor: number, t: Tissues, p: DecoParams): number {
+  return Math.max(anchor, ANCHOR_MIN, gfLowCeiling(t, p));
+}
+
+/** GF interpolated at a depth, given the anchor (0 outside a dive: GF high). */
 export function gfAt(depth: number, anchor: number, p: DecoParams): number {
   if (anchor <= 0) return p.gfHigh;
   if (depth >= anchor) return p.gfLow;
@@ -180,42 +198,19 @@ function roundUpToStop(depth: number, step: number): number {
   return Math.ceil(depth / step - 1e-6) * step;
 }
 
-/** First stop depth (anchor) according to GF low, rounded to the stop grid. */
-export function gfLowAnchor(t: Tissues, p: DecoParams): number {
-  const ceil = pressureToDepth(t.ceilingPressure(p.gfLow));
-  return roundUpToStop(Math.max(0, ceil), p.stopStep);
-}
-
 /**
- * First stop according to GF low (Baker's method): ascend from `depth` at the planning rate, one stop
- * grid depth at a time, until the next one is not tolerated with GF low. The tissues keep off-gassing
- * during that ascent, so this is usually shallower than the GF low ceiling at the bottom.
- * 0 when there is no decompression obligation.
+ * Continuous ceiling depth, using the slope defined by the dive's `anchor`, first deepened to the
+ * current GF low ceiling like Subsurface does before each calculation (0: GF high, outside a dive).
  */
-export function firstStop(tissues: Tissues, depth: number, gas: Gas, p: DecoParams): number {
-  if (tissues.tolerates(SURFACE_PRESSURE, p.gfHigh)) return 0;
-  const t = tissues.clone();
-  let d = depth;
-  while (d > 0) {
-    const grid = roundUpToStop(d, p.stopStep);
-    let next = Math.max(0, grid >= d - 1e-6 ? grid - p.stopStep : grid);
-    if (next < p.lastStop) next = 0;
-    if (!t.tolerates(depthToPressure(next), p.gfLow)) return roundUpToStop(d, p.stopStep);
-    t.exposeLinear(depthToPressure(d), depthToPressure(next), gas, (d - next) / p.ascentRate);
-    d = next;
-  }
-  return 0;
-}
-
-/** Continuous ceiling depth, using the slope defined by `anchor`. */
 export function ceilingDepth(t: Tissues, anchor: number, p: DecoParams): number {
   if (t.tolerates(SURFACE_PRESSURE, p.gfHigh)) return 0;
+  const a = anchor > 0 ? updateAnchor(anchor, t, p) : 0;
   // Search the shallowest depth that is tolerated with the GF interpolated at that depth.
   let lo = 0;
-  let hi = Math.max(anchor, pressureToDepth(t.ceilingPressure(p.gfLow))) + 1;
+  let hi = Math.max(a, gfLowCeiling(t, p)) + 1;
   for (let i = 0; i < 30; i++) {
     const mid = (lo + hi) / 2;
-    if (t.tolerates(depthToPressure(mid), gfAt(mid, anchor, p))) hi = mid;
+    if (t.tolerates(depthToPressure(mid), gfAt(mid, a, p))) hi = mid;
     else lo = mid;
   }
   return hi;
@@ -235,16 +230,16 @@ export function ndl(t: Tissues, depth: number, gas: Gas, gfHigh: number, cap = 9
 
 /**
  * Simulates a direct ascent from `depth` with stops. Returns the stops and total time to surface.
- * `anchor` is the GF low anchor (first stop) already fixed during the dive (0 if none); the deeper of
- * that and the first stop from here is used, like most GF implementations. The anchor stays put when
- * the diver is shallower than it: the GF keeps its interpolated value at each stop. `resolution` is
- * the stop time step in minutes (1 = whole minutes like most computers; smaller for second-level
- * countdowns).
+ * `anchor` is the dive's GF low anchor (see ANCHOR_MIN; 0 if not known yet); like in Subsurface's
+ * planner it keeps deepening during the simulated ascent while slow tissues still load. The anchor
+ * stays put when the diver is shallower than it: the GF keeps its interpolated value at each stop.
+ * `resolution` is the stop time step in minutes (1 = whole minutes like most computers; smaller for
+ * second-level countdowns).
  */
 export function planAscent(tissues: Tissues, depth: number, gas: Gas, p: DecoParams, anchor = 0, resolution = 1): DecoPlan {
   const t = tissues.clone();
   const stops: DecoStop[] = [];
-  const a = Math.max(anchor, firstStop(t, depth, gas, p));
+  let a = updateAnchor(anchor, t, p);
   let d = depth;
   let time = 0;
 
@@ -254,6 +249,7 @@ export function planAscent(tissues: Tissues, depth: number, gas: Gas, p: DecoPar
     t.exposeLinear(depthToPressure(d), depthToPressure(to), gas, minutes);
     time += minutes;
     d = to;
+    a = updateAnchor(a, t, p);
   };
 
   const nextStopAbove = (from: number) => {
@@ -281,6 +277,7 @@ export function planAscent(tissues: Tissues, depth: number, gas: Gas, p: DecoPar
     }
     t.expose(depthToPressure(d), gas, resolution);
     time += resolution;
+    a = updateAnchor(a, t, p);
     // Report stops on the stop grid, even when the diver waits between two grid depths.
     const stopDepth = Math.max(p.lastStop, roundUpToStop(Math.round(d * 10) / 10, p.stopStep));
     const last = stops[stops.length - 1];

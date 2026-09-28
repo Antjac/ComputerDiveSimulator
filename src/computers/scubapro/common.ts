@@ -1,6 +1,6 @@
 // Rules shared by the Scubapro computers (G2, Luna 2.0 AI), from their manuals which describe them
 // in the same terms: depth-dependent ideal ascent rate, microbubble (MB) levels, PDIS, SOS lock, RBT.
-import { COMPARTMENTS, DecoParams, SURFACE_PRESSURE, ceilingDepth, equilibriumDepth, firstStop } from '../../engine/buhlmann';
+import { COMPARTMENTS, DecoParams, SURFACE_PRESSURE, ceilingDepth, equilibriumDepth, updateAnchor } from '../../engine/buhlmann';
 import { remainingTime } from '../../engine/gas';
 import type { DiveSession } from '../../engine/session';
 import { ComputerView, DiveComputer } from '../base';
@@ -107,7 +107,7 @@ export abstract class ScubaproRules extends DiveComputer {
     }
     const lp = this.stageParams();
     if (lp) {
-      this.levelAnchor = Math.max(this.levelAnchor, firstStop(s.tissues, s.depth, s.gas, lp));
+      this.levelAnchor = updateAnchor(this.levelAnchor, s.tissues, lp);
       const lc = ceilingDepth(s.tissues, this.levelAnchor, lp);
       const deepestStop = lc > 0 ? Math.ceil(lc / 3 - 1e-6) * 3 : 0;
       if (deepestStop > 0 && s.depth < deepestStop - 1.5) {

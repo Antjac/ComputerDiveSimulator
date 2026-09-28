@@ -1,4 +1,4 @@
-import { DecoParams, SURFACE_PRESSURE, ceilingDepth, gasLabel, firstStop, ndl, planAscent, pressureToDepth, timeToTolerate } from '../../engine/buhlmann';
+import { DecoParams, SURFACE_PRESSURE, ceilingDepth, gasLabel, ndl, planAscent, pressureToDepth, timeToTolerate, updateAnchor } from '../../engine/buhlmann';
 import { sacBarPerMin } from '../../engine/gas';
 import { DiveSession } from '../../engine/session';
 import type { Lang } from '../../i18n';
@@ -182,8 +182,9 @@ export abstract class DiveComputer {
     if (this.locked && s.clock > this.lockedUntil) this.locked = false;
     if (!s.inDive) return;
     const p = this.decoParams(s);
-    // GF low anchor: the deepest first stop seen during the dive (kept once the diver is above it).
-    this.anchor = Math.max(this.anchor, firstStop(s.tissues, s.depth, s.gas, p));
+    // GF low anchor: the deepest GF low ceiling of the dive, at least 1 bar deep (Subsurface's method,
+    // see ANCHOR_MIN), kept once the diver is above it.
+    this.anchor = updateAnchor(this.anchor, s.tissues, p);
 
     if (this.ascentAlarmCondition(s.ascentRate, s.depth)) {
       this.ascentAlarmSec += dt;
