@@ -40,6 +40,8 @@ export abstract class DiveComputer {
   lockHours = 24;
   /** Metres below a stop depth still considered "at the stop". */
   stopWindow = 1.5;
+  /** Longest no-decompression limit computed, in minutes (the model's maximum displayed value). */
+  ndlCap = 99;
   /** ppO2 of the MOD: the model's "ppo2" setting (its own limits, from its manual), 1.4 bar otherwise. */
   get modPpo2(): number {
     const v = Number(this.settings.ppo2);
@@ -306,7 +308,7 @@ export abstract class DiveComputer {
     const ceil = ceilingDepth(s.tissues, anchor, p);
     const inDeco = ceil > 0;
     const plan = planAscent(s.tissues, depth, s.gas, p, anchor, 1 / 6);
-    const n = inDeco ? 0 : ndl(s.tissues, depth, s.gas, p.gfHigh);
+    const n = inDeco ? 0 : ndl(s.tissues, depth, s.gas, p.gfHigh, this.ndlCap);
     const first = plan.stops[0];
     const rate = s.ascentRate;
     const ascentLevel = s.inDive ? this.ascentLevel(rate, depth) : 0;

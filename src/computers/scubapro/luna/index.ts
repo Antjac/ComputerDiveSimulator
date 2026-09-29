@@ -193,13 +193,13 @@ export class ScubaproLuna extends LunaRules {
     let stageNdl = v.ndl;
     let levelStop: { depth: number; min: number; tat: number } | null = null;
     if (lp && !v.inDeco) {
-      stageNdl = ndl(s.tissues, v.depth, s.gas, lp.gfHigh);
+      stageNdl = ndl(s.tissues, v.depth, s.gas, lp.gfHigh, this.ndlCap);
       if (stageNdl === 0) {
         const plan = planAscent(s.tissues, v.depth, s.gas, lp, this.levelAnchor);
         if (plan.stops[0]) levelStop = { depth: plan.stops[0].depth, min: Math.ceil(plan.stops[0].minutes), tat: plan.tts };
       }
     }
-    const nst = Math.min(199, stageNdl); // §3.1: "The maximum displayed no-stop time is 199 minutes."
+    const nst = Math.min(this.ndlCap, stageNdl); // §3.1: at most 199 minutes
 
     // Top row: depth and dive time (surface: no-dive time and no-fly time, §3.12, §3.13).
     let topLeft: string;

@@ -95,6 +95,7 @@ export abstract class LunaRules extends ScubaproRules {
     this.safetyStop = { trigger: 10, start: 5, top: 2, bottom: 6.5, reset: 6.5 };
     this.ceilingMargin = 0.5; // §3.10.5: MISSED DECO more than 0.5 m above the stop
     this.stopWindow = 1.5;
+    this.ndlCap = 199; // §3.1: "The maximum displayed no-stop time is 199 minutes."
     this.screenTimeout = 60_000; // §3.4: back to the NST (or deco stop) screen after 1 minute
     this.init();
   }
