@@ -221,7 +221,7 @@ export class MaresQuadAir extends QuadAirRules {
       const t = Math.ceil(v.safety.remaining);
       Object.assign(mid, { r1: `${Math.floor(t / 60)}:`, r2: pad2(t % 60), labels: ['SAFE'] });
     } else {
-      Object.assign(mid, { r1: `${Math.min(99, v.ndl)}:`, labels: ['NO', 'DECO'] });
+      Object.assign(mid, { r1: `${Math.min(99, v.ndl)}:`, labels: ['NO', 'DECO'] }); // §3.3: at most 99 minutes
     }
     // Alphanumeric message across the middle row: SLOW (§3.2.1), rUn AWAY (§3.3.1).
     let msg = '';

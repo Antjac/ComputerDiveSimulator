@@ -201,7 +201,7 @@ export class GarminDescent extends DescentRules {
       ? `<text x="100" y="186" class="gm-t gm-mid ${stop.cls}">⬆${stop.depth}<tspan class="gm-unit">${depthUnit()}</tspan></text>
          <text x="100" y="222" class="gm-t gm-mid ${stop.cls}">${stop.time}</text>`
       : `<text x="100" y="168" class="gm-t gm-lbl">NDL</text>
-         <text x="100" y="212" class="gm-t gm-val">${v.ndl >= 99 ? '99+' : v.ndl}</text>`;
+         <text x="100" y="212" class="gm-t gm-val">${v.ndl > 99 ? '99+' : v.ndl}</text>`;
     const depthCls = stop?.cls ?? '';
     return `
       ${this.leftGauge(v)}${this.rightGauge(v)}
@@ -245,7 +245,7 @@ export class GarminDescent extends DescentRules {
       ? `<text x="76" y="226" class="gm-t gm-vert" transform="rotate(-90 76 226)">STOP</text>
          <text x="160" y="244" class="gm-t gm-end ${fit(stop.depth)} ${stop.cls}">${stop.depth}<tspan class="gm-unit">${depthUnit()}</tspan></text>`
       : `<text x="76" y="226" class="gm-t gm-vert" transform="rotate(-90 76 226)">NDL</text>
-         <text x="160" y="244" class="gm-t gm-end gm-bignum2">${Math.min(99, v.ndl)}${v.ndl >= 99 ? '<tspan class="gm-sup" dy="-24">+</tspan>' : ''}</text>`;
+         <text x="160" y="244" class="gm-t gm-end gm-bignum2">${Math.min(99, v.ndl)}${v.ndl > 99 ? '<tspan class="gm-sup" dy="-24">+</tspan>' : ''}</text>`;
     const top = stop
       ? `<text x="150" y="78" class="gm-t gm-mid ${stop.cls}">${v.inDeco ? 'DECO' : 'SAFETY'} ${stop.time}</text>`
       : v.tank.ai

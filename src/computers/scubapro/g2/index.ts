@@ -108,6 +108,7 @@ export class ScubaproG2 extends G2Rules {
     // Main decompression window.
     let mainLbl = 'NO STOP';
     let mainUnit = 'MIN';
+    // Display information: "Maximum displayed no-stop times is 99 minutes."
     let mainVal = `${Math.min(99, this.activeLevel > 0 ? levelNdl : v.ndl)}:`;
     let mainCls = '';
     let tat: string | null = null;

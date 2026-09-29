@@ -124,7 +124,7 @@ export class SuuntoD5 extends D5Rules {
 
     // Band (bottom window): label, value, colour.
     let bandLbl = 'NO DECO';
-    let bandVal = `${Math.min(99, v.ndl)}′`;
+    let bandVal = v.ndl > 99 ? '>99′' : `${v.ndl}′`; // §7.1: ">99 above 99"
     let bandCol = GREEN;
     let arch = GREEN;
     let archFrac = Math.min(1, v.ndl / 60);

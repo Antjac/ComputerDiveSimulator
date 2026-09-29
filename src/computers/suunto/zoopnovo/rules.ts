@@ -132,6 +132,7 @@ export abstract class ZoopNovoRules extends DiveComputer {
     this.lockAfter = 180; // §3.16: "longer than three (3) minutes"
     this.lockHours = 48;
     this.stopWindow = 1.2; // §3.8: ceiling zone, "between the ceiling depth and 1.2 m below"
+    this.ndlCap = 100; // §5.1: no-decompression time "0 to 99 min (– after 99)"
     this.init();
   }
 

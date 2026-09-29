@@ -134,7 +134,7 @@ export class ShearwaterPerdix extends PerdixRules {
     else if (v.inDive && v.depth > v.mod - 1.9) warn = `<div class="pd-warn yellow">MOD<br>${depthInt(v.mod)}${unit}</div>`;
 
     const ndlCls = v.inDeco ? 'red' : v.ndl < 5 ? 'yellow' : '';
-    const ndlVal = v.inDeco ? 0 : Math.min(99, v.ndl);
+    const ndlVal = v.inDeco ? 0 : Math.min(99, v.ndl); // §4 (NDL): "A maximum value of 99 minutes is displayed."
     const load = Math.min(100, v.n2Load);
     const n2Bar = `<div class="pd-n2"><div class="pd-n2-fill" style="height:${Math.round(load)}%"></div><span>N<sub>2</sub></span></div>`;
 

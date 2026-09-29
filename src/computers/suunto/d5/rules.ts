@@ -95,6 +95,7 @@ export abstract class D5Rules extends DiveComputer {
     this.lockAfter = 180;
     this.lockHours = 48;
     this.stopWindow = 3; // deco window: ceiling to ceiling + 3 m
+    this.ndlCap = 100; // §7.1: no decompression time "0 to 99 min (>99 above 99)"
     this.screenTimeout = 0;
     this.init();
   }

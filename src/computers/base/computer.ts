@@ -40,7 +40,10 @@ export abstract class DiveComputer {
   lockHours = 24;
   /** Metres below a stop depth still considered "at the stop". */
   stopWindow = 1.5;
-  /** Longest no-decompression limit computed, in minutes (the model's maximum displayed value). */
+  /**
+   * Longest no-decompression limit computed, in minutes: the model's maximum displayed value, or 100
+   * for a model that shows a sign beyond 99 (100 then means "more than 99").
+   */
   ndlCap = 99;
   /** ppO2 of the MOD: the model's "ppo2" setting (its own limits, from its manual), 1.4 bar otherwise. */
   get modPpo2(): number {
@@ -399,7 +402,7 @@ export abstract class DiveComputer {
   summary(v: ComputerView): { ndl: string; stop: string; tts: string } {
     if (v.locked) return { ndl: '🔒', stop: '🔒', tts: '🔒' };
     return {
-      ndl: v.inDeco ? '—' : String(v.ndl),
+      ndl: v.inDeco ? '—' : this.ndlCap === 100 && v.ndl > 99 ? '>99' : String(v.ndl),
       stop: v.inDeco ? `${depthInt(v.stopDepth)} ${depthUnit()} · ${v.stopTime}'` : '—',
       tts: String(v.tts),
     };

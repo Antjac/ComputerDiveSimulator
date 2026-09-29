@@ -254,6 +254,7 @@ export class MaresGenius extends GeniusRules {
     } else if (v.safety.state === 'active' || v.safety.state === 'paused') {
       midBand = `<div class="gn-mid green"><span class="gn-lbl">SAFETY</span><span class="gn-big">${mmss(Math.ceil(v.safety.remaining))}</span></div>`;
     } else {
+      // §9.1: "Maximum displayed no deco time is 99 minutes."
       midBand = `<div class="gn-mid green"><span class="gn-lbl">NO<br>DECO</span><span class="gn-big">${Math.min(99, v.ndl)}:</span></div>`;
     }
 

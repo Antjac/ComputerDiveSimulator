@@ -94,6 +94,7 @@ export abstract class DescentRules extends DiveComputer {
     this.ceilingMargin = 0.6;
     this.lockAfter = 180;
     this.stopWindow = 0.6;
+    this.ndlCap = 100; // "99+" beyond 99 min (not given by the manual)
     this.init();
   }
 

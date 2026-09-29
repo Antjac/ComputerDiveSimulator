@@ -278,7 +278,7 @@ export class SuuntoZoopNovo extends ZoopNovoRules {
       } else {
         z.lblStop = mandatoryDue; // §3.4 figure: STOP shown once a mandatory stop is due
         // No figure above 99 min: NO DEC TIME alone (ScubaBoard photo of a Zoop Novo; VA §6.1 figure).
-        z.right = v.ndl >= 99 ? undefined : String(v.ndl);
+        z.right = v.ndl > 99 ? undefined : String(v.ndl);
         z.lblNdl = 'NO DEC TIME';
       }
       const msg = this.flashMessage();

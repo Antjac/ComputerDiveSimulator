@@ -63,7 +63,7 @@ export class MaresPuck extends PuckRules {
 
     // Middle row.
     let midLbl = 'no deco';
-    let mid = sevenSeg(time(Math.min(99, v.ndl)), 3, 'mr-mid');
+    let mid = sevenSeg(time(Math.min(99, v.ndl)), 3, 'mr-mid'); // §3.3: no deco time at most 99 minutes
     let leftSmall = '';
     let rightSmall = '';
     let arrows = '';
