@@ -371,10 +371,11 @@ function gf99Text(v: ComputerView, s: DiveSession): string {
  * §4.7 tissues bar graph: one horizontal bar per compartment, fastest at the top; green up to the
  * ambient pressure, yellow up to the ZHL-16C M-value, red beyond (each compartment on its own
  * scale); the vertical black line is the inspired inert gas pressure. Positions of the ambient and
- * M-value lines read from the figures (about 1/3 and 9/10 of the width).
+ * M-value lines measured on the annotated figure of p. 19 (0.325 and 0.925 of the width); the
+ * samples show the green part linear from 0 bar (the inspired line keeps its place at any depth).
  */
 function tissueGraph(t: Tissues, pAmb: number, o2: number): string {
-  const W = 300, H = 36, xAmb = 0.33 * W, xM = 0.9 * W;
+  const W = 300, H = 36, xAmb = 0.325 * W, xM = 0.925 * W;
   const inspired = (pAmb - WATER_VAPOUR) * (1 - o2);
   const x = (p: number, i: number) => {
     const [a, b] = t.coefficients(i);

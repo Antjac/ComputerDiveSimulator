@@ -21,7 +21,9 @@ export function applyI18n(): void {
   });
   document.querySelectorAll<HTMLButtonElement>('[data-lang]').forEach((b) => b.classList.toggle('on', b.dataset.lang === lang()));
   profileChart.labels = { time: t('time'), depth: t('depth'), ceiling: t('ceiling') };
-  tissueChart.labels = lang() === 'fr' ? { compartment: 'Compartiment', halfTime: 'Période' } : { compartment: 'Compartment', halfTime: 'Half-time' };
+  tissueChart.labels = lang() === 'fr'
+    ? { compartment: 'Compartiment', halfTime: 'Période', inspired: 'Gaz inspiré', ofAmbient: 'de la pression ambiante' }
+    : { compartment: 'Compartment', halfTime: 'Half-time', inspired: 'Inspired gas', ofAmbient: 'of ambient' };
   renderControls();
   renderLog();
 }

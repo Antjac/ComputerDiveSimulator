@@ -144,20 +144,20 @@ const dict = {
   tissuesSurf: { fr: 'En surface (SurfGF)', en: 'At the surface (SurfGF)' },
   leading: { fr: 'Tissu directeur', en: 'Leading tissue' },
   gf99Help: {
-    fr: 'GF99 : sursaturation du compartiment le plus chargé à la profondeur actuelle, en % de la valeur M (0 % = équilibre, 100 % = limite de Bühlmann).',
-    en: 'GF99: supersaturation of the most loaded compartment at the current depth, in % of the M-value (0 % = equilibrium, 100 % = Bühlmann limit).',
+    fr: 'GF99 : sursaturation du compartiment le plus chargé à la profondeur actuelle, en % de la valeur M (0 % = tissu à la pression ambiante, 100 % = limite de Bühlmann). 0 % tant que le tissu reste sous la pression ambiante.',
+    en: 'GF99: supersaturation of the most loaded compartment at the current depth, in % of the M-value (0 % = tissue at ambient pressure, 100 % = Bühlmann limit). 0 % while the tissue stays below ambient pressure.',
   },
   surfGfHelp: {
     fr: 'SurfGF : le GF qu’on aurait en remontant instantanément en surface. Au-dessus du GF haut de l’ordinateur, une sortie directe n’est pas permise.',
     en: 'SurfGF: the GF you would have if you surfaced instantly. Above the computer’s GF high, a direct ascent is not allowed.',
   },
   tissuesHelpSurf: {
-    fr: '% du gradient de la valeur M en surface : le GF de chaque compartiment si l’on sortait maintenant. La ligne pointillée est le GF haut de l’ordinateur.',
-    en: '% of the M-value gradient at the surface: each compartment’s GF if you surfaced now. The dashed line is the computer’s GF high.',
+    fr: 'Si l’on sortait maintenant. Au-dessus de 0 : GF de chaque compartiment (% du gradient de la valeur M, 100 % = limite de Bühlmann ; ligne jaune = GF haut de l’ordinateur). En dessous : écart entre le tissu et la pression atmosphérique, en % de celle-ci (−30 % = tissu à 70 % de la pression atmosphérique). Ligne grise : azote de l’air, niveau d’équilibre au repos.',
+    en: 'If you surfaced now. Above 0: each compartment’s GF (% of the M-value gradient, 100 % = Bühlmann limit; yellow line = the computer’s GF high). Below 0: gap between the tissue and atmospheric pressure, as a % of it (−30 % = tissue at 70 % of atmospheric pressure). Grey line: nitrogen in air, the equilibrium level at rest.',
   },
   tissuesHelp: {
-    fr: '% du gradient de la valeur M à la pression ambiante (100 % = limite de Bühlmann).',
-    en: '% of the M-value gradient at ambient pressure (100 % = Bühlmann limit).',
+    fr: 'Au-dessus de 0 : tissu sursaturé, en % du gradient de la valeur M (le GF, 100 % = limite de Bühlmann). En dessous : écart entre le tissu et la pression ambiante, en % de celle-ci (−30 % = tissu à 70 % de la pression ambiante). Ligne grise : gaz inerte inspiré, vers lequel tendent tous les compartiments.',
+    en: 'Above 0: supersaturated tissue, as % of the M-value gradient (the GF, 100 % = Bühlmann limit). Below 0: gap between the tissue and ambient pressure, as a % of it (−30 % = tissue at 70 % of ambient pressure). Grey line: inspired inert gas, which every compartment tends to.',
   },
   depth: { fr: 'Profondeur', en: 'Depth' },
   ceiling: { fr: 'Plafond', en: 'Ceiling' },

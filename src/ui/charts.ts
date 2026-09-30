@@ -143,13 +143,24 @@ export class ProfileChart {
   }
 }
 
-/** Bar chart of the 16 compartments' supersaturation, as % of the M-value gradient. */
+/** Extra data for the tissue chart: tissue and ambient pressures (bar), inspired inert gas (chart %). */
+export interface TissueDetail {
+  pressures: number[];
+  pAmb: number;
+  inspired: number;
+}
+
+/**
+ * Bar chart of the 16 compartments: below 0, tissue pressure relative to ambient (−100 % = 0 bar);
+ * above 0, % of the M-value gradient (GF).
+ */
 export class TissueChart {
   private values: number[] = [];
   private gfHigh = 85;
+  private detail?: TissueDetail;
   private hover: number | null = null;
   private pad = { l: 40, r: 10, t: 12, b: 24 };
-  labels = { compartment: 'Compartment', halfTime: 'Half-time' };
+  labels = { compartment: 'Compartment', halfTime: 'Half-time', inspired: 'Inspired gas', ofAmbient: 'of ambient' };
 
   constructor(private canvas: HTMLCanvasElement, private tip: HTMLElement) {
     canvas.addEventListener('pointermove', (e) => {
@@ -157,18 +168,19 @@ export class TissueChart {
       const bw = (canvas.clientWidth - l - r) / COMPARTMENTS;
       const i = Math.floor((e.offsetX - l) / bw);
       this.hover = i >= 0 && i < COMPARTMENTS ? i : null;
-      this.draw(this.values, this.gfHigh);
+      this.draw(this.values, this.gfHigh, this.detail);
     });
     canvas.addEventListener('pointerleave', () => {
       this.hover = null;
       this.tip.hidden = true;
-      this.draw(this.values, this.gfHigh);
+      this.draw(this.values, this.gfHigh, this.detail);
     });
   }
 
-  draw(values: number[], gfHigh: number): void {
+  draw(values: number[], gfHigh: number, detail?: TissueDetail): void {
     this.values = values;
     this.gfHigh = gfHigh;
+    this.detail = detail;
     const { ctx, w, h } = setup(this.canvas);
     const { l, r, t, b } = this.pad;
     const pw = w - l - r;
@@ -219,13 +231,39 @@ export class TissueChart {
       }
     });
 
+    // Inspired inert gas pressure: the level every compartment tends to (Shearwater's black line).
+    if (detail) {
+      ctx.strokeStyle = 'rgba(230,237,243,0.8)';
+      ctx.setLineDash([2, 3]);
+      ctx.beginPath();
+      ctx.moveTo(l, y(detail.inspired));
+      ctx.lineTo(w - r, y(detail.inspired));
+      ctx.stroke();
+      ctx.setLineDash([]);
+      const lx = w - r - ctx.measureText(this.labels.inspired).width - 2;
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(13,17,23,0.85)';
+      ctx.strokeText(this.labels.inspired, lx, y(detail.inspired) - 4);
+      ctx.lineWidth = 1;
+      ctx.fillStyle = 'rgba(230,237,243,0.9)';
+      ctx.fillText(this.labels.inspired, lx, y(detail.inspired) - 4);
+    }
+
     if (this.hover !== null) {
       const i = this.hover;
       this.tip.hidden = false;
-      this.tip.innerHTML = `<b>${this.labels.compartment} ${i + 1}</b><br>${this.labels.halfTime} N₂ ${N2_HALF[i]} min · He ${HE_HALF[i]} min<br>${values[i].toFixed(0)} %`;
+      this.tip.innerHTML = `<b>${this.labels.compartment} ${i + 1}</b><br>${this.labels.halfTime} N₂ ${N2_HALF[i]} min · He ${HE_HALF[i]} min<br>${this.valueText(i)}`;
       const x0 = l + i * bw;
       this.tip.style.left = `${x0 + 180 > w ? x0 - 180 : x0 + bw + 6}px`;
       this.tip.style.top = `${t}px`;
     }
+  }
+
+  private valueText(i: number): string {
+    const v = this.values[i];
+    if (!this.detail) return `${v.toFixed(0)} %`;
+    const { pressures, pAmb } = this.detail;
+    const p = `${pressures[i].toFixed(2)} bar`;
+    return v <= 0 ? `${p} · ${Math.round((pressures[i] / pAmb) * 100)} % ${this.labels.ofAmbient}` : `${p} · GF ${v.toFixed(0)} %`;
   }
 }
