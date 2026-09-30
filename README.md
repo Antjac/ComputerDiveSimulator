@@ -14,6 +14,8 @@ User interface in English and French, metric or imperial units.
 
 | Model | Algorithm | Fidelity |
 | --- | --- | --- |
+| Aqualung i330R (Dive mode) | Bühlmann ZHL-16C + GF | Public algorithm, reproduced |
+| Aqualung i770R (Dive mode) | Pelagic Z+ | Approximation (≈) |
 | Shearwater Perdix 2 (Recreational mode) | Bühlmann ZHL-16C + GF | Public algorithm, reproduced |
 | Shearwater Peregrine TX (Air / Nitrox modes) | Bühlmann ZHL-16C + GF | Public algorithm, reproduced |
 | Garmin Descent Mk3i | Bühlmann ZHL-16C + GF | Public algorithm, reproduced |
@@ -28,7 +30,7 @@ User interface in English and French, metric or imperial units.
 | Cressi Goa | Cressi RGBM | Approximation (≈) |
 | Cressi Donatello | Cressi RGBM | Approximation (≈) |
 
-Proprietary algorithms (RGBM, ZH-L16 ADT MB) are unpublished: they are approximated from Bühlmann ZHL-16C with gradient factors and penalties calibrated on published values. Displays and rules (alarms, stops, lockouts…) are inspired by each model's public user manual.
+Proprietary algorithms (RGBM, ZH-L16 ADT MB, Pelagic Z+) are unpublished: they are approximated from Bühlmann ZHL-16C with gradient factors and penalties calibrated on published values. Displays and rules (alarms, stops, lockouts…) are inspired by each model's public user manual.
 
 In the app, a notice is shown on every visit (educational use, approximated algorithms, no affiliation), and a ✓ / ≈ caption above each computer reminds you that it is an unofficial interpretation.
 
@@ -62,7 +64,7 @@ npm run stops     # checks each computer's behaviour at deco stops
 - **How to use it?** (next to the title, or "Take the tour" in the welcome notice) starts a guided tour of the interface.
 - The computers' buttons can be clicked, with a long press when the model has one. A tooltip shows each button's real function during the dive (from the manufacturer's manual) and what is not simulated; buttons with no simulated function are greyed out.
 
-- 🔇 / 🔊 (in the header) turns the computers' alarm sounds on or off (off by default, the choice is remembered). Each model sounds as its manual describes: beeps (Mares, Scubapro, Cressi), tones and vibration (Garmin, Suunto), vibration only for the Perdix 2 and the Peregrine TX. A vibration is played as a buzzing sound, shakes the computer on screen and, on phones that allow it (Android), really vibrates. Alarms that repeat until acknowledged stop when a button of the computer is pressed (SELECT on the Perdix 2, either button on the Peregrine TX). Each model's settings include its own switch (ALRM, All silent, Silent diving…).
+- 🔇 / 🔊 (in the header) turns the computers' alarm sounds on or off (off by default, the choice is remembered). Each model sounds as its manual describes: beeps (Mares, Scubapro, Cressi, Aqualung), tones and vibration (Garmin, Suunto), vibration only for the Perdix 2 and the Peregrine TX. A vibration is played as a buzzing sound, shakes the computer on screen and, on phones that allow it (Android), really vibrates. Alarms that repeat until acknowledged stop when a button of the computer is pressed (SELECT on the Perdix 2, either button on the Peregrine TX). Each model's settings include its own switch (ALRM, All silent, Silent diving…).
 
 ## Exercises
 
@@ -91,7 +93,7 @@ scripts/         calibration, scenario and regression (snapshot) scripts
 
 ## Trademarks and affiliation
 
-This project is independent and **is not affiliated with, endorsed or sponsored by** the manufacturers mentioned. Shearwater, Perdix, Peregrine, Garmin, Descent, Suunto, Zoop, Mares, Puck, Quad, Genius, Scubapro, Galileo, Luna, Cressi, Goa and Donatello are trademarks of their respective owners; they are only mentioned to identify the models whose displays inspired this simulator. No manufacturer logo, code or artwork is included.
+This project is independent and **is not affiliated with, endorsed or sponsored by** the manufacturers mentioned. Aqualung, Aqua Lung, Shearwater, Perdix, Peregrine, Garmin, Descent, Suunto, Zoop, Mares, Puck, Quad, Genius, Scubapro, Galileo, Luna, Cressi, Goa and Donatello are trademarks of their respective owners; they are only mentioned to identify the models whose displays inspired this simulator. No manufacturer logo, code or artwork is included.
 
 If you represent one of these manufacturers and would like something changed or removed, please open an issue.
 

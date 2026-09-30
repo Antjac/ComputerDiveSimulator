@@ -1,0 +1,61 @@
+/* Aqua Lung i770R: wide colour screen in a rounded case, three buttons (manual figures): Down at the
+   bottom left, Up at the bottom right, Select on the top right corner. */
+.aq7-case {
+  position: relative; padding: 34px 30px 44px; border-radius: 44px;
+  background: linear-gradient(165deg, #e9ecef, #b9bec4 55%, #9aa0a6);
+  box-shadow: 0 16px 30px rgba(0,0,0,0.45), inset 0 0 0 3px #d5d9dd, inset 0 0 0 12px #2a2c30;
+}
+.aq7-btn { position: absolute; width: 44px; height: 12px; border-radius: 6px; background: linear-gradient(#3a3d42, #16171a); box-shadow: 0 0 0 2px #0b0b0c; }
+.aq7-btn.down { left: 70px; bottom: -6px; } .aq7-btn.up { right: 70px; bottom: -6px; }
+.aq7-btn.select { right: -6px; top: 34px; width: 12px; height: 40px; background: linear-gradient(90deg, #3a3d42, #16171a); }
+.aq7-btn.down.pressed, .aq7-btn.up.pressed { translate: 0 -3px; } .aq7-btn.select.pressed { translate: -3px 0; }
+
+.aq7-screen {
+  position: relative; width: 320px; height: 230px; background: #000; color: #fff; overflow: hidden;
+  font-family: Oswald, 'Roboto Condensed', sans-serif; line-height: 1; box-shadow: 0 0 0 3px #050505;
+}
+.aq7-screen .green { color: #33f03a; } .aq7-screen .yellow { color: #ffe400; } .aq7-screen .red { color: #ff2a1f; }
+.aq7-screen .cyan { color: #2ef0f0; } .aq7-screen .white { color: #fff; }
+.aq7-bar { position: absolute; top: 100px; height: 72px; width: 7px; display: flex; flex-direction: column; gap: 2px; }
+.aq7-bar.l { left: 4px; } .aq7-bar.r { right: 4px; }
+.aq7-bar i { flex: 1; }
+.aq7-bar i.g { background: #33f03a; } .aq7-bar i.y { background: #ffe400; } .aq7-bar i.r { background: #ff2a1f; }
+.aq7-barlbl { position: absolute; top: 175px; font-size: 9px; color: #fff; }
+.aq7-barlbl.l { left: 3px; } .aq7-barlbl.r { right: 3px; }
+.aq7-main { position: absolute; left: 14px; right: 14px; top: 4px; height: 186px; display: grid; grid-template-columns: minmax(0, 1fr) 104px; grid-template-rows: 94px 1fr; }
+.aq7-depth { grid-column: 1; grid-row: 1; font-size: 84px; font-weight: 500; letter-spacing: -2px; white-space: nowrap; border-bottom: 2px solid #444; position: relative; }
+.aq7-depth small { font-size: 60px; }
+.aq7-depth em { position: absolute; right: 8px; top: 6px; font-style: normal; font-size: 18px; letter-spacing: 0; }
+.aq7-main.surf .aq7-depth { font-size: 56px; letter-spacing: 0; padding-top: 10px; display: flex; align-items: flex-end; gap: 8px; }
+.aq7-surflbl { font-size: 16px; letter-spacing: 0; margin-bottom: 12px; }
+.aq7-right { grid-column: 2; border-left: 2px solid #444; display: flex; }
+.aq7-right.t { grid-row: 1; border-bottom: 2px solid #444; }
+.aq7-right.b { grid-row: 2; }
+.aq7-sub { grid-column: 1; grid-row: 2; display: flex; }
+.aq7-cell { flex: 1; text-align: center; padding-top: 6px; min-width: 0; }
+.aq7-cell.hide { visibility: hidden; }
+.aq7-lbl { font-size: 17px; font-weight: 600; letter-spacing: 0.5px; white-space: nowrap; }
+.aq7-val { font-size: 58px; font-weight: 500; white-space: nowrap; }
+.aq7-val.sm { font-size: 44px; margin-top: 7px; }
+.aq7-right .aq7-val { font-size: 54px; }
+.aq7-val sup { font-size: 16px; vertical-align: 28px; margin-left: 2px; }
+.aq7-val.go { font-size: 22px; line-height: 1.05; font-weight: 700; margin-top: 4px; }
+/* Three fixed columns (figures p. 36 and 54): GAS 1, then FO2 from about a quarter of the width, then
+   the third field (MOD, PO2 or blank) from about 62 %, each separated by a bar. */
+.aq7-gas { position: absolute; left: 14px; right: 14px; bottom: 6px; height: 28px; display: grid; grid-template-columns: 27% 35% 38%; align-items: center; border-top: 2px solid #444; padding-top: 4px; font-size: 18px; font-weight: 600; white-space: nowrap; }
+.aq7-gas > span { padding-left: 6px; overflow: hidden; min-height: 20px; line-height: 20px; }
+.aq7-gas > span + span { border-left: 2px solid #fff; }
+.aq7-gas.c { display: flex; justify-content: center; }
+.aq7-banner { position: absolute; left: 14px; right: 14px; bottom: 6px; height: 26px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; border-radius: 5px; font-size: 18px; font-weight: 700; white-space: nowrap; }
+.aq7-banner span { flex: 1; text-align: center; }
+.aq7-banner.red { background: #ff2a1f; color: #fff; } .aq7-banner.yellow { background: #ffe400; color: #000; }
+.aq7-banner b { font-size: 12px; }
+.aq7-batt { margin: 6px 4px 0 auto; font-size: 18px; color: #33f03a; display: flex; align-items: center; gap: 4px; }
+.aq7-batt i { width: 22px; height: 11px; border: 2px solid #33f03a; background: linear-gradient(90deg, #33f03a 70%, transparent 70%); }
+.aq7-list { position: absolute; inset: 6px 14px; font-size: 18px; font-weight: 600; }
+.aq7-head { display: flex; line-height: 1.25; border-bottom: 2px solid #33f03a; margin-bottom: 4px; }
+.aq7-head span { padding: 1px 12px; } .aq7-head span + span { background: #1a1a1a; }
+.aq7-li { display: grid; grid-template-columns: 150px 1fr; padding: 0; line-height: 1.25; white-space: nowrap; }
+.aq7-lastlbl { text-align: center; font-size: 18px; margin-top: 10px; }
+.aq7-lastval { text-align: center; font-size: 40px; }
+.aq7-center { margin-top: 70px; text-align: center; }

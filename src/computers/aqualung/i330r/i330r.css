@@ -1,0 +1,57 @@
+/* Aqua Lung i330R: square colour screen in a watch case, two buttons on the right side (Up above,
+   Down below), after the manual's figures. ASC bar graph on the left edge, N2 bar graph on the right. */
+.aq3-case {
+  position: relative; padding: 30px 26px; border-radius: 42px;
+  background: linear-gradient(160deg, #3a3d42, #1a1b1e 55%, #0d0d0f);
+  box-shadow: 0 16px 30px rgba(0,0,0,0.55), inset 0 0 0 3px #4a4d53, inset 0 0 0 10px #151618;
+}
+.aq3-lug { position: absolute; left: 50%; width: 150px; height: 18px; translate: -50% 0; border-radius: 6px; background: linear-gradient(#27292d, #111214); box-shadow: inset 0 0 0 2px #3b3e43; }
+.aq3-lug.t { top: -14px; } .aq3-lug.b { bottom: -14px; }
+.aq3-btn { position: absolute; right: -8px; width: 14px; height: 36px; border-radius: 6px; background: linear-gradient(90deg, #1b1c1f, #4a4d53, #1b1c1f); box-shadow: 0 0 0 2px #0b0b0c; }
+.aq3-btn.up { top: 70px; } .aq3-btn.down { top: 196px; }
+.aq3-btn.pressed { translate: -3px 0; }
+
+.aq3-screen {
+  position: relative; width: 240px; height: 252px; background: #000; color: #fff; overflow: hidden;
+  font-family: Oswald, 'Roboto Condensed', sans-serif; line-height: 1; box-shadow: 0 0 0 3px #050505;
+}
+.aq3-screen .green { color: #2fe23c; } .aq3-screen .yellow { color: #ffe000; } .aq3-screen .red { color: #ff2a1f; }
+.aq3-screen .cyan { color: #2ee6f0; } .aq3-screen .white { color: #fff; }
+.aq3-bar { position: absolute; top: 60px; bottom: 30px; width: 10px; display: flex; flex-direction: column; gap: 3px; }
+.aq3-bar.l { left: 3px; } .aq3-bar.r { right: 3px; }
+.aq3-bar i { flex: 1; border: 1px solid #1d3a1d; }
+.aq3-bar i.g { background: #2fe23c; border-color: #2fe23c; } .aq3-bar i.y { background: #ffe000; border-color: #ffe000; } .aq3-bar i.r { background: #ff2a1f; border-color: #ff2a1f; }
+.aq3-bar svg { width: 10px; height: 18px; margin-top: 2px; flex: none; }
+.aq3-bar text { font-size: 8px; fill: #fff; font-family: Oswald, sans-serif; }
+.aq3-body { position: absolute; inset: 0 18px; display: flex; flex-direction: column; align-items: stretch; }
+.aq3-depth { text-align: center; font-size: 64px; font-weight: 600; height: 62px; white-space: nowrap; }
+.aq3-depth small { font-size: 32px; margin-left: 3px; } .aq3-depth em { font-style: normal; font-size: 22px; margin-left: 6px; }
+.aq3-box { border: 2px solid currentColor; border-radius: 8px; padding: 2px 6px; margin: 2px 0; height: 66px; display: flex; flex-direction: column; justify-content: center; }
+.aq3-box.dtr { flex-direction: row; align-items: center; gap: 6px; }
+.aq3-lbl { font-size: 16px; font-weight: 600; letter-spacing: 0.5px; white-space: nowrap; }
+.aq3-lbl.c { text-align: center; } .aq3-lbl.two { font-size: 17px; line-height: 1.05; flex: none; padding-right: 3px; letter-spacing: 0; }
+.aq3-dtr { flex: 1; text-align: center; font-size: 62px; font-weight: 600; }
+.aq3-stop { text-align: center; font-size: 34px; font-weight: 600; white-space: nowrap; }
+.aq3-stop small { font-size: 16px; margin-left: 2px; }
+.aq3-row { display: flex; gap: 6px; height: 64px; margin-top: 4px; }
+.aq3-row > div { flex: 1; text-align: center; min-width: 0; }
+.aq3-row > div.boxed { border: 2px solid currentColor; border-radius: 6px; }
+.aq3-row.one > div { flex: 1; }
+.aq3-val { font-size: 40px; font-weight: 600; white-space: nowrap; }
+.aq3-val small { font-size: 20px; margin-left: 3px; } .aq3-val.big { font-size: 52px; }
+.aq3-msg { height: 64px; margin-top: 4px; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; padding: 0 6px; font-size: 22px; font-weight: 600; text-align: center; line-height: 1.05; }
+.aq3-msg span { flex: 1; }
+.aq3-msg.red { background: #ff2a1f; color: #fff !important; } .aq3-msg.yellow { background: #ffe000; color: #000 !important; }
+.aq3-msg b { font-size: 14px; }
+.aq3-viol { text-align: center; font-size: 36px; font-weight: 700; color: #ff2a1f; height: 66px; line-height: 66px; }
+.aq3-viol.off { visibility: hidden; }
+.aq3-foot { position: absolute; left: 0; right: 0; bottom: 4px; display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #fff; padding-top: 3px; font-size: 20px; font-weight: 600; color: #2fe23c; }
+.aq3-tank { display: inline-flex; align-items: center; gap: 4px; }
+.aq3-tank i { display: inline-block; width: 22px; height: 11px; border: 2px solid #2ee6f0; border-radius: 5px; }
+.aq3-batt i { display: inline-block; width: 22px; height: 11px; border: 2px solid #fff; position: relative; background: linear-gradient(90deg, transparent 45%, #2fe23c 45%, #2fe23c 90%, transparent 90%); }
+.aq3-surf { text-align: center; font-size: 60px; font-weight: 600; white-space: nowrap; }
+.aq3-surf small { font-size: 22px; margin-left: 3px; } .aq3-surf sup { font-size: 20px; margin-left: 4px; }
+.aq3-big { text-align: center; font-size: 44px; font-weight: 600; }
+.aq3-alt { display: flex; flex-direction: column; gap: 6px; margin-top: 16px; }
+.aq3-alt .aq3-box { height: 88px; }
+.aq3-center { margin-top: 100px; text-align: center; font-size: 24px; }

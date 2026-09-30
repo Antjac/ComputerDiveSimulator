@@ -6,6 +6,8 @@
 @import './styles/header.css';
 @import './styles/device.css';
 @import './styles/scene.css';
+@import './computers/aqualung/i330r/i330r.css';
+@import './computers/aqualung/i770r/i770r.css';
 @import './computers/shearwater/perdix/shearwater.css';
 @import './computers/shearwater/peregrine/peregrine.css';
 @import './computers/garmin/garmin.css';
