@@ -41,7 +41,12 @@ export class GarminDescent extends DescentRules {
   private lastStop = 0;
   private stopDoneUntil = 0;
   private approachedStop = 0;
-  private toast: { msg: string; until: number } | null = null;
+  private toast: { msg: string; until: number; color?: string } | null = null;
+  /** Alert pop-ups waiting for the one on display to end (5 s each). */
+  private queue: { msg: string; color?: string }[] = [];
+  /** Dive alerts already given this dive, and the repeated ones (clock of the last showing, count). */
+  private given = new Set<string>();
+  private repeats = new Map<string, { last: number; count: number }>();
 
   onDiveStart(s: DiveSession): void {
     super.onDiveStart(s);
@@ -49,6 +54,65 @@ export class GarminDescent extends DescentRules {
     this.lastStop = this.approachedStop = 0;
     this.stopDoneUntil = 0;
     this.toast = null;
+    this.queue = [];
+    this.given.clear();
+    this.repeats.clear();
+  }
+
+  private say(msg: string, color?: string): void {
+    this.queue.push({ msg, color });
+  }
+
+  /** Once per dive, when `on` first holds. */
+  private once(key: string, on: boolean, msg: string, color?: string): void {
+    if (on && !this.given.has(key)) {
+      this.given.add(key);
+      this.say(msg, color);
+    }
+  }
+
+  /** While `on`: at once, then every `every` seconds of dive time, `times` times at most. */
+  private repeat(key: string, on: boolean, s: DiveSession, every: number, times: number, msg: () => string, color?: string): void {
+    const r = this.repeats.get(key);
+    if (!on) {
+      this.repeats.delete(key);
+      return;
+    }
+    if (!r) {
+      this.repeats.set(key, { last: s.clock, count: 1 });
+      this.say(msg(), color);
+    } else if (r.count < times && s.clock - r.last >= every) {
+      r.last = s.clock;
+      r.count++;
+      this.say(msg(), color);
+    }
+  }
+
+  /** Dive Alerts of the manual's table that are given as pop-ups when something happens. */
+  private trackAlerts(v: ComputerView, s: DiveSession): void {
+    if (!v.inDive || v.locked) return;
+    // "Approaching NDL": 10 minutes of NDL left; "The alert appears again when you have 5 minutes".
+    this.once('ndl10', !v.inDeco && v.ndl <= 10 && v.ndl > 5, 'Approaching NDL');
+    this.once('ndl5', !v.inDeco && v.ndl <= 5, 'Approaching NDL');
+    this.once('ndl', v.inDeco, 'NDL exceeded. Decompression now required.');
+    // "You ascended above 6 m (20 ft.) without other decompression guidance" / "You completed the safety stop."
+    this.once('ss-start', v.safety.state === 'active', 'Safety Stop Started');
+    this.once('ss-done', this.safetyState === 'done' && this.given.has('ss-start'), 'Safety Stop Cleared');
+    // CNS and OTU: "The alert appears every two minutes, up to three times" once beyond the safe limit.
+    this.once('cns80', v.cns >= 80 && v.cns < 100, 'CNS toxicity at 80%.');
+    this.repeat('cns100', v.cns >= 100, s, 120, 3, () => `CNS toxicity at ${Math.round(v.cns)}%. End your dive now.`, RED);
+    this.once('otu250', v.otu >= 250 && v.otu < 300, '250 OTU accumulated.');
+    this.repeat('otu300', v.otu >= 300, s, 120, 3, () => `${Math.round(v.otu)} OTU accumulated. End your dive now.`, RED);
+    // "PO2 is high": "The alert appears every 30 seconds, up to three times".
+    this.repeat('po2', v.ppO2 > this.po2Critical, s, 30, 3, () => 'PO2 is high. Ascend or switch to lower O2 gas.', RED);
+    // Custom alerts. Their pop-up text is not given in the manual: the alert name, deduced.
+    const depthAl = Number(this.settings.depthAlert);
+    if (depthAl > 0) this.once('depth', v.depth >= depthAl, `Depth Alert ${depthAl}${depthUnit()}`);
+    const timeAl = Number(this.settings.timeAlert);
+    if (timeAl > 0) {
+      const n = Math.floor(v.diveTime / 60 / timeAl);
+      this.once(`time-${n}`, n > 0, `Time Alert ${n * timeAl}:00`);
+    }
   }
 
   private trackStops(v: ComputerView): void {
@@ -56,11 +120,11 @@ export class GarminDescent extends DescentRules {
     const stop = v.inDive && v.inDeco ? v.stopDepth : 0;
     if (this.lastStop > 0 && stop < this.lastStop) {
       this.stopDoneUntil = now + 5000;
-      if (stop === 0 && v.inDive) this.toast = { msg: 'Decompression Cleared', until: now + 5000 };
+      if (stop === 0 && v.inDive) this.say('Decompression Cleared');
     }
     if (stop > 0 && stop !== this.approachedStop && v.depth > stop + this.stopWindow && v.depth <= stop + 3) {
       this.approachedStop = stop;
-      this.toast = { msg: 'Approaching Deco Stop', until: now + 5000 };
+      this.say('Approaching Deco Stop');
     }
     this.lastStop = stop;
     this.pausedStop = v.ceilingViolation === 2
@@ -116,6 +180,7 @@ export class GarminDescent extends DescentRules {
     this.screenCount = v.tank.ai ? 5 : 4;
     if (this.screen >= this.screenCount) this.screen = 0;
     this.trackStops(v);
+    this.trackAlerts(v, s);
     const screen = this.currentScreen();
     let content: string;
     if (!v.inDive) content = this.surfaceScreen(v, s);
@@ -196,7 +261,8 @@ export class GarminDescent extends DescentRules {
 
   private standardScreen(v: ComputerView): string {
     const stop = this.stopInfo(v);
-    const po2Cls = v.ppO2 > 1.6 ? 'gm-red blink' : '';
+    // Setting PO2 Thresholds: the PO2 value flashes yellow above PO2 Warning, red above PO2 Critical.
+    const po2Cls = v.ppO2 > this.po2Critical ? 'gm-red blink' : v.ppO2 > this.po2Warning ? 'gm-yellow blink' : '';
     const left = stop
       ? `<text x="100" y="186" class="gm-t gm-mid ${stop.cls}">⬆${stop.depth}<tspan class="gm-unit">${depthUnit()}</tspan></text>
          <text x="100" y="222" class="gm-t gm-mid ${stop.cls}">${stop.time}</text>`
@@ -218,7 +284,8 @@ export class GarminDescent extends DescentRules {
       return `<text x="150" y="98" class="gm-t gm-lbl">TEMP.</text>
       <text x="150" y="130" class="gm-t gm-mid">${tempVal(v.temperature).toFixed(1)}°</text>`;
     }
-    const cls = v.tank.pressure < Math.max(v.tank.reserve / 2, 21) ? 'gm-red blink' : v.tank.pressure < v.tank.reserve ? 'gm-yellow' : '';
+    // Transceiver Alerts: the value turns yellow below the reserve and flashes red below the critical pressure.
+    const cls = v.tank.pressure < this.criticalPressure() ? 'gm-red blink' : v.tank.pressure < v.tank.reserve ? 'gm-yellow' : '';
     return `<rect x="104" y="104" width="12" height="24" rx="4" fill="#64b5ff"/><rect x="107" y="99" width="6" height="6" fill="#ddd"/>
       <text x="150" y="98" class="gm-t gm-lbl">T1</text>
       <text x="160" y="130" class="gm-t gm-mid ${cls}">${pressText(v.tank.pressure)}<tspan class="gm-unit"> ${pressUnit()}</tspan></text>`;
@@ -249,7 +316,7 @@ export class GarminDescent extends DescentRules {
     const top = stop
       ? `<text x="150" y="78" class="gm-t gm-mid ${stop.cls}">${v.inDeco ? 'DECO' : 'SAFETY'} ${stop.time}</text>`
       : v.tank.ai
-        ? `<text x="150" y="80" class="gm-t gm-mid ${v.tank.pressure < v.tank.reserve ? 'gm-yellow' : ''}">${pressText(v.tank.pressure)}<tspan class="gm-unit"> ${pressUnit()}</tspan></text>`
+        ? `<text x="150" y="80" class="gm-t gm-mid ${v.tank.pressure < this.criticalPressure() ? 'gm-red blink' : v.tank.pressure < v.tank.reserve ? 'gm-yellow' : ''}">${pressText(v.tank.pressure)}<tspan class="gm-unit"> ${pressUnit()}</tspan></text>`
         : `<text x="150" y="78" class="gm-t gm-lbl">${v.ppO2.toFixed(2)} PO2</text>`;
     return `
       ${top}
@@ -295,6 +362,15 @@ export class GarminDescent extends DescentRules {
       <text x="150" y="245" class="gm-t gm-small">${v.locked ? 'DECO LOCKOUT' : `CNS ${Math.round(v.cns)}%`}</text>`;
   }
 
+  /** The event pop-up on display (each for 5 s, queued ones next), if any. */
+  private currentToast(): boolean {
+    const now = performance.now();
+    if (this.toast && now < this.toast.until) return true;
+    const next = this.queue.shift();
+    this.toast = next ? { ...next, until: now + 5000 } : null;
+    return this.toast !== null;
+  }
+
   /** Alert pop-ups, worded as in the manual's alert table. */
   /** Alert pop-up; on the standard layout it sits higher so the depth stays fully visible. */
   private banner(v: ComputerView, raise = false): string {
@@ -303,12 +379,12 @@ export class GarminDescent extends DescentRules {
     let color = '#1c1c1e';
     if (this.ascentAlarm) [msg, color] = ['Ascending too fast. Slow your ascent.', RED];
     else if (v.ceilingViolation === 2) [msg, color] = ['Descend below deco ceiling.', RED];
-    else if (v.ppO2 > 1.6) [msg, color] = ['PO2 is high. Ascend or switch to lower O2 gas.', RED];
-    else if (v.tank.ai && v.tank.pressure < Math.max(v.tank.reserve / 2, 21)) [msg, color] = ['Critical tank pressure. End your dive now.', RED];
-    else if (v.tank.ai && v.tank.pressure < v.tank.reserve) [msg, color] = ['Reserve pressure reached.', ORANGE];
+    // Transceiver Alerts: "%1 pressure is critically low." / "%1 is below reserve pressure.", %1 being
+    // the transceiver name (T1, as on the dive screen: deduced, the default name is not given).
+    else if (v.tank.ai && v.tank.pressure < this.criticalPressure()) [msg, color] = ['T1 pressure is critically low.', RED];
+    else if (v.tank.ai && v.tank.pressure < v.tank.reserve) [msg, color] = ['T1 is below reserve pressure.', ORANGE];
     else if (v.safety.state === 'paused' && v.depth < this.safetyStop.top) [msg, color] = ['Descend to complete safety stop.', ORANGE];
-    else if (this.toast && performance.now() < this.toast.until) msg = this.toast.msg;
-    else if (!v.inDeco && (v.ndl === 10 || v.ndl === 5)) msg = 'Approaching NDL';
+    else if (this.currentToast()) [msg, color] = [this.toast!.msg, this.toast!.color ?? color];
     if (!msg) return '';
     const words = msg.split(' ');
     const lines: string[] = [];

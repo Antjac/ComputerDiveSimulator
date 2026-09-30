@@ -6,6 +6,7 @@ import { standardNoFly } from '../../common/dives';
 import { ttsAfter } from '../../common/predict';
 import { FastAscentRgbm, MissedStop, maresCues, maresRgbmParams } from '../common';
 import { ppo2Setting } from '../../common/ppo2';
+import { pressureSetting } from '../../common/tank';
 
 
 const atm = (d: number) => depthToPressure(d) / 1.01325;
@@ -74,6 +75,12 @@ export abstract class QuadAirRules extends DiveComputer {
     },
     // Manual: ppO2max 1.4 bar from the factory, adjustable between 1.2 and 1.6 bar (step not given: 0.1).
     ppo2Setting(1.2, 1.6, 1.4, 'ppO2max'),
+    // §2.2.1.6: "tANK WARN, is the value at which Quad Air triggers a half tank warning [...] Default values
+    // are 100bar"; "tANK RSRV, is the value at which an alarm is triggered [...] Default values are 50bar".
+    // Ranges not given: 5 bar steps offered. §3.2.5: tANK WARN set to the tANK RSRV value eliminates the
+    // half tank alarm.
+    pressureSetting('halfTank', { fr: 'Avertissement de demi-bloc (tANK WARN)', en: 'Half tank warning (tANK WARN)' }, 20, 200, 5, 100),
+    pressureSetting('reserve', { fr: 'Réserve (tANK RSRV)', en: 'Tank reserve (tANK RSRV)' }, 20, 100, 5, 50),
   ];
 
   protected fast = new FastAscentRgbm();
@@ -118,7 +125,7 @@ export abstract class QuadAirRules extends DiveComputer {
 
   /** §3.3: TTR, minutes at the current depth and breathing rate before the tank reserve. */
   gasTime(s: DiveSession, _p: DecoParams, sacBar: number): number | null {
-    return Math.max(0, Math.min(99, Math.floor((s.tankPressure - s.tank.reserve) / (sacBar * atm(s.depth)))));
+    return Math.max(0, Math.min(99, Math.floor((s.tankPressure - this.reservePressure()) / (sacBar * atm(s.depth)))));
   }
 
   onDiveStart(s: DiveSession): void {
@@ -187,6 +194,16 @@ export abstract class QuadAirRules extends DiveComputer {
    * Audible alarms (instruction manual §3.2): fast ascent, MOD exceeded and missed deco stop sound while they last;
    * CNS 100 %: 5 s in one-minute intervals; half tank and reserve until a button is pressed. §2.2.1.8 ALRM turns the audible alarms off (on by default, assumed).
    */
+  /** §3.2.5 note: "if the tank reserve is set to a value below 50bar, the alarm will go off at 50bar" (metric only). */
+  reserveAlarmAt(): number {
+    return imperial() ? this.reservePressure() : Math.max(50, this.reservePressure());
+  }
+
+  /** §2.2.1.6 tANK WARN (bar). */
+  halfTank(): number {
+    return Number(this.settings.halfTank) || 100;
+  }
+
   alertCues(v: ComputerView): AlertCue[] {
     if (this.settings.alrm === 'off' || !v.inDive) return [];
     const cues = maresCues(v);
@@ -194,8 +211,8 @@ export abstract class QuadAirRules extends DiveComputer {
     // deco, tank reserve (at least 50 bar), half tank (tANK WARN, 100 bar by default) — the same
     // thresholds as the screen.
     if (v.tank.ai) {
-      const reserveAt = imperial() ? v.tank.reserve : Math.max(50, v.tank.reserve);
-      const halfAt = imperial() ? 1500 / 14.5038 : 100;
+      const reserveAt = this.reserveAlarmAt();
+      const halfAt = this.halfTank();
       const ack = (key: string, level: AlertCue['level']) => cues.push({ key, kind: 'beep', level, until: 'ack', every: 3 });
       if (v.inDeco && v.diveTime > 120 && v.tank.gasTime !== null && v.tank.gasTime < v.tts) ack('ttr', 'alarm');
       if (v.tank.pressure <= reserveAt) ack('reserve', 'warning');

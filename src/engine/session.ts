@@ -45,11 +45,10 @@ export interface ProfileSample {
   ceiling: number;
 }
 
-/** Scuba tank: water capacity (L), working/fill pressure and reserve (bar). */
+/** Scuba tank: water capacity (L) and working/fill pressure (bar). The reserve is a setting of each computer. */
 export interface Tank {
   volume: number;
   fill: number;
-  reserve: number;
 }
 
 export interface DiveLogEntry {
@@ -131,7 +130,7 @@ export class DiveSession {
   private rapid: { rate: number; fromDepth: number; toDepth: number } | null = null;
 
   // Gas supply.
-  tank: Tank = { volume: 12, fill: 200, reserve: 50 };
+  tank: Tank = { volume: 12, fill: 200 };
   /** Wireless tank transmitter paired with the computer (used when the model supports one). */
   transmitterOn = true;
   /** Surface respiratory minute volume (RMV / "SAC"), in litres per minute. */

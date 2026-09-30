@@ -3,6 +3,7 @@ import type { DiveSession } from '../../../engine/session';
 import { remainingTime } from '../../../engine/gas';
 import type { ComputerView, SettingDef } from '../../base';
 import { type PelagicAlarm, PelagicRules, pelagicSettings } from '../common';
+import { pressureSetting, pressureValue } from '../../common/tank';
 
 /**
  * Z+ ("Bühlmann ZHL-16C based") is not published: approximated by Bühlmann ZHL-16C with a single
@@ -49,13 +50,12 @@ export abstract class I770rRules extends PelagicRules {
       default: 'off', // default not given: OFF assumed
     },
     ...pelagicSettings(),
-    {
-      // "Turn Press: OFF or 70 to 205 BAR (1000 to 3000 PSI)". Default not given: OFF assumed; step: 5 bar offered.
-      key: 'turnAl',
-      label: { fr: 'Alarme de demi-tour (TURN PRESS)', en: 'Turn pressure alarm' },
-      options: [{ value: 'off', label: 'OFF' }, ...Array.from({ length: 28 }, (_, i) => String(70 + i * 5)).map((b) => ({ value: b, label: `${b} bar` }))],
-      default: 'off',
-    },
+    // Set Alarms, 4. Turn Press: "OFF or 70 to 205 BAR (1000 to 3000 PSI)", TURN PRESSURE when triggered.
+    // Default not given: OFF assumed; step: 5 bar offered.
+    pressureSetting('turnAl', { fr: 'Alarme de demi-tour (TURN PRESS)', en: 'Turn pressure alarm (TURN PRESS)' }, 70, 205, 5, 'off', 'OFF'),
+    // Set Alarms, 5. End Press: 20 to 105 BAR (300 to 1500 PSI)", always on; it is also the pressure GTR counts down
+    // to (assumed). Default not given: 50 bar assumed; step: 5 bar offered.
+    pressureSetting('reserve', { fr: 'Alarme de fin (END PRESS)', en: 'End pressure alarm (END PRESS)' }, 20, 105, 5, 50),
   ];
 
   constructor() {
@@ -69,9 +69,9 @@ export abstract class I770rRules extends PelagicRules {
     return { gfLow: g, gfHigh: g, lastStop: 3, stopStep: 3, ascentRate: 9 };
   }
 
-  /** "End Press": 20 to 105 bar; the simulated tank's reserve is used as the end pressure (assumed). */
-  endPressure(s: DiveSession): number {
-    return Math.max(20, Math.min(105, s.tank.reserve));
+  /** "End Press" setting (bar). */
+  endPressure(): number {
+    return this.reservePressure();
   }
 
   /**
@@ -80,7 +80,7 @@ export abstract class I770rRules extends PelagicRules {
    */
   gasTime(s: DiveSession, _p: DecoParams, sacBar: number): number | null {
     return remainingTime({
-      tissues: s.tissues, depth: s.depth, gas: s.gas, tankPressure: s.tankPressure, reserve: this.endPressure(s),
+      tissues: s.tissues, depth: s.depth, gas: s.gas, tankPressure: s.tankPressure, reserve: this.endPressure(),
       sacBar, rate: () => 9, deco: null,
     });
   }
@@ -88,8 +88,9 @@ export abstract class I770rRules extends PelagicRules {
   protected alarmConditions(s: DiveSession, v: ComputerView): PelagicAlarm[] {
     const a = super.alarmConditions(s, v);
     if (v.tank.ai) {
-      if (this.settings.turnAl !== 'off' && s.tankPressure <= Number(this.settings.turnAl)) a.push('turn');
-      if (s.tankPressure <= this.endPressure(s)) a.push('end');
+      const turn = pressureValue(this.settings, 'turnAl');
+      if (turn !== null && s.tankPressure <= turn) a.push('turn');
+      if (s.tankPressure <= this.endPressure()) a.push('end');
     }
     return a;
   }

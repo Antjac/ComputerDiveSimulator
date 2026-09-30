@@ -58,6 +58,7 @@
 }
 .ln-box { font-size: 22px; } .ln-box .l2 { font-size: 22px; } .ln-box.big .l2 { font-size: 38px; } .ln-box.wide > div:first-child { letter-spacing: 3px; }
 .ln-box small { font-size: 13px; }
+.ln-box small.ln-tk { display: inline-block; vertical-align: 6px; margin-left: 3px; line-height: 1.1; text-align: left; } /* "T1" over "BAR" (§3.9.8 figure) */
 .ln-arr { font-family: 'Roboto Condensed', sans-serif; margin: 0 3px; }
 .ln-nst { display: flex; align-items: center; gap: 10px; }
 .ln-vert { font-size: 18px; line-height: 1.05; text-align: center; }

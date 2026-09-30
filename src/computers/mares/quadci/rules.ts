@@ -2,8 +2,9 @@ import { ceilingDepth, depthToPressure, type DecoParams } from '../../../engine/
 import { type DiveSession } from '../../../engine/session';
 import { type AlertCue, ComputerView, DiveComputer, SettingDef, desaturationTime } from '../../base';
 import { divingDays } from '../../common/dives';
-import { DeepStop, FastAscentZhl, MissedStop, PRESETS, maresCues, quadAscentLimit } from '../common';
+import { DeepStop, FastAscentZhl, MissedStop, PRESETS, maresCues, maresWarningSettings, quadAscentLimit } from '../common';
 import { ppo2Setting } from '../../common/ppo2';
+import { pressureSetting } from '../../common/tank';
 
 const atm = (d: number) => depthToPressure(d) / 1.01325;
 
@@ -22,8 +23,8 @@ export abstract class QuadCiRules extends DiveComputer {
   readonly transmitter = 'LED Tank Module';
   readonly gasTimeName = 'TTR';
   readonly notes = {
-    fr: 'Bühlmann ZH-L16C non modifié avec gradient factors : reproduit (R1, R2, T1, T2 interpolés, le manuel ne donnant que R0 85/85, R3 50/60, T0 30/85 et T3 25/40). Conservatisme multi-jours (−2 par jour, max −6) et, en option, en successives (−8 à la sortie, +1 par 15 min). Vitesse maximale selon la profondeur (5 / 10 / 15 / 20 m/min) ; plus de 120 % sur plus de 20 m ou palier manqué = verrouillage 48 h. TTR = temps jusqu’à la réserve. BL : écrans E-Z / FULL / profil / tissus / paliers ; TR / BR : champs du FULL ; TR long : rétroéclairage ; TL : chronomètre. Boussole, menu sous l’eau, changement de gaz et deep stops non simulés.',
-    en: 'Unmodified Bühlmann ZH-L16C with gradient factors: reproduced (R1, R2, T1, T2 interpolated, the manual only giving R0 85/85, R3 50/60, T0 30/85 and T3 25/40). Multiday conservatism (−2 per day, max −6) and, optionally, repetitive-dive conservatism (−8 on surfacing, +1 per 15 min). Depth-dependent maximum ascent rate (5 / 10 / 15 / 20 m/min); more than 120 % over more than 20 m or a missed stop = 48 h lock. TTR = time to reserve. BL: E-Z / FULL / profile / tissue / stops screens; TR / BR: FULL fields; TR hold: backlight; TL: stopwatch. Compass, underwater menu, gas switching and deep stops are not simulated.',
+    fr: 'Bühlmann ZH-L16C non modifié avec gradient factors : reproduit (R1, R2, T1, T2 interpolés, le manuel ne donnant que R0 85/85, R3 50/60, T0 30/85 et T3 25/40). Conservatisme multi-jours (−2 par jour, max −6) et, en option, en successives (−8 à la sortie, +1 par 15 min). Vitesse maximale selon la profondeur (5 / 10 / 15 / 20 m/min) ; plus de 120 % sur plus de 20 m ou palier manqué = verrouillage 48 h. TTR = temps jusqu’à la réserve. BL : écrans E-Z / FULL / profil / tissus / paliers ; TR / BR : champs du FULL ; TR long : rétroéclairage ; TL : chronomètre. Boussole, menu sous l’eau, changement de gaz et deep stops non simulés. Émetteur : HALF TANK (100 bar par défaut, désactivable) et TANK RESERVE (50 bar par défaut), jusqu’à l’appui sur un bouton. Avertissements du §3.2 : MAX DEPTH REACHED, TURN AROUND / TIME LIMIT (désactivés par défaut), GF @SURF clignotant (désactivé par défaut), NO DECO 2 min et entrée en déco (activés supposé ; textes non donnés : « NO DECO 2 MIN » et « ENTERING DECO » déduits).',
+    en: 'Unmodified Bühlmann ZH-L16C with gradient factors: reproduced (R1, R2, T1, T2 interpolated, the manual only giving R0 85/85, R3 50/60, T0 30/85 and T3 25/40). Multiday conservatism (−2 per day, max −6) and, optionally, repetitive-dive conservatism (−8 on surfacing, +1 per 15 min). Depth-dependent maximum ascent rate (5 / 10 / 15 / 20 m/min); more than 120 % over more than 20 m or a missed stop = 48 h lock. TTR = time to reserve. BL: E-Z / FULL / profile / tissue / stops screens; TR / BR: FULL fields; TR hold: backlight; TL: stopwatch. Compass, underwater menu, gas switching and deep stops are not simulated. Transmitter: HALF TANK (100 bar by default, can be turned off) and TANK RESERVE (50 bar by default), until a button is pressed. §3.2 warnings: MAX DEPTH REACHED, TURN AROUND / TIME LIMIT (off by default), blinking GF @SURF (off by default), NO DECO 2 min and entering deco (on assumed; texts not given: "NO DECO 2 MIN" and "ENTERING DECO" deduced).',
   };
   readonly settingDefs: SettingDef[] = [
     {
@@ -60,6 +61,27 @@ export abstract class QuadCiRules extends DiveComputer {
     },
     // Manual: ppO2max 1.4 bar from the factory, adjustable up to 1.6 bar (from 1.2, step 0.1: assumed as on the other Mares).
     ppo2Setting(1.2, 1.6, 1.4, 'ppO2max'),
+    {
+      // §3.2.5 HALF TANK: "This allows you to turn off the half tank warning described at 4.1" (on unless
+      // turned off: ON assumed by default).
+      key: 'halfWarn',
+      label: { fr: 'Avertissement de demi-bloc (HALF TANK)', en: 'Half tank warning' },
+      options: [{ value: 'on', label: 'ON' }, { value: 'off', label: 'OFF' }],
+      default: 'on',
+    },
+    // §4.1: "HALF TANK, is the value at which Quad Ci triggers a half tank warning [...] Default values are
+    // 100bar"; "TANK RESERVE, is the value at which an alarm is triggered [...] Default values are 50bar".
+    // Ranges not given: 5 bar steps offered.
+    { ...pressureSetting('halfTank', { fr: 'Pression du demi-bloc (HALF TANK)', en: 'Half tank pressure' }, 60, 200, 5, 100), showIf: (s) => s.halfWarn !== 'off' },
+    pressureSetting('reserve', { fr: 'Réserve (TANK RESERVE)', en: 'Tank reserve' }, 20, 100, 5, 50),
+    ...maresWarningSettings('NO DECO'),
+    {
+      // §3.2.6 GF @SURF: "The value can be set between 50 and 250. The default setting is OFF." (step not given: 10).
+      key: 'wGfSurf',
+      label: { fr: 'Avertissement GF @SURF', en: 'GF @SURF warning' },
+      options: [{ value: 'off', label: 'OFF' }, ...Array.from({ length: 21 }, (_, i) => ({ value: String(50 + i * 10), label: String(50 + i * 10) }))],
+      default: 'off',
+    },
   ];
 
   protected fast = new FastAscentZhl();
@@ -109,7 +131,7 @@ export abstract class QuadCiRules extends DiveComputer {
 
   /** TTR: minutes until the reserve at the current depth and breathing rate. */
   gasTime(s: DiveSession, _p: DecoParams, sacBar: number): number | null {
-    return Math.max(0, Math.min(99, Math.floor((s.tankPressure - s.tank.reserve) / (sacBar * atm(s.depth)))));
+    return Math.max(0, Math.min(99, Math.floor((s.tankPressure - this.reservePressure()) / (sacBar * atm(s.depth)))));
   }
 
   onDiveStart(s: DiveSession): void {
@@ -161,6 +183,11 @@ export abstract class QuadCiRules extends DiveComputer {
    * Audible alarms (instruction manual, alarms): fast ascent, MOD exceeded and missed deco stop sound while they last;
    * CNS 100 %: 5 s in one-minute intervals; CNS 75 %%, once. §3.3 ALL SILENT turns the audible alarms off (off by default, assumed).
    */
+  /** §4.1 HALF TANK (bar): the half tank warning, and the limit of the blue / green and yellow ranges (§4.1.1). */
+  halfTank(): number {
+    return Number(this.settings.halfTank) || 100;
+  }
+
   alertCues(v: ComputerView): AlertCue[] {
     if (this.settings.silent === 'on' || !v.inDive) return [];
     const cues = maresCues(v);
@@ -168,6 +195,8 @@ export abstract class QuadCiRules extends DiveComputer {
     // TANK RESERVE alarm (with a tank module; "alarms are both visual and audible"). How it is
     // acknowledged is not given: a button press, as on the Quad Air, assumed.
     if (v.tank.ai && v.tank.pressure <= v.tank.reserve) cues.push({ key: 'reserve', kind: 'beep', level: 'warning', until: 'ack', every: 3 });
+    // HALF TANK (§10.3.4.2: shown until a button is pressed); its sound is not described, assumed alike.
+    else if (v.tank.ai && this.settings.halfWarn !== 'off' && v.tank.pressure <= this.halfTank()) cues.push({ key: 'half', kind: 'beep', level: 'info', until: 'ack', every: 3 });
     return cues;
   }
 }

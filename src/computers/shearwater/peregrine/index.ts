@@ -252,9 +252,9 @@ export class ShearwaterPeregrine extends PeregrineRules {
   }
 
   /** §10.3: T1 with its pressure bar graph (0 to the rated pressure), yellow below the reserve, red below the critical pressure. */
-  private pressureCell(v: ComputerView, s: DiveSession, cls: string): string {
+  private pressureCell(v: ComputerView, _s: DiveSession, cls: string): string {
     const p = v.tank.pressure;
-    const lvl = p < this.criticalPressure(s) ? 'red' : p < v.tank.reserve ? 'yellow' : '';
+    const lvl = p < this.criticalPressure() ? 'red' : p < v.tank.reserve ? 'yellow' : '';
     // Rated pressure: the fill pressure of the simulated tank (the manual's example: 207 bar).
     const frac = Math.max(0, Math.min(1, p / v.tank.fill));
     const bars = Array.from({ length: 5 }, (_, i) => `<i class="${i < Math.ceil(frac * 5) ? 'on' : ''}"></i>`).join('');

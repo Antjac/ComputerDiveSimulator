@@ -7,9 +7,13 @@ import { type PerdixNotice, PerdixRules } from './rules';
 
 const NOTICE_TEXT: Record<PerdixNotice, string> = {
   'high-ppo2': 'HIGH PPO2',
-  'missed-stop': 'MISSED STOP',
+  'missed-stop': 'MISSED DECO STOP',
   'fast-ascent': 'FAST ASCENT',
+  'very-high-cns': 'VERY HIGH CNS',
   'high-cns': 'HIGH CNS',
+  'low-ndl': 'Low NDL Alert',
+  'depth-alert': 'Depth Alert',
+  'time-alert': 'Time Alert',
   gas: 'T1 CRITICAL PRES',
 };
 
@@ -79,7 +83,9 @@ export class ShearwaterPerdix extends PerdixRules {
     let timeBlock: string;
     if (v.inDive) {
       const sec = Math.floor(v.diveTime);
-      timeBlock = `<div class="pd-lbl">TIME</div><div class="pd-time">${Math.floor(sec / 60)}<small>:${String(sec % 60).padStart(2, '0')}</small></div>`;
+      const timeA = this.alertValue('timeAlert');
+      const tCls = timeA !== null && sec > timeA * 60 ? 'yellow' : ''; // §4.9: "the dive time value will turn yellow"
+      timeBlock = `<div class="pd-lbl">TIME</div><div class="pd-time ${tCls}">${Math.floor(sec / 60)}<small>:${String(sec % 60).padStart(2, '0')}</small></div>`;
     } else {
       const si = Math.floor((v.surfaceInterval ?? 0) / 60);
       const siStr = v.surfaceInterval === null ? '0<small>h</small>00<small>m</small>'
@@ -133,7 +139,11 @@ export class ShearwaterPerdix extends PerdixRules {
     else if (v.inDive && v.depth > v.mod) warn = `<div class="pd-warn red blink">MOD<br>${depthInt(v.mod)}${unit}<br>▲</div>`;
     else if (v.inDive && v.depth > v.mod - 1.9) warn = `<div class="pd-warn yellow">MOD<br>${depthInt(v.mod)}${unit}</div>`;
 
-    const ndlCls = v.inDeco ? 'red' : v.ndl < 5 ? 'yellow' : '';
+    // §4.9: "the NDL value will turn yellow when at or below the Alert value".
+    const depthA = this.alertValue('depthAlert');
+    const depthAlertCls = v.inDive && depthA !== null && v.depth > depthA ? 'yellow' : ''; // §4.9: "the depth value will turn yellow"
+    const ndlA = this.alertValue('ndlAlert');
+    const ndlCls = v.inDeco ? 'red' : ndlA !== null && v.ndl <= ndlA ? 'yellow' : '';
     const ndlVal = v.inDeco ? 0 : Math.min(99, v.ndl); // §4 (NDL): "A maximum value of 99 minutes is displayed."
     const load = Math.min(100, v.n2Load);
     const n2Bar = `<div class="pd-n2"><div class="pd-n2-fill" style="height:${Math.round(load)}%"></div><span>N<sub>2</sub></span></div>`;
@@ -148,7 +158,7 @@ export class ShearwaterPerdix extends PerdixRules {
     if (screen === 0) {
       let right = '';
       if (this.settings.bottom === 't1gtr' && v.tank.ai) {
-        const pCls = v.tank.pressure < v.tank.reserve / 2 ? 'red' : v.tank.pressure < v.tank.reserve ? 'yellow' : '';
+        const pCls = this.pressureClass(v);
         right = `<div class="pd-cell"><div class="pd-lbl">T1 ${pressUnit()}</div><div class="pd-val ${pCls}">${pressText(v.tank.pressure)}</div></div>
                  <div class="pd-cell r"><div class="pd-lbl">GTR</div><div class="pd-val">${this.gtrText(v)}</div></div>`;
       } else if (this.settings.bottom === 'maxtts') {
@@ -169,7 +179,9 @@ export class ShearwaterPerdix extends PerdixRules {
     // the figure's "HIGH PPO2" (the gas one from the Technical manual).
     const notice = this.notices.top;
     if (notice && v.inDive) {
-      bottom = `<div class="pd-err"><div class="pd-err-lbls"><span class="pd-lbl">Error</span><span class="pd-lbl">Confirm</span></div><div class="pd-err-msg">${NOTICE_TEXT[notice]}</div></div>`;
+      // §4.10 figures: "Warning" above the automatic notifications, "Alert" above the §4.9 custom alerts.
+      const kind = notice === 'low-ndl' || notice === 'depth-alert' || notice === 'time-alert' ? 'Alert' : 'Warning';
+      bottom = `<div class="pd-err"><div class="pd-err-lbls"><span class="pd-lbl">${kind}</span><span class="pd-lbl">Confirm</span></div><div class="pd-err-msg">${NOTICE_TEXT[notice]}</div></div>`;
     }
 
     el.innerHTML = `
@@ -181,7 +193,7 @@ export class ShearwaterPerdix extends PerdixRules {
           <div class="pd-screen">
             <div class="pd-top">
               <div class="pd-left">
-                <div class="pd-depth">${dInt}${dDec !== undefined ? `<small>.${dDec}</small>` : ''}<span class="pd-unit">${du}</span><div class="pd-arrows">${arrowHtml}</div></div>
+                <div class="pd-depth ${depthAlertCls}">${dInt}${dDec !== undefined ? `<small>.${dDec}</small>` : ''}<span class="pd-unit">${du}</span><div class="pd-arrows">${arrowHtml}</div></div>
                 ${timeBlock}
               </div>
               <div class="pd-right">
@@ -196,6 +208,11 @@ export class ShearwaterPerdix extends PerdixRules {
   }
 
   /** GTR display: "---" on the surface (and in deco, GTR being limited to no-deco), "wait" for the first 2 minutes. */
+  /** §10.3 low pressure warnings: yellow below the reserve pressure, red below the critical pressure (§12.3). */
+  private pressureClass(v: ComputerView): string {
+    return v.tank.pressure < this.criticalPressure() ? 'red' : v.tank.pressure < v.tank.reserve ? 'yellow' : '';
+  }
+
   private gtrText(v: ComputerView): string {
     if (!v.inDive || v.inDeco || v.tank.gasTime === null) return '---';
     if (v.diveTime < 120) return 'wait';
@@ -223,7 +240,7 @@ export class ShearwaterPerdix extends PerdixRules {
       }
       case 'ai': {
         const sac = imperial() ? `${Math.round(v.tank.sacBar * 14.5038)}<small class="pd-blue">psi/m</small>` : `${v.tank.sacBar.toFixed(1)}<small class="pd-blue">bar/m</small>`;
-        return cell(`T1 ${pressUnit()}`, pressText(v.tank.pressure)) + cell('GTR', this.gtrText(v)) + cell('SAC', v.inDive && v.diveTime >= 120 ? sac : '---');
+        return cell(`T1 ${pressUnit()}`, pressText(v.tank.pressure), this.pressureClass(v)) + cell('GTR', this.gtrText(v)) + cell('SAC', v.inDive && v.diveTime >= 120 ? sac : '---');
       }
       case 'mod':
         // §8.5: "When the Max Depth setting is the controlling factor, the MOD is displayed grayed-out."

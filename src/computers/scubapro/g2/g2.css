@@ -84,7 +84,8 @@
 .g2-win.red { border-color: #ff2a1f; } .g2-win.red .g2-h { background: #ff2a1f; } .g2-win.red .g2-v { color: #ff2a1f; }
 .g2-win.deco { border-color: #ff2a1f; } .g2-win.deco .g2-h { background: #ff2a1f; color: #fff; } .g2-win.deco .g2-v { color: #fff; }
 .g2-win.level { border-color: #ffd400; } .g2-win.level .g2-h { background: #ffd400; } .g2-win.level .g2-v { color: #ffd400; }
-.g2-screen .red { color: #ff2a1f; }
+/* Red digits (depth beyond the MOD, missed stop…); not the alarm pop-up bar, white on red. */
+.g2-screen .red:not(.g2-bar) { color: #ff2a1f; }
 .g2-gap { margin-left: 14px; }
 .g2-sub { position: absolute; bottom: 1px; font-size: 8px; font-style: normal; letter-spacing: 0.5px; }
 .g2-sub.l { left: 4px; } .g2-sub.r { right: 4px; }

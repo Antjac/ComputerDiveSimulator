@@ -114,17 +114,19 @@
           </div>
           <details class="advanced" id="advanced">
             <summary><span data-i18n="advanced"></span> <span class="adv-sum" id="adv-summary"></span></summary>
-            <div class="settings-grid">
-              <!-- The dive itself first, then the computer. -->
-              <label class="field"><span data-i18n="units"></span><select id="units-select"></select></label>
-              <label class="field"><span data-i18n="site"></span><select id="site-select"></select></label>
-              <label class="field"><span data-i18n="tank"></span><select id="tank-select"></select></label>
-              <label class="field"><span data-i18n="reserve"></span><select id="reserve-select"></select></label>
-              <label class="field"><span data-i18n="rmv"></span><select id="rmv-select"></select></label>
-              <div id="computer-settings-adv" class="contents"></div>
-              <label class="field" id="tx-field"><span data-i18n="transmitter"></span><select id="tx-select"></select></label>
-              <p class="muted small tx-hint" id="tx-hint"></p>
-            </div>
+            <!-- The dive itself first, then the computer's settings by theme (app/settings.ts). -->
+            <section class="adv-group">
+              <h4 data-i18n="grpDive"></h4>
+              <div class="settings-grid">
+                <label class="field"><span data-i18n="units"></span><select id="units-select"></select></label>
+                <label class="field"><span data-i18n="site"></span><select id="site-select"></select></label>
+                <label class="field"><span data-i18n="tank"></span><select id="tank-select"></select></label>
+                <label class="field"><span data-i18n="rmv"></span><select id="rmv-select"></select></label>
+                <label class="field" id="tx-field"><span data-i18n="transmitter"></span><select id="tx-select"></select></label>
+                <p class="muted small tx-hint" id="tx-hint"></p>
+              </div>
+            </section>
+            <div id="computer-settings-adv"></div>
           </details>
           <div class="field">
             <span data-i18n="speed"></span>
@@ -182,6 +184,7 @@
         <button class="btn primary" id="intro-ok" data-i18n="introOk"></button>
       </div>
     </dialog>
+    <dialog class="modal model-info" id="model-info" aria-labelledby="model-info-title"></dialog>
     <dialog class="modal about" id="about" aria-labelledby="about-title">
       <h2 id="about-title" data-i18n="about"></h2>
       <p class="lead" data-i18n="introEdu"></p>

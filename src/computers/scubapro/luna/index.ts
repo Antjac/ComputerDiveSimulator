@@ -1,11 +1,10 @@
-import { ndl, planAscent } from '../../../engine/buhlmann';
 import type { DiveSession } from '../../../engine/session';
 import type { Lang } from '../../../i18n';
 import { depthInt, depthText, depthUnit, depthVal, imperial, pressText, tempUnit, tempVal } from '../../../units';
 import { ButtonHelp, ComputerView, clockOfDay } from '../../base';
 import { sevenSeg } from '../../common/segments';
 import { idealAscent } from '../common';
-import { type LunaAlarm, LunaRules } from './rules';
+import { type LunaAlarm, type LunaWarning, LunaRules, type StageInfo } from './rules';
 
 /** Matrix screens scrolled with the buttons (§3.4 figures; heart rate screen left out: no belt simulated). */
 type Screen = 'nst' | 'o2mod' | 'cns' | 'timer' | 'clock';
@@ -33,6 +32,29 @@ function alarmBox(k: LunaAlarm, v: ComputerView): string {
     case 'reserve': return box('RESERVE', `${pressText(v.tank.reserve)}<small>${imperial() ? 'PSI' : 'BAR'}</small>`, 'big');
     case 'rbt0': return box('RBT', '0:', 'big');
   }
+}
+
+/** Boxes of the §3.9 warnings, as on the figures. */
+function warningBox(k: LunaWarning, v: ComputerView, st: StageInfo, luna: LunaRules): string {
+  const du = depthUnit();
+  switch (k) {
+    case 'depth': return box('MAX DPTH', `${luna.settings.wDepth}${du}`, 'big');
+    case 'cns75': return box('CNSO2', '75%', 'big');
+    case 'nostop2': return box('NOSTOP', '2:', 'big');
+    case 'nostop0': return box('NOSTOP', '0:', 'big');
+    // §3.9.5 figure: "DECO IN 2:" (L0); §3.9.11 figure (100/100): "NOSTOP 2:".
+    case 'decoIn2': return luna.gfMode ? box('NOSTOP', '2:', 'big') : box('DECO IN', '2:', 'big');
+    case 'deco': return box('DECO IN', '0:', 'big');
+    case 'time': return box('MAX TIME', `${luna.settings.wTime}:`, 'big');
+    case 'turn': return box('TURNING', 'TIME');
+    // §3.9.8 figure: "HALFTANK", then the set pressure with "T1" over "BAR".
+    case 'half': return box('HALFTANK', `${pressText(luna.tankWarnPressure() ?? 0)}<small class="ln-tk">T1<br>${imperial() ? 'PSI' : 'BAR'}</small>`, 'big');
+    case 'rbt3': return box('RBT', '3:', 'big');
+    case 'missed': return box(luna.gfMode ? 'MISSED GF' : 'MISSED MB', 'STOP');
+    case 'relaxed': return luna.gfMode ? box('GF', 'INCREASED') : box('MB LEVEL', 'REDUCED');
+  }
+  void v;
+  void st;
 }
 
 /** White box of the matrix area (warnings and alarms, §3.9 and §3.10). */
@@ -66,7 +88,7 @@ const NO_FLY_ICON = '<svg class="ln-ico" viewBox="0 0 24 24"><circle cx="12" cy=
 /** Scubapro Luna 2.0 AI: two buttons and a monochrome segment + dot-matrix display. */
 export class ScubaproLuna extends LunaRules {
   private idx = 0;
-  /** Real time (ms) at which each warning appeared (shown for WARNING_MS). */
+  /** Real time (ms) at which each warning occurrence started to be shown (each for WARNING_MS, one after the other). */
   private warnSeen = new Map<string, number>();
   private timer = { startClock: 0, pausedAt: -1, offset: 0 };
   private lastView: ComputerView | null = null;
@@ -164,21 +186,17 @@ export class ScubaproLuna extends LunaRules {
     return `${Math.floor(sec / 3600)}:${String(Math.floor((sec % 3600) / 60)).padStart(2, '0')}.${String(sec % 60).padStart(2, '0')}`;
   }
 
-  /** Warning of §3.9 to show now (for WARNING_MS after it appears), or ''. */
-  private warning(v: ComputerView): string {
+  /** Warning of §3.9 to show now: each new one for WARNING_MS, queued when several occur together; or ''. */
+  private warning(v: ComputerView, st: StageInfo, s: DiveSession): string {
     const now = performance.now();
-    const active: [string, string][] = [];
-    if (v.cns >= 75 && v.cns < 100) active.push(['cns75', box('CNSO2', '75%', 'big')]);
-    if (this.levelReducedAt > -1e8) {
-      active.push([`relaxed-${this.levelReducedAt}`, this.gfMode ? box('GF', 'INCREASED') : box('MB LEVEL', 'REDUCED')]);
-    }
-    const keys = new Set(active.map(([k]) => k));
-    for (const k of [...this.warnSeen.keys()]) if (!keys.has(k)) this.warnSeen.delete(k);
-    for (const [k, html] of active) {
-      if (!this.warnSeen.has(k)) this.warnSeen.set(k, now);
-      if (now - this.warnSeen.get(k)! < WARNING_MS) return html;
-    }
-    return '';
+    const active = this.updateWarnings(v, st, s).map(([k, since]): [LunaWarning, string] => [k, `${k}-${since}`]);
+    const keys = new Set(active.map(([, id]) => id));
+    for (const id of [...this.warnSeen.keys()]) if (!keys.has(id)) this.warnSeen.delete(id);
+    const showing = active.find(([, id]) => this.warnSeen.has(id) && now - this.warnSeen.get(id)! < WARNING_MS);
+    const next = showing ?? active.find(([, id]) => !this.warnSeen.has(id));
+    if (!next) return '';
+    if (!this.warnSeen.has(next[1])) this.warnSeen.set(next[1], now);
+    return warningBox(next[0], v, st, this);
   }
 
   render(el: HTMLElement, v: ComputerView, s: DiveSession, _lang: Lang): void {
@@ -189,16 +207,8 @@ export class ScubaproLuna extends LunaRules {
     const du = depthUnit();
 
     // Stage information (MB level above L0, or GF other than 100/100): its no-stop time and stops.
-    const lp = v.inDive ? this.stageParams() : null;
-    let stageNdl = v.ndl;
-    let levelStop: { depth: number; min: number; tat: number } | null = null;
-    if (lp && !v.inDeco) {
-      stageNdl = ndl(s.tissues, v.depth, s.gas, lp.gfHigh, this.ndlCap);
-      if (stageNdl === 0) {
-        const plan = planAscent(s.tissues, v.depth, s.gas, lp, this.levelAnchor);
-        if (plan.stops[0]) levelStop = { depth: plan.stops[0].depth, min: Math.ceil(plan.stops[0].minutes), tat: plan.tts };
-      }
-    }
+    const st = this.stageInfo(v, s);
+    const { ndl: stageNdl, stop: levelStop } = st;
     const nst = Math.min(this.ndlCap, stageNdl); // §3.1: at most 199 minutes
 
     // Top row: depth and dive time (surface: no-dive time and no-fly time, §3.12, §3.13).
@@ -229,7 +239,7 @@ export class ScubaproLuna extends LunaRules {
     let matrix = '';
     let alarmShown = false;
     const alarms = this.activeAlarms(v).filter((k) => !this.confirmed.has(k));
-    const warn = v.inDive ? this.warning(v) : '';
+    const warn = v.inDive ? this.warning(v, st, s) : '';
     const note = this.flashMessage();
     const screen: Screen = SCREENS[this.idx] ?? 'nst';
     if (v.locked) {

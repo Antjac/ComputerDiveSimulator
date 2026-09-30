@@ -61,10 +61,12 @@ npm run stops     # contrôle le comportement aux paliers de déco de chaque ord
 - Toucher ou cliquer (et glisser) dans l'eau, ou la molette, pour aller à une profondeur (à la dernière vitesse choisie ; 9 m/min en montée et 18 m/min en descente par défaut).
 - ▲ / ▼ (boutons ou flèches du clavier) pour régler la vitesse de montée ou de descente par pas de 1 m/min ; ■ ou `0` pour se stabiliser.
 - `+` / `−` pour accélérer ou ralentir le temps, `Espace` pour mettre en pause.
-- **Comment s'en servir ?** (à côté du titre, ou « Faire la visite » dans l'avertissement d'accueil) lance une visite guidée de l'interface.
+- **Comment s'en servir ?** (à côté du titre, ou « Visite guidée » dans l'avertissement d'accueil) lance une visite guidée de l'interface.
 - Les boutons des ordinateurs sont cliquables, avec appui long quand le modèle en a un. Une info-bulle indique la fonction réelle de chaque bouton pendant la plongée (d'après le manuel du fabricant) et précise ce qui n'est pas simulé ; les boutons sans aucune fonction simulée apparaissent grisés.
 
 - 🔇 / 🔊 (dans l'en-tête) active ou coupe les sons des alarmes des ordinateurs (coupés par défaut, le choix est mémorisé). Chaque modèle sonne comme le décrit son manuel : bips (Mares, Scubapro, Cressi, Aqualung), sons et vibrations (Garmin, Suunto), vibrations seules pour le Perdix 2 et le Peregrine TX. Une vibration est jouée comme un bourdonnement, fait trembler l'ordinateur à l'écran et, sur les téléphones qui le permettent (Android), vibre vraiment. Les alarmes qui se répètent jusqu'à acquittement s'arrêtent quand on appuie sur un bouton de l'ordinateur (SELECT sur le Perdix 2, l'un ou l'autre bouton sur le Peregrine TX). Les réglages de chaque modèle comprennent son propre interrupteur (ALRM, All silent, Silent diving…).
+- **Alertes** : chaque ordinateur affiche toutes les alarmes, avertissements et notifications de son manuel (texte, couleurs, sons, acquittement). Celles qui se règlent sur l'appareil (profondeur, durée, NDL, CNS, pression du bloc : réserve, demi-bloc, demi-tour…) sont dans « Réglages avancés › Réglage des alertes », avec les possibilités et les valeurs par défaut de son manuel. Les réglages avancés sont rangés par thème : plongée, algorithme et paliers, alertes, sons et vibrations, affichage.
+- **ⓘ Détails de la simulation** (onglet Réglages) ouvre une fenêtre qui présente le modèle : ce qui est simulé d'après le manuel, les valeurs supposées ou déduites quand le manuel ne les donne pas, ce qui n'est pas simulé, et ses alertes réglables avec les valeurs en cours.
 
 ## Exercices
 

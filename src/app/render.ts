@@ -29,12 +29,15 @@ function fmtClock(sec: number): string {
   return `${d > 0 ? `J${d + 1} ` : ''}${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+/** Red zone of the analog pressure gauge (bar): the usual 0–50 bar of a submersible pressure gauge. */
+const SPG_RED_ZONE = 50;
+
 /** Analog pressure gauge next to the computer when the tank data is not shown on it. */
 function renderSpg(v: ComputerView): void {
   const el = $('spg');
   el.hidden = v.tank.ai;
   if (v.tank.ai) return;
-  setHtml(el, renderGauge(v.tank.pressure, v.tank.reserve, t('spg')));
+  setHtml(el, renderGauge(v.tank.pressure, SPG_RED_ZONE, t('spg')));
 }
 
 /** Last HTML written to each element: rewriting identical markup still costs a style and layout pass. */

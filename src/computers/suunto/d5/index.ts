@@ -34,10 +34,15 @@ function minSec(seconds: number): string {
 /** Warning and notification names of the §4.1 tables. */
 const NOTICE_TEXT: Record<D5Notice, string> = {
   'cns-100': 'CNS 100%',
+  'otu-300': 'OTU 300',
+  depth: 'Depth',
+  'dive-time': 'Dive time',
   'gas-time': 'Gas time',
   'safety-broken': 'Safety stop broken',
   'tank-50': 'Tank pressure',
+  'tank-alarm': 'Tank pressure',
   'cns-80': 'CNS 80%',
+  'otu-250': 'OTU 250',
 };
 
 /** Suunto D5: buttons and round display, after the manual (rules in rules.ts). */
@@ -194,8 +199,8 @@ export class SuuntoD5 extends D5Rules {
       else if (v.depth < this.safetyStop.top) depthArrows = `<tspan fill="${YELLOW}">▼</tspan>`;
     } else {
       if (deepPending && deep) rightVal = stopDepth(deep.target);
-      // Tank pressure is forced onto the display below the reserve (yellow) and 50 bar (red).
-      const forced = v.tank.ai && v.tank.pressure < v.tank.reserve;
+      // §4.1: tank pressure forced onto the display below the set alarm (yellow) and 50 bar (red).
+      const forced = v.tank.ai && v.tank.pressure < Math.max(50, this.tankAlarm() ?? 0);
       const alt = this.switchWindow(v);
       const pick = forced ? alt.findIndex((a) => a[0].startsWith('TANK')) : this.screen - 1;
       if (pick >= 0 && pick < alt.length) {

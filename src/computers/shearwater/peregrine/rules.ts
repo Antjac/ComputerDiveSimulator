@@ -4,6 +4,7 @@ import { remainingTime } from '../../../engine/gas';
 import { type AlertCue, type ComputerView, DiveComputer, SettingDef } from '../../base';
 import { Notices } from '../../common/notices';
 import { ppo2Setting } from '../../common/ppo2';
+import { pressureSetting } from '../../common/tank';
 
 /** §4.10 primary notifications that can occur here, highest priority first (order of the table). */
 export type PeregrineNotice =
@@ -30,8 +31,8 @@ export abstract class PeregrineRules extends DiveComputer {
   readonly transmitter = 'Swift';
   readonly gasTimeName = 'GTR';
   readonly notes = {
-    fr: 'Modes Air et Nitrox (un seul gaz ; 3 GasNx et Gauge non simulés). Bouton droit (FUNC) : écrans d’info (LAST DIVE, AI, MOD/MAX/PPO2, TEMP/CONSERV/CNS, GF99/SurGF/CEIL, tissus, DET/Δ+5/@+5, batterie, pression, date, n° de série) ; bouton gauche (MENU) : retour à l’écran principal (menus non simulés). Aucun verrouillage en cas de palier manqué (§5.2). Palier de sécurité ajouté au-delà de 11 m, décompte entre 2,4 et 8,3 m (§5.1) ; réglages 3, 4, 5 min, Adapt, CntUp ou Off. Notifications du §4.10 en jaune sur la ligne du bas jusqu’à l’appui sur un bouton (HIGH PPO2, MISSED DECO STOP, FAST ASCENT, VERY HIGH CNS, HIGH CNS, alertes NDL / profondeur / durée, T1 CRITICAL PRES) ; notifications persistantes à gauche du NDL (High CNS, MOD, Near MOD). Compas, boussole, mini-affichages personnalisés et menus non simulés.',
-    en: 'Air and Nitrox modes (single gas; 3 GasNx and Gauge not simulated). Right button (FUNC): info screens (LAST DIVE, AI, MOD/MAX/PPO2, TEMP/CONSERV/CNS, GF99/SurGF/CEIL, tissues, DET/Δ+5/@+5, battery, pressure, date, serial number); left button (MENU): back to the main screen (menus not simulated). No lock-out for missed stops (§5.2). Safety stop added beyond 11 m, counting down between 2.4 and 8.3 m (§5.1); settings 3, 4, 5 min, Adapt, CntUp or Off. §4.10 notifications in yellow on the bottom row until a button is pressed (HIGH PPO2, MISSED DECO STOP, FAST ASCENT, VERY HIGH CNS, HIGH CNS, NDL / depth / time alerts, T1 CRITICAL PRES); persistent notifications left of the NDL (High CNS, MOD, Near MOD). Compass, custom mini displays and menus are not simulated.',
+    fr: 'Modes Air et Nitrox (un seul gaz ; 3 GasNx et Gauge non simulés). Bouton droit (FUNC) : écrans d’info (LAST DIVE, AI, MOD/MAX/PPO2, TEMP/CONSERV/CNS, GF99/SurGF/CEIL, tissus, DET/Δ+5/@+5, batterie, pression, date, n° de série) ; bouton gauche (MENU) : retour à l’écran principal (menus non simulés). Aucun verrouillage en cas de palier manqué (§5.2). Palier de sécurité ajouté au-delà de 11 m, décompte entre 2,4 et 8,3 m (§5.1) ; réglages 3, 4, 5 min, Adapt, CntUp ou Off. Notifications du §4.10 en jaune sur la ligne du bas jusqu’à l’appui sur un bouton (HIGH PPO2, MISSED DECO STOP, FAST ASCENT, VERY HIGH CNS, HIGH CNS, alertes NDL / profondeur / durée, T1 CRITICAL PRES) ; notifications persistantes à gauche du NDL (High CNS, MOD, Near MOD). Compas, boussole, mini-affichages personnalisés et menus non simulés. Émetteur : pression de réserve réglable (50 bar par défaut, §12.3), alerte critique sous max(21 bar, réserve / 2).',
+    en: 'Air and Nitrox modes (single gas; 3 GasNx and Gauge not simulated). Right button (FUNC): info screens (LAST DIVE, AI, MOD/MAX/PPO2, TEMP/CONSERV/CNS, GF99/SurGF/CEIL, tissues, DET/Δ+5/@+5, battery, pressure, date, serial number); left button (MENU): back to the main screen (menus not simulated). No lock-out for missed stops (§5.2). Safety stop added beyond 11 m, counting down between 2.4 and 8.3 m (§5.1); settings 3, 4, 5 min, Adapt, CntUp or Off. §4.10 notifications in yellow on the bottom row until a button is pressed (HIGH PPO2, MISSED DECO STOP, FAST ASCENT, VERY HIGH CNS, HIGH CNS, NDL / depth / time alerts, T1 CRITICAL PRES); persistent notifications left of the NDL (High CNS, MOD, Near MOD). Compass, custom mini displays and menus are not simulated. Transmitter: settable reserve pressure (50 bar by default, §12.3), critical warning below max(21 bar, reserve / 2).',
   };
   readonly settingDefs: SettingDef[] = [
     {
@@ -116,6 +117,10 @@ export abstract class PeregrineRules extends DiveComputer {
     },
     // §12.1 MOD PPO2 (Air and Nitrox modes), default 1.4; §12.5: "can be set from 1.0 to 1.69 in steps of 0.01".
     ppo2Setting(1.0, 1.69, 1.4, 'MOD PPO2', 0.01),
+    // §12.3 AI Setup, Reserve Pressure: "The valid range is 28 to 137 bar (400 to 2000 psi). The default
+    // reserve pressure value is 50 bar (725 psi)." Used for the low pressure warnings and GTR; offered
+    // in 5 bar steps.
+    pressureSetting('reserve', { fr: 'Pression de réserve (Reserve Pressure)', en: 'Reserve Pressure' }, 30, 135, 5, 50),
   ];
 
   /** §4.10: seconds above the PPO2 limit (HIGH PPO2), faster than 10 m/min (FAST ASCENT). */
@@ -171,8 +176,8 @@ export abstract class PeregrineRules extends DiveComputer {
   }
 
   /** §12.3: "Critical Pressure" below the larger of 21 bar or half the reserve pressure. */
-  criticalPressure(s: DiveSession): number {
-    return Math.max(21, s.tank.reserve / 2);
+  criticalPressure(): number {
+    return Math.max(21, this.reservePressure() / 2);
   }
 
   /**
@@ -181,7 +186,7 @@ export abstract class PeregrineRules extends DiveComputer {
    */
   gasTime(s: DiveSession, _p: DecoParams, sacBar: number): number | null {
     return remainingTime({
-      tissues: s.tissues, depth: s.depth, gas: s.gas, tankPressure: s.tankPressure, reserve: s.tank.reserve,
+      tissues: s.tissues, depth: s.depth, gas: s.gas, tankPressure: s.tankPressure, reserve: this.reservePressure(),
       sacBar, rate: () => 10, deco: null,
     });
   }
@@ -248,7 +253,7 @@ export abstract class PeregrineRules extends DiveComputer {
       // §4.9 Time: "will only fire once per dive".
       const timeA = this.alertValue('timeAlert');
       if (timeA !== null && !this.timeFired && s.diveTime > timeA * 60) now.push('time-alert');
-      if (this.airIntegrated(s) && s.tankPressure < this.criticalPressure(s)) now.push('critical-pres');
+      if (this.airIntegrated(s) && s.tankPressure < this.criticalPressure()) now.push('critical-pres');
     }
     super.tick(s, dt);
     if (this.settings.safety === 'off') this.safetyState = 'none';

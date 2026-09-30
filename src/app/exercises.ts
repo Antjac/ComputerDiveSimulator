@@ -3,6 +3,7 @@
 // paused; "Go" runs it and the simulator's state is checked at each refresh until success or
 // failure; a debrief then shows what the chosen computer signalled and what its rules say. Passed
 // exercises (per computer) are kept in the browser.
+import { openModelInfo } from './modelInfo';
 import type { ComputerView } from '../computers/base';
 import type { Gas } from '../engine/buhlmann';
 import { lang, t, isI18nKey } from '../i18n';
@@ -288,11 +289,7 @@ export function setupExercises(): void {
         showTabs(false);
         break;
       case 'details':
-        // The model's notes, in the settings tab.
-        app.activeTab = 'settings';
-        app.sheetOpen = true;
-        showTabs(false);
-        document.querySelector<HTMLDetailsElement>('#algo-info details')?.setAttribute('open', '');
+        openModelInfo();
         break;
       default: return;
     }

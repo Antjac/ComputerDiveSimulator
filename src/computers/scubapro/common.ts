@@ -3,7 +3,8 @@
 import { COMPARTMENTS, DecoParams, SURFACE_PRESSURE, ceilingDepth, equilibriumDepth, updateAnchor } from '../../engine/buhlmann';
 import { remainingTime } from '../../engine/gas';
 import type { DiveSession } from '../../engine/session';
-import { ComputerView, DiveComputer } from '../base';
+import { ComputerView, DiveComputer, type SettingDef } from '../base';
+import { pressureSetting } from '../common/tank';
 
 /** Ideal ascent rate by depth (G2 manual §3.7, Luna 2.0 AI manual §3.10.1: same table), in m/min. */
 export const IDEAL_ASCENT: [number, number][] = [
@@ -20,6 +21,13 @@ export function idealAscent(depth: number): number {
 export function levelParams(level: number): DecoParams {
   return { gfLow: 0.98 - 0.06 * level, gfHigh: 0.98 - 0.04 * level, lastStop: 3, stopStep: 3, ascentRate: 10 };
 }
+
+/**
+ * Tank reserve (G2 §2.8.2.1, Luna 2.0 AI §2.3.6): "from 20 to 120bar in 5-bar increments"; reaching it
+ * triggers an alarm and it is the empty tank of the RBT. Default not given by the manuals (their figures
+ * show 40 bar): 50 bar, as confirmed by the user.
+ */
+export const reserveSetting: SettingDef = pressureSetting('reserve', { fr: 'Réserve du bloc (Tank reserve)', en: 'Tank reserve' }, 20, 120, 5, 50);
 
 export type PdisState = 'none' | 'shown' | 'active' | 'ok' | 'no';
 
@@ -56,6 +64,11 @@ export abstract class ScubaproRules extends DiveComputer {
     this.activeLevel = l;
   }
 
+  /** Pressure (bar) of the tank pressure / half tank warning, null when it is off. */
+  tankWarnPressure(): number | null {
+    return null;
+  }
+
   /** PDIS is offered (setting on). */
   protected pdisEnabled(): boolean {
     return this.settings.pdis === 'on';
@@ -67,7 +80,7 @@ export abstract class ScubaproRules extends DiveComputer {
    */
   gasTime(s: DiveSession, p: DecoParams, sacBar: number): number | null {
     return remainingTime({
-      tissues: s.tissues, depth: s.depth, gas: s.gas, tankPressure: s.tankPressure, reserve: s.tank.reserve,
+      tissues: s.tissues, depth: s.depth, gas: s.gas, tankPressure: s.tankPressure, reserve: this.reservePressure(),
       sacBar, rate: idealAscent, deco: p, anchor: this.anchor,
     });
   }

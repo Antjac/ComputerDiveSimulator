@@ -155,8 +155,8 @@ export class MaresGenius extends GeniusRules {
     const ai = v.tank.ai;
     const gas = this.nitrox(s) ? `<b class="yel">G1 ${v.o2}%</b>` : '<b>AIR</b>';
     const p = v.tank.pressure;
-    const mid = imperial() ? 1500 / 14.5038 : 100;
-    const low = imperial() ? 750 / 14.5038 : 50;
+    const mid = this.halfTank();
+    const low = imperial() ? 750 / 14.5038 : 50; // §2.3.1: "RED: below 50bar / 750psi"
     const col = tankRange(p, v.tank.fill, mid, low);
     const fill = ai ? Math.max(0, Math.min(100, (p / v.tank.fill) * 100)) : 0;
     return `<div class="gn-col">
@@ -200,11 +200,24 @@ export class MaresGenius extends GeniusRules {
     const runaway = ack('runaway', v.inDeco && tts5 - v.tts >= x * (Number(this.settings.runaway) || 2));
     const cns = ack('cns', v.cns > 75);
     const reserve = ack('reserve', ai && v.tank.pressure <= v.tank.reserve);
+    // §2.3 half tank warning at the MID TANK WARNING pressure. Its message is not given: HALF TANK, the
+    // Quad Ci's (§10.3.4.2, same family and menus), kept until a button is pressed like it (deduced).
+    const half = ack('half', ai && v.tank.pressure <= this.halfTank() && v.tank.pressure > v.tank.reserve);
     const lowTank = ack('lowtank', ai && v.inDeco && s.diveTime > 120 && v.tank.gasTime !== null && v.tank.gasTime < v.tts);
     if (v.ascentLevel === 2) mid = 'SLOW DOWN!'; // §8.5: the ascent rate alarm has priority
     else if (runaway) mid = 'RUNAWAY DECO';
     else if (cns) mid = 'CNS > 75%';
     else if (reserve) mid = 'TANK RESERVE<br>REACHED';
+    else if (half) mid = 'HALF TANK';
+    // §2.4.1: MAX DEPTH REACHED "stays there until you ascend above the set limit".
+    else if (this.settings.wMaxDepth !== 'off' && v.depth >= Number(this.settings.wMaxDepth)) mid = 'MAX DEPTH<br>REACHED';
+    // §2.4.2: TURN AROUND at half of the set time, TIME LIMIT at it, each until a button is pressed.
+    else if (ack('timelimit', this.settings.wTime !== 'off' && v.diveTime / 60 >= Number(this.settings.wTime))) mid = 'TIME LIMIT';
+    else if (ack('turn', this.settings.wTime !== 'off' && v.diveTime / 60 >= Number(this.settings.wTime) / 2)) mid = 'TURN AROUND';
+    // §2.4.3 / §2.4.4: "a warning will alert you"; the message is not given: the menu names, deduced,
+    // until a button is pressed like the other messages (assumed).
+    else if (ack('deco', this.settings.wDeco !== 'off' && v.inDeco)) mid = 'ENTERING<br>DECO';
+    else if (ack('nostop', this.settings.wNoDeco !== 'off' && !v.inDeco && v.ndl <= 2)) mid = 'NO STOP<br>2 MIN';
     if (v.ceilingViolation === 2) bot = 'BACK TO<br>STOP DEPTH';
     else if (this.violation === 'deco') bot = 'VIOLATION -<br>DECO';
     else if (v.depth > v.mod) bot = 'MOD EXCEEDED';

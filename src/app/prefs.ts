@@ -12,7 +12,6 @@ interface Prefs {
   units: UnitSystem;
   tank: string;
   rmv: number;
-  reserve: number;
   transmitter: boolean;
   rescue: boolean;
   view: '2d' | '3d';
@@ -38,7 +37,6 @@ export function savePrefs(): void {
     units: units(),
     tank: app.tankId,
     rmv: session.rmv,
-    reserve: session.tank.reserve,
     transmitter: session.transmitterOn,
     rescue: session.rescueAlert,
     view: app.view,
@@ -66,7 +64,6 @@ export function applyPrefs(): void {
   app.tankId = TANKS.some((k) => k.id === prefs.tank) ? prefs.tank! : '12-200';
   if (prefs.units === 'imperial') setUnits('imperial');
   if (prefs.rmv) session.rmv = prefs.rmv;
-  if (prefs.reserve) session.tank.reserve = prefs.reserve;
   if (prefs.transmitter === false) session.transmitterOn = false;
   session.rescueAlert = prefs.rescue === true; // off unless chosen
   applyTank();

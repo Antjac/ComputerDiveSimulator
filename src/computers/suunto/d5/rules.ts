@@ -1,12 +1,14 @@
 import type { DecoParams } from '../../../engine/buhlmann';
 import type { DiveSession } from '../../../engine/session';
 import { depthToPressure } from '../../../engine/buhlmann';
+import { sacBarPerMin } from '../../../engine/gas';
 import { type AlertCue, ComputerView, DiveComputer, SettingDef } from '../../base';
 import { Notices } from '../../common/notices';
 import { ppo2Setting } from '../../common/ppo2';
+import { pressureSetting, pressureValue } from '../../common/tank';
 
 /** §4.1 warnings (acknowledged with any button), then notifications. */
-export type D5Notice = 'cns-100' | 'tank-50' | 'gas-time' | 'safety-broken' | 'cns-80';
+export type D5Notice = 'cns-100' | 'otu-300' | 'depth' | 'dive-time' | 'tank-alarm' | 'tank-50' | 'gas-time' | 'safety-broken' | 'cns-80' | 'otu-250';
 
 /** Approximate GF high equivalent for each personal setting (calibrated on published NDLs). */
 export const PERSONAL: Record<string, number> = { '-2': 0.98, '-1': 0.93, '0': 0.88, '+1': 0.83, '+2': 0.78 };
@@ -29,8 +31,8 @@ export abstract class D5Rules extends DiveComputer {
   readonly transmitter = 'Tank POD';
   readonly gasTimeName = 'gas time';
   readonly notes = {
-    fr: 'Fused RGBM 2 est propriétaire : approximation (Bühlmann + réglage personnel, pénalités en successives et après remontée rapide). Affichage, deepstops, fenêtre de déco et verrouillage 48 h conformes au manuel. Bouton bas : fenêtre d’information (appui long : repère) ; bouton haut : chronomètre. Les vues du bouton central (boussole, pression) ne sont pas simulées. Alarmes (§4.1) : High pO2 en bandeau jaune ; avertissements (CNS 100 %, temps de gaz, palier de sécurité cassé, pression du bloc) et notification CNS 80 % en bandeau jusqu’à l’appui sur un bouton. Alarmes réglables (profondeur, durée, gaz, bloc) et OTU non simulées.',
-    en: 'Fused RGBM 2 is proprietary: approximation (Bühlmann + personal setting, penalties for repetitive dives and fast ascents). Display, deepstops, deco window and 48 h lock as per the manual. Lower button: switch window (hold: bookmark); upper button: timer. The middle button views (compass, tank pressure) are not simulated. Alarms (§4.1): High pO2 as a yellow band; warnings (CNS 100 %, gas time, safety stop broken, tank pressure) and the CNS 80 % notification as a band until a button is pressed. Configurable alarms (depth, time, gas, tank) and OTU are not simulated.',
+    fr: 'Fused RGBM 2 est propriétaire : approximation (Bühlmann + réglage personnel, pénalités en successives et après remontée rapide). Affichage, deepstops, fenêtre de déco et verrouillage 48 h conformes au manuel. Bouton bas : fenêtre d’information (appui long : repère) ; bouton haut : chronomètre. Les vues du bouton central (boussole, pression) ne sont pas simulées. Alarmes (§4.1) : High pO2 en bandeau jaune ; avertissements (CNS 100 %, temps de gaz, palier de sécurité cassé, pression du bloc) et notification CNS 80 % en bandeau jusqu’à l’appui sur un bouton. Alarme de pression du bloc réglable (valeur par défaut non indiquée : 100 bar, l’exemple du manuel, supposé) en plus de l’alarme fixe à 50 bar. Avertissements et notifications du §4.1 : CNS 80/100 %, OTU 250/300, Depth, Dive time et Gas time (seuils réglés dans l’application Suunto, plages et valeurs par défaut non indiquées : désactivés supposé), Safety stop broken, Tank pressure. Non simulés : changement de gaz, batteries.',
+    en: 'Fused RGBM 2 is proprietary: approximation (Bühlmann + personal setting, penalties for repetitive dives and fast ascents). Display, deepstops, deco window and 48 h lock as per the manual. Lower button: switch window (hold: bookmark); upper button: timer. The middle button views (compass, tank pressure) are not simulated. Alarms (§4.1): High pO2 as a yellow band; warnings (CNS 100 %, gas time, safety stop broken, tank pressure) and the CNS 80 % notification as a band until a button is pressed. Settable tank pressure alarm (default not given: 100 bar, the manual’s example, assumed) on top of the fixed 50 bar alarm. §4.1 warnings and notifications: CNS 80/100%, OTU 250/300, Depth, Dive time and Gas time (limits set in the Suunto app, ranges and defaults not given: off assumed), Safety stop broken, Tank pressure. Not simulated: gas change, batteries.',
   };
   readonly settingDefs: SettingDef[] = [
     {
@@ -78,6 +80,31 @@ export abstract class D5Rules extends DiveComputer {
     },
     // §4.18: pO2 setting 1.6 bar by default (1.4 recommended for nitrox); range not given, 1.0–1.6 assumed.
     ppo2Setting(1.0, 1.6, 1.6, 'pO2'),
+    // §4.1 Tank pressure: "There is a built in 50-bar alarm that cannot be changed. In addition to it,
+    // there is a configurable tank pressure alarm you can set to any value". Default not given: 100 bar,
+    // the §4.31 example, assumed (not verified); 60 to 200 bar by 10 offered.
+    pressureSetting('tankAlarm', { fr: 'Alarme de pression du bloc', en: 'Tank pressure alarm' }, 60, 200, 10, 100, { fr: 'Désactivée', en: 'Off' }),
+    // §4.1 warnings "Depth exceeds your depth alarm limit", "Dive time exceeds your dive time alarm limit",
+    // "Gas time is below your gas time alarm limit" (set in the Suunto app, §4.9). Ranges and defaults
+    // not given: off assumed.
+    {
+      key: 'depthAlarm',
+      label: { fr: 'Alarme de profondeur', en: 'Depth alarm' },
+      options: [{ value: 'off', label: { fr: 'Désactivée', en: 'Off' } }, ...Array.from({ length: 20 }, (_, i) => ({ value: String(5 + i * 5), label: `${5 + i * 5} m` }))],
+      default: 'off',
+    },
+    {
+      key: 'timeAlarm',
+      label: { fr: 'Alarme de durée de plongée', en: 'Dive time alarm' },
+      options: [{ value: 'off', label: { fr: 'Désactivée', en: 'Off' } }, ...Array.from({ length: 24 }, (_, i) => ({ value: String(5 + i * 5), label: `${5 + i * 5} min` }))],
+      default: 'off',
+    },
+    {
+      key: 'gasTimeAlarm',
+      label: { fr: 'Alarme de temps de gaz', en: 'Gas time alarm' },
+      options: [{ value: 'off', label: { fr: 'Désactivée', en: 'Off' } }, ...[5, 10, 15, 20, 25, 30].map((m) => ({ value: String(m), label: `${m} min` }))],
+      default: 'off',
+    },
   ];
 
   /** GF points removed because of fast ascents during this dive. */
@@ -144,8 +171,13 @@ export abstract class D5Rules extends DiveComputer {
     this.notices.clear();
   }
 
+  /** §4.1, §4.31: the configurable tank pressure alarm (bar), null when off. */
+  tankAlarm(): number | null {
+    return pressureValue(this.settings, 'tankAlarm');
+  }
+
   /** §4.1: warnings then notifications, shown until a button is pressed (order within each: the table's). */
-  protected notices = new Notices<D5Notice>(['cns-100', 'gas-time', 'safety-broken', 'tank-50', 'cns-80']);
+  protected notices = new Notices<D5Notice>(['cns-100', 'otu-300', 'depth', 'dive-time', 'gas-time', 'safety-broken', 'tank-50', 'tank-alarm', 'cns-80', 'otu-250']);
 
   /** The screen dismisses the warning itself (any button), see press(). */
   acknowledgeAlerts(): boolean {
@@ -158,10 +190,23 @@ export abstract class D5Rules extends DiveComputer {
     const cns = s.oxygen.cns;
     if (cns >= 100) now.push('cns-100');
     else if (cns >= 80) now.push('cns-80');
+    // OTU 300: "recommended daily limit"; OTU 250: "approximately 80% of recommended daily limit".
+    const otu = s.oxygen.otu;
+    if (otu >= 300) now.push('otu-300');
+    else if (otu >= 250) now.push('otu-250');
+    const depthAl = Number(this.settings.depthAlarm);
+    if (depthAl > 0 && s.depth > depthAl) now.push('depth');
+    const timeAl = Number(this.settings.timeAlarm);
+    if (timeAl > 0 && s.diveTime / 60 > timeAl) now.push('dive-time');
     const ai = this.airIntegrated(s);
-    // Gas time is zero below 35 bar; the built-in tank pressure alarm is at 50 bar.
-    if (ai && s.tankPressure < 35) now.push('gas-time');
+    // Gas time: "below your gas time alarm limit, or tank pressure is below 35 bar (~510 psi), in which
+    // case gas time is zero"; the built-in tank pressure alarm is at 50 bar.
+    const gasAl = Number(this.settings.gasTimeAlarm);
+    const gt = ai ? this.gasTime(s, this.decoParams(s), sacBarPerMin(s.rmv, s.tank.volume)) : null;
+    if (ai && (s.tankPressure < 35 || (gasAl > 0 && gt !== null && gt < gasAl))) now.push('gas-time');
     if (ai && s.tankPressure < 50) now.push('tank-50');
+    const alarm = this.tankAlarm();
+    if (ai && alarm !== null && s.tankPressure < alarm) now.push('tank-alarm');
     // "Ceiling of the voluntary safety stop broken by more than 0.6 m": the stop is counted from
     // 2.4 m down, so shallower than 1.8 m before it is completed.
     const st = this.safetyState;
@@ -240,7 +285,7 @@ export abstract class D5Rules extends DiveComputer {
     if (v.alarms.includes('CEILING')) alarm('ceiling');
     if (v.ppO2 > 1.6) alarm('po2');
     // Warnings and notifications sound when they appear (once; they stay on screen until acknowledged).
-    for (const key of this.notices.all) cues.push({ key, kind, level: key === 'cns-80' ? 'info' : 'warning', until: 'once' });
+    for (const key of this.notices.all) cues.push({ key, kind, level: key === 'cns-80' || key === 'otu-250' ? 'info' : 'warning', until: 'once' });
     return cues;
   }
 }

@@ -170,6 +170,9 @@ export class MaresQuadCi extends QuadCiRules {
       </div>`;
   }
 
+  /** §3.2.6: the GF @SURF value blinks (reached the warning value, not acknowledged yet). */
+  private gfSurfBlink = false;
+
   /** Current alarm or warning message (bottom-right block), highest priority first. */
   private alarm(v: ComputerView, s: DiveSession): Alarm | null {
     // Acknowledged messages stay off until the next dive.
@@ -186,20 +189,39 @@ export class MaresQuadCi extends QuadCiRules {
       a = { text: 'DECO VIOLATION!', cls: 'red' };
     } else if (v.depth > v.mod && ack('mod')) {
       a = { text: 'MOD EXCEEDED!', cls: 'red', full: true };
+    } else if (this.settings.wMaxDepth !== 'off' && v.depth >= Number(this.settings.wMaxDepth) && ack('maxdepth')) {
+      // §3.2.1: "an alarm similar in behaviour to the MOD alarm (section 10.3.2) is triggered, albeit with
+      // the message MAX DEPTH REACHED".
+      a = { text: 'MAX DEPTH REACHED', cls: 'red', full: true };
     } else if (v.cns > 75 && ack('cns')) {
       a = { text: 'CNS > 75%', cls: 'red', full: true };
     } else if (ai && v.inDeco && s.diveTime > 120 && (v.tank.gasTime ?? 0) < v.tts && ack('lowtank')) {
       a = { text: 'LOW TANK PRESSURE', cls: 'red' };
-    } else if (ai && v.tank.pressure < v.tank.reserve && ack('reserve')) {
+    } else if (ai && v.tank.pressure <= v.tank.reserve && ack('reserve')) {
+      // §10.3.4.2: TANK RESERVE and HALF TANK at the pressures set in §4.1, until a button is pressed.
       a = { text: 'TANK RESERVE', cls: 'red' };
-    } else if (ai && v.tank.pressure >= v.tank.reserve && v.tank.pressure < v.tank.fill / 2 && ack('half')) {
+    } else if (ai && this.settings.halfWarn !== 'off' && v.tank.pressure > v.tank.reserve && v.tank.pressure <= this.halfTank() && ack('half')) {
       a = { text: 'HALF TANK', cls: 'yellow' };
+    } else if (this.settings.wTime !== 'off' && v.diveTime / 60 >= Number(this.settings.wTime) && ack('timelimit')) {
+      // §3.2.2: TURN AROUND at half of the time limit, TIME LIMIT at it, each until a button is pressed.
+      a = { text: 'TIME LIMIT', cls: 'yellow' };
+    } else if (this.settings.wTime !== 'off' && v.diveTime / 60 >= Number(this.settings.wTime) / 2 && ack('turn')) {
+      a = { text: 'TURN AROUND', cls: 'yellow' };
+    } else if (this.settings.wDeco !== 'off' && v.inDeco && ack('deco')) {
+      // §3.2.3 / §3.2.4: "a warning will alert you"; its message is not given: the menu names, deduced,
+      // until a button is pressed like the other warnings (assumed).
+      a = { text: 'ENTERING DECO', cls: 'yellow' };
+    } else if (this.settings.wNoDeco !== 'off' && !v.inDeco && v.ndl <= 2 && ack('nodeco')) {
+      a = { text: 'NO DECO 2 MIN', cls: 'yellow' };
     }
+    // §3.2.6: GF @SURF "will blink on the screen until you push any button to confirm having seen it".
+    this.gfSurfBlink = this.settings.wGfSurf !== 'off' && v.surfGf >= Number(this.settings.wGfSurf) && this.acks.show('gfsurf');
     return a;
   }
 
+  /** §4.1.1: blue / green above HALF TANK, yellow down to 50 bar / 500 psi, red below. */
   private tankColor(v: ComputerView): string {
-    return tankRange(v.tank.pressure, v.tank.fill, v.tank.fill / 2, v.tank.reserve);
+    return tankRange(v.tank.pressure, v.tank.fill, this.halfTank(), imperial() ? 500 / 14.5038 : 50);
   }
 
   private tankBlock(v: ComputerView): string {
@@ -301,8 +323,8 @@ export class MaresQuadCi extends QuadCiRules {
     let bottomRight = this.brCell(v, s);
     if (slow) bottomRight = `<div class="qc-alarm red sm">SPEED<small>${alarm!.sub!.replace('SPEED ', '')} <u>${du}/min</u></small></div>`;
     else if (alarm) bottomRight = alarmBlock;
-    else if (surfacing) bottomRight = `<div class="qc-f"><em class="cy">GF @SURF/@+3</em><b>${Math.round(v.surfGf)}/${this.gfAt3(v, s)}</b></div>`;
-    else if (v.safety.state === 'active' || v.safety.state === 'paused') bottomRight = `<div class="qc-f"><em class="cy">GF @SURF/@+3</em><b>${Math.round(v.surfGf)}/${this.gfAt3(v, s)}</b></div>`;
+    else if (surfacing) bottomRight = `<div class="qc-f"><em class="cy">GF @SURF/@+3</em><b>${this.surfGfText(v)}/${this.gfAt3(v, s)}</b></div>`;
+    else if (v.safety.state === 'active' || v.safety.state === 'paused') bottomRight = `<div class="qc-f"><em class="cy">GF @SURF/@+3</em><b>${this.surfGfText(v)}/${this.gfAt3(v, s)}</b></div>`;
     const ai = v.tank.ai;
     const bottomLeft = ai ? `<div class="qc-c"><b>${pressText(v.tank.pressure)}<u>${pressUnit().toUpperCase()}</u></b></div>` : this.dtime(v, true);
     return `
@@ -314,6 +336,12 @@ export class MaresQuadCi extends QuadCiRules {
       <div class="qc-row mid">${ai ? this.dtime(v, true) : ''}<div class="qc-right">${mid}</div></div>
       ${this.tankBar(v)}
       <div class="qc-row low">${bottomLeft}${bottomRight}</div>`;
+  }
+
+  /** GF @SURF value, blinking while its §3.2.6 warning is not acknowledged. */
+  private surfGfText(v: ComputerView): string {
+    const t = String(Math.round(v.surfGf));
+    return this.gfSurfBlink ? `<span class="blink">${t}</span>` : t;
   }
 
   /**
@@ -370,10 +398,10 @@ export class MaresQuadCi extends QuadCiRules {
     const fields = this.brFields(s);
     switch (fields[this.brField % fields.length]) {
       case 'gf': return f('MAIN GF', `${v.gfLow}/${v.gfHigh}`);
-      case 'gfnow': return f('GF NOW/@SURF', `${Math.round(v.gf99)}/${Math.round(v.surfGf)}`);
+      case 'gfnow': return f('GF NOW/@SURF', `${Math.round(v.gf99)}/${this.surfGfText(v)}`);
       case 'gfrate': {
         const r = this.gfRate(v, s);
-        return `<div class="qc-f"><em class="cy">GF@SURF/RATE</em><b class="${r.cls}">${Math.round(v.surfGf)}/${r.text}</b></div>`;
+        return `<div class="qc-f"><em class="cy">GF@SURF/RATE</em><b class="${r.cls}">${this.surfGfText(v)}/${r.text}</b></div>`;
       }
       case 'o2': return f('O2', String(v.o2), '%');
       case 'cns': return f('CNS', String(Math.round(v.cns)), '%', v.cns > 75 ? 'red' : '');

@@ -13,6 +13,25 @@
 .modal table.compare { margin-bottom: 8px; }
 .modal table.compare th { position: static; }
 .about { width: min(620px, calc(100vw - 32px)); }
+/* Simulation details of a model */
+.model-info { width: min(640px, calc(100vw - 32px)); }
+.mi-head { padding-bottom: 10px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+.mi-head h2 { margin-bottom: 8px; }
+.mi-tags { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 12px; color: var(--muted); }
+.mi-tag b { color: var(--ink); font-weight: 600; }
+.mi-sec { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--panel-2); border-left: 3px solid var(--line); }
+.mi-sec h3 { margin: 0 0 6px; display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.mi-ico { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font-size: 11px; font-weight: 700; color: var(--bg); }
+.mi-sec ul { margin: 0; padding-left: 18px; }
+.mi-sec li { font-size: 12.5px; line-height: 1.5; color: var(--ink-2); margin: 3px 0; }
+.mi-sec.simulated { border-left-color: var(--ok); } .mi-sec.simulated .mi-ico { background: var(--ok); }
+.mi-sec.assumed { border-left-color: var(--warn); } .mi-sec.assumed .mi-ico { background: var(--warn); }
+.mi-sec.missing { border-left-color: var(--muted); } .mi-sec.missing .mi-ico { background: var(--muted); }
+.mi-sec.alerts { border-left-color: var(--accent); } .mi-sec.alerts .mi-ico { background: var(--accent); }
+.mi-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.mi-table td { padding: 3px 0; border-bottom: 1px solid var(--line); color: var(--ink-2); }
+.mi-table td:last-child { text-align: right; color: var(--ink); font-weight: 600; white-space: nowrap; padding-left: 10px; }
+.mi-sec .muted.small { margin: 6px 0 0; font-size: 11px; }
 .modal-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .modal-actions .btn { margin: 0; }
 /* Guided tour (src/ui/tour.ts): dimmed page with a spotlight gliding to each element, and a bubble. */

@@ -106,6 +106,15 @@ export abstract class DiveComputer {
     return 180;
   }
 
+  /**
+   * Tank reserve (bar) set on the computer: its "reserve" setting (range and default from its manual,
+   * see common/tank.ts), 50 bar for a model without one. Used for its alerts and remaining gas time.
+   */
+  reservePressure(): number {
+    const v = Number(this.settings.reserve);
+    return v > 0 ? v : 50;
+  }
+
   /** Does this computer show tank data (model supports a transmitter and it is enabled)? */
   airIntegrated(s: DiveSession): boolean {
     return this.transmitter !== null && s.transmitterOn;
@@ -345,7 +354,7 @@ export abstract class DiveComputer {
     const ai = this.airIntegrated(s);
     const sacBar = sacBarPerMin(s.rmv, s.tank.volume);
     if (s.inDive && s.outOfGas) alarms.push('OUT_OF_GAS');
-    else if (s.inDive && ai && s.tankPressure < s.tank.reserve) alarms.push('LOW_GAS');
+    else if (s.inDive && ai && s.tankPressure < this.reservePressure()) alarms.push('LOW_GAS');
 
     return {
       inDive: s.inDive,
@@ -387,7 +396,7 @@ export abstract class DiveComputer {
       tank: {
         pressure: s.tankPressure,
         fill: s.tank.fill,
-        reserve: s.tank.reserve,
+        reserve: this.reservePressure(),
         ai,
         sacBar,
         gasTime: ai && s.inDive && !s.outOfGas ? this.gasTime(s, p, sacBar) : null,

@@ -6,6 +6,7 @@ import { setupBoat } from './app/boat';
 import { setupCompare } from './app/compare';
 import { installDevHook } from './app/devHook';
 import { showIntro, setupDialogs } from './app/dialogs';
+import { setupModelInfo } from './app/modelInfo';
 import { setupExercises } from './app/exercises';
 import { setView, setupDiveControls } from './app/diveControls';
 import { setupDevice } from './app/device';
@@ -38,6 +39,7 @@ session.on((e) => {
 setupSettings();
 setupDiveControls();
 setupDialogs();
+setupModelInfo();
 setupLanguage();
 setupTabs();
 setupTour();

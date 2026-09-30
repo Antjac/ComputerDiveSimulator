@@ -23,8 +23,9 @@ select:disabled { opacity: 0.55; }
 .btn:disabled { opacity: 0.45; cursor: default; }
 .btn.danger:hover { border-color: var(--crit); }
 .algo-info p { margin: 6px 0 0; font-size: 12px; color: var(--ink-2); }
-.model-notes { margin-top: 6px; }
-.model-notes summary { cursor: pointer; color: var(--ink-2); font-size: 12px; }
+.algo-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 12px; }
+.info-btn { margin-top: 6px; display: inline-flex; align-items: center; gap: 6px; }
+.info-btn .icon { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; border: 1px solid currentColor; font: italic 700 11px Georgia, serif; }
 .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 999px; border: 1px solid; }
 .badge.exact { color: var(--ok); border-color: var(--ok); }
 .badge.approx { color: var(--warn); border-color: var(--warn); }
@@ -36,6 +37,15 @@ select:disabled { opacity: 0.55; }
 .advanced[open] summary { margin-bottom: 8px; }
 .advanced[open] .adv-sum { display: none; }
 .adv-sum { display: block; margin-top: 2px; font-size: 11px; color: var(--muted); }
+/* Advanced settings by theme; the alert settings have long names: one per row, name beside its value. */
+.adv-group + .adv-group, .adv-group + #computer-settings-adv > .adv-group { margin-top: 12px; }
+#computer-settings-adv > .adv-group { margin-top: 12px; }
+.adv-group h4 { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--ink-2); text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--line); padding-bottom: 3px; }
+.adv-group .grid-hint { margin: 0 0 6px; }
+.adv-group.alerts .settings-grid { grid-template-columns: 1fr; gap: 4px; }
+.adv-group.alerts .field { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
+.adv-group.alerts .field > span:first-child { white-space: normal; overflow: visible; }
+.adv-group.alerts .field select { flex: 0 0 auto; max-width: 45%; }
 .help summary { cursor: pointer; color: var(--ink-2); font-size: 13px; }
 .help p { font-size: 12px; color: var(--ink-2); }
 .help a { color: var(--accent); overflow-wrap: anywhere; }

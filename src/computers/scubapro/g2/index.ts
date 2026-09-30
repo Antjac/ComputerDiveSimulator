@@ -1,14 +1,33 @@
-import { ndl, planAscent } from '../../../engine/buhlmann';
 import type { DiveSession } from '../../../engine/session';
 import { depthInt, depthText, imperial, pressText, pressUnit, tempUnit, tempVal } from '../../../units';
 import type { Lang } from '../../../i18n';
 import { ButtonHelp, ComputerView, clockOfDay, hmm, mmss } from '../../base';
-import { idealAscent, levelParams } from '../common';
-import { G2Rules } from './rules';
+import { idealAscent } from '../common';
+import { type G2Warning, G2Rules } from './rules';
 
 const DU = () => (imperial() ? 'FEET' : 'METER');
 const DU1 = () => (imperial() ? 'FT' : 'M');
 const TU = () => tempUnit();
+
+/** Pop-up texts of the §3.5 warnings, as on the figures ("ENTERING DECO" has no figure: deduced from "ENTERING DECO AT L0"). */
+function warningText(k: G2Warning, tankWarn: number): string {
+  switch (k) {
+    case 'depth': return 'MAX DEPTH REACHED';
+    case 'cns75': return 'CNS O2 = 75%';
+    case 'nostop': return 'NO STOP = 2 MINUTES';
+    case 'deco': return 'ENTERING DECO';
+    case 'time': return 'TIME LIMIT REACHED';
+    case 'turn': return 'TURN-AROUND TIME';
+    // §3.5.7 figure: "100BAR REACHED" (the psi wording is not shown: same pattern assumed).
+    case 'tank': return `${pressText(tankWarn)}${pressUnit().toUpperCase()} REACHED`;
+    case 'rbt3': return 'RBT = 3 MINUTES';
+    case 'levelStops': return 'ENTERING LEVEL STOPS';
+    case 'mbIgnored': return 'MB STOP IGNORED';
+    case 'mbReduced': return 'MB LEVEL REDUCED';
+    case 'l0Nostop': return 'L0 NO-STOP = 2MIN';
+    case 'l0Deco': return 'ENTERING DECO AT L0';
+  }
+}
 
 /** Stop window content, as in the manual: "10:  3" with MINUTE / METER underneath. */
 function stopValue(minutes: number, depth: number): string {
@@ -66,20 +85,13 @@ export class ScubaproG2 extends G2Rules {
     const pct = Math.max(0, Math.round((v.ascentRate / ideal) * 100));
 
     // MB level information (level stops are not mandatory).
-    let levelNdl = v.ndl;
-    let levelStop: { depth: number; min: number } | null = null;
-    let levelTat = v.tts;
-    if (v.inDive && this.activeLevel > 0 && !v.inDeco) {
-      const lp = levelParams(this.activeLevel);
-      levelNdl = ndl(s.tissues, v.depth, s.gas, lp.gfHigh);
-      if (levelNdl === 0) {
-        const lplan = planAscent(s.tissues, v.depth, s.gas, lp, this.levelAnchor);
-        if (lplan.stops[0]) levelStop = { depth: lplan.stops[0].depth, min: Math.ceil(lplan.stops[0].minutes) };
-        levelTat = lplan.tts;
-      }
-    }
+    const lv = this.levelInfo(v, s);
+    const { ndl: levelNdl, stop: levelStop, tat: levelTat } = lv;
+    // §3.5 warnings shown in the pop-up window; §3.5.1: "the related data window is highlighted".
+    const warnings = this.updateWarnings(v, lv, s);
+    const warn = warnings[0];
 
-    // Pop-up bar: alarm (red) > warning (yellow) > button labels.
+    // Pop-up bar: alarm (red, §3.6) > warning (yellow, §3.5) > button labels.
     let bar = '<span>TIMER</span><span>MORE</span><span>DIM</span>';
     let barCls = '';
     if (v.inDive) {
@@ -89,16 +101,14 @@ export class ScubaproG2 extends G2Rules {
       else if (v.cns >= 100) [bar, barCls] = ['CNS O2 = 100%', 'red'];
       else if (v.tank.ai && v.tank.pressure < v.tank.reserve) [bar, barCls] = ['TANK RESERVE REACHED', 'red'];
       else if (v.tank.ai && v.tank.gasTime === 0) [bar, barCls] = ['RBT = 0 MIN', 'red'];
-      else if (v.tank.ai && v.tank.gasTime !== null && v.tank.gasTime <= 3) [bar, barCls] = ['RBT = 3 MIN', 'yellow'];
-      else if (s.clock - this.levelReducedAt < 30) [bar, barCls] = [`MB LEVEL REDUCED L${this.activeLevel}`, 'yellow'];
-      else if (v.cns >= 75) [bar, barCls] = ['CNS O2 = 75%', 'yellow'];
-      else if (!v.inDeco && levelNdl <= 2 && levelNdl > 0) [bar, barCls] = ['NO STOP = 2 MIN', 'yellow'];
+      else if (warn) [bar, barCls] = [warningText(warn, this.tankWarnPressure() ?? 0), 'yellow'];
     }
+    const hl = (...k: G2Warning[]) => (k.some((x) => warnings.includes(x)) ? 'yellow' : '');
     const note = this.flashMessage();
     if (note && barCls !== 'red') [bar, barCls] = [note, ''];
 
     // Depth window colour follows the ascent speed (yellow > 110 %, red > 140 %).
-    const depthWin = v.ascentLevel === 2 ? 'red' : v.ascentLevel === 1 ? 'yellow' : '';
+    const depthWin = v.ascentLevel === 2 ? 'red' : v.ascentLevel === 1 ? 'yellow' : hl('depth', 'mbIgnored');
     const depthTxt = v.depth < 0.8 ? '---' : depthText(v.depth);
     const depthCls = v.depth > v.mod || v.ceilingViolation === 2 ? 'red blink' : '';
 
@@ -133,7 +143,7 @@ export class ScubaproG2 extends G2Rules {
     } else if (this.pdisState === 'active') {
       [mainLbl, mainUnit, mainVal] = [`PDIS ${depthInt(this.pdisDepth)}${DU1()}`, 'MIN', mmss(this.pdisRemaining)];
     }
-    const noStopLow = mainLbl === 'NO STOP' && (this.activeLevel > 0 ? levelNdl : v.ndl) <= 2 ? 'yellow' : '';
+    const noStopLow = mainLbl === 'NO STOP' && (this.activeLevel > 0 ? levelNdl : v.ndl) <= 2 ? 'yellow' : hl('deco', 'levelStops', 'l0Deco');
 
     // Light is the factory default; it switches to Classic automatically when decompression (or level
     // stop) information must be shown. Classic, Full and Graphical keep their layout.
@@ -146,14 +156,15 @@ export class ScubaproG2 extends G2Rules {
     const speed = v.inDive && pct > 0 && v.ascentRate > 0.5 ? `▲ ${pct}%` : DU();
     const depthWinHtml = (extra: string) => win('DEPTH', speed, `<span class="${depthCls}">${depthTxt}</span>`, depthWin, extra);
     // Tank window (Smart transmitter) and RBT.
-    const tankCls = v.tank.pressure < v.tank.reserve ? 'red' : '';
+    // §3.5.1: the data window related to a warning is highlighted (yellow) while it shows.
+    const tankCls = v.tank.pressure < v.tank.reserve ? 'red' : hl('tank');
     const tankHtml = (extra: string, withO2 = true) => win('TANK', pressUnit().toUpperCase(),
       `${pressText(v.tank.pressure)}${withO2 ? `<span class="g2-o2">${v.o2}%<small>O2</small></span>` : ''}`, tankCls, extra);
     const rbt = v.tank.gasTime;
     const rbtHtml = (extra: string) => win('RBT', 'MIN', rbt === null ? '--' : `${rbt}:`, rbt !== null && rbt <= 3 ? (rbt === 0 ? 'red' : 'yellow') : '', extra);
     const ai = v.tank.ai;
     const diveTimeHtml = (extra: string, colon = true) => win(v.inDive ? 'DIVE TIME' : 'SURF. INT.', v.inDive ? 'MIN' : 'HR',
-      v.inDive ? `${Math.floor(v.diveTime / 60)}${colon ? ':' : ''}` : v.surfaceInterval !== null ? hmm(v.surfaceInterval / 60) : '--', '', extra);
+      v.inDive ? `${Math.floor(v.diveTime / 60)}${colon ? ':' : ''}` : v.surfaceInterval !== null ? hmm(v.surfaceInterval / 60) : '--', hl('time', 'turn'), extra);
     // The Classic main window is narrow: long labels (SAFETY STOP, LEVEL STOP) drop the unit.
     const mainHtml = (extra: string) =>
       win(mainLbl, extra === 'c-main' && mainLbl.length > 9 ? '' : mainUnit, mainVal, `${mainCls} ${noStopLow}`, extra);

@@ -179,8 +179,8 @@ export class MaresQuadAir extends QuadAirRules {
     if (surfacing) bot = 'o2';
 
     // Acknowledgeable alarms.
-    const reserveAt = imperial() ? v.tank.reserve : Math.max(50, v.tank.reserve); // §3.2.5 note
-    const halfAt = imperial() ? 1500 / 14.5038 : 100; // §2.2.1.6 tANK WARN default
+    const reserveAt = this.reserveAlarmAt(); // §3.2.5 note
+    const halfAt = this.halfTank(); // §2.2.1.6 tANK WARN
     const asc5 = v.inDeco ? this.asc5(v, s) : 0;
     const lowTank = this.ackable('lowtank', ai && v.inDeco && s.diveTime > 120 && v.tank.gasTime !== null && v.tank.gasTime < v.tts);
     const reserveBlink = ai && v.tank.pressure <= reserveAt; // keeps blinking after the acknowledgement

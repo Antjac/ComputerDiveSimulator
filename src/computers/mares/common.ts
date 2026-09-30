@@ -1,7 +1,7 @@
 // Rules shared by the Mares computers (from their manuals; each model cites its own sections).
 import { ndl, pressureToDepth, type DecoParams } from '../../engine/buhlmann';
 import type { DiveSession } from '../../engine/session';
-import type { AlertCue, ComputerView } from '../base';
+import type { AlertCue, ComputerView, SettingDef } from '../base';
 
 /**
  * Gradient factor sets of the ZH-L16C models (Quad Ci, Genius). The manuals give R0 (85/85),
@@ -164,4 +164,31 @@ export function maresCues(v: ComputerView): AlertCue[] {
   if (v.alarms.includes('CEILING')) alarm('missed-stop');
   if (v.cns >= 100) cues.push({ key: 'cns-100', kind: 'beep', level: 'warning', until: 'clear', first: 5, every: 60, repeat: 5 });
   return cues;
+}
+
+/**
+ * WARNINGS menu of the Quad Ci (§3.2) and the Genius (§2.4), described in the same words: MAX DEPTH
+ * ("between 10m / 30ft and up to just shy of the MOD, in 1m / 5ft increments", default OFF), DIVE TIME
+ * ("between 20 and 90 minutes in 2-minute increments", default OFF, TURN AROUND at half of it), NO DECO /
+ * NO STOP at 2 minutes and ENTERING DECO (ON / OFF, defaults not given: ON assumed).
+ */
+export function maresWarningSettings(noDecoName: string): SettingDef[] {
+  const off = { value: 'off', label: 'OFF' };
+  const onOff = [{ value: 'on', label: 'ON' }, off];
+  return [
+    {
+      key: 'wMaxDepth',
+      label: { fr: 'Alarme de profondeur (MAX DEPTH)', en: 'Max depth alarm (MAX DEPTH)' },
+      options: [off, ...Array.from({ length: 51 }, (_, i) => ({ value: String(10 + i), label: `${10 + i} m` }))],
+      default: 'off',
+    },
+    {
+      key: 'wTime',
+      label: { fr: 'Alarme de durée (DIVE TIME)', en: 'Dive time alarm (DIVE TIME)' },
+      options: [off, ...Array.from({ length: 36 }, (_, i) => ({ value: String(20 + i * 2), label: `${20 + i * 2} min` }))],
+      default: 'off',
+    },
+    { key: 'wNoDeco', label: { fr: `Avertissement ${noDecoName} = 2 min`, en: `${noDecoName} = 2 min warning` }, options: onOff, default: 'on' },
+    { key: 'wDeco', label: { fr: 'Avertissement d’entrée en déco (ENTERING DECO)', en: 'Entering deco warning (ENTERING DECO)' }, options: onOff, default: 'on' },
+  ];
 }

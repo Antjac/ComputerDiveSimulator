@@ -11,6 +11,9 @@ export interface SettingOption {
   label: string | { fr: string; en: string };
 }
 
+/** Theme of a setting in the advanced settings (see settingGroup() in app/settings.ts). */
+export type SettingGroup = 'deco' | 'alerts' | 'sound' | 'display';
+
 export interface SettingDef {
   key: string;
   label: { fr: string; en: string };
@@ -18,6 +21,8 @@ export interface SettingDef {
   default: string;
   /** Shown without the advanced mode (e.g. the screen layout). */
   essential?: boolean;
+  /** Theme in the advanced settings; guessed from the key when not given. */
+  group?: SettingGroup;
   /** Shown only when this returns true (e.g. custom GF values only with the Custom conservatism). */
   showIf?: (settings: Record<string, string>) => boolean;
 }

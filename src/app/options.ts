@@ -8,7 +8,6 @@ export const SPEEDS = [1, 2, 5, 10, 30, 60, 120, 300];
 export const GASES = [21, 28, 32, 36, 40];
 export const SITES = [20, 30, 40, 60, 80];
 export const RMVS = [12, 14, 16, 18, 20, 22, 25, 28, 32];
-export const RESERVES = [30, 50, 70];
 export const ENVS: { id: Environment; key: I18nKey }[] = [
   { id: 'reef', key: 'envReef' },
   { id: 'wreck', key: 'envWreck' },

@@ -3,8 +3,9 @@ import { type DiveSession } from '../../../engine/session';
 import { type AlertCue, ComputerView, DiveComputer, SettingDef } from '../../base';
 import { divingDays, standardNoFly } from '../../common/dives';
 import { surfGfAfter, ttsAfter } from '../../common/predict';
-import { DeepStop, FastAscentZhl, MissedStop, PRESETS, maresCues, quadAscentLimit } from '../common';
+import { DeepStop, FastAscentZhl, MissedStop, PRESETS, maresCues, maresWarningSettings, quadAscentLimit } from '../common';
 import { ppo2Setting } from '../../common/ppo2';
+import { pressureSetting } from '../../common/tank';
 
 const atm = (d: number) => depthToPressure(d) / 1.01325;
 const LEVELS = [{ value: 'off', label: 'OFF' }, { value: '1', label: 'LOW' }, { value: '2', label: 'MEDIUM' }, { value: '3', label: 'HIGH' }];
@@ -24,8 +25,8 @@ export abstract class GeniusRules extends DiveComputer {
   readonly transmitter = 'Tank module';
   readonly gasTimeName = 'TTR';
   readonly notes = {
-    fr: 'Bühlmann ZH-L16C non modifié avec gradient factors : reproduit (R0 85/85, R1 70/80, R3 50/60, T0 30/85 et T3 25/40 d’après le manuel, R2, T1 et T2 interpolés), personnalisation PHYSIO / DIVE / I TODAY, successives (−8 puis +1 par 15 min) et multi-jours (−2 par jour, max −6) en option. Vitesse maximale selon la profondeur (5 / 10 / 15 / 20 m/min, flèches de 20 % à gauche, SLOW DOWN!) ; plus de 120 % sur plus de 20 m ou palier manqué (< 1 m pendant 3 min, > 1 m pendant 1 min) = verrouillage 48 h. BACK TO STOP DEPTH à 0,3 m au-dessus du palier ; RUNAWAY DECO ; CNS > 75 % ; TANK RESERVE REACHED ; LOW TANK PRESSURE (TTR < TTS). Boutons : profil (2e), champ en bas à droite (3e), champ en haut à droite (4e), graphique des tissus (4e long). Non simulés : boussole, menu sous l’eau, cartes, liste des paliers, GF alternatifs, CEIL-CON, multigaz, RGT, mode nuit, avertissements optionnels (profondeur, durée, NO STOP, entrée en déco), niveau des batteries (valeur fictive).',
-    en: 'Unmodified Bühlmann ZH-L16C with gradient factors: reproduced (R0 85/85, R1 70/80, R3 50/60, T0 30/85 and T3 25/40 from the manual, R2, T1 and T2 interpolated), PHYSIO / DIVE / I TODAY personalization, optional repetitive dive (−8 then +1 per 15 min) and multiday (−2 per day, max −6) conservatism. Depth-dependent maximum ascent rate (5 / 10 / 15 / 20 m/min, 20 % arrows on the left, SLOW DOWN!); more than 120 % over more than 20 m or a missed stop (< 1 m for 3 min, > 1 m for 1 min) = 48 h lock. BACK TO STOP DEPTH 0.3 m above the stop; RUNAWAY DECO; CNS > 75%; TANK RESERVE REACHED; LOW TANK PRESSURE (TTR < TTS). Buttons: profile (2nd), bottom-right field (3rd), top-right field (4th), tissue graph (4th hold). Not simulated: compass, underwater menu, maps, list of stops, alternate GF, CEIL-CON, multigas, RGT, night mode, optional warnings (depth, time, NO STOP, entering deco), battery levels (fictitious value).',
+    fr: 'Bühlmann ZH-L16C non modifié avec gradient factors : reproduit (R0 85/85, R1 70/80, R3 50/60, T0 30/85 et T3 25/40 d’après le manuel, R2, T1 et T2 interpolés), personnalisation PHYSIO / DIVE / I TODAY, successives (−8 puis +1 par 15 min) et multi-jours (−2 par jour, max −6) en option. Vitesse maximale selon la profondeur (5 / 10 / 15 / 20 m/min, flèches de 20 % à gauche, SLOW DOWN!) ; plus de 120 % sur plus de 20 m ou palier manqué (< 1 m pendant 3 min, > 1 m pendant 1 min) = verrouillage 48 h. BACK TO STOP DEPTH à 0,3 m au-dessus du palier ; RUNAWAY DECO ; CNS > 75 % ; TANK RESERVE REACHED ; LOW TANK PRESSURE (TTR < TTS). Boutons : profil (2e), champ en bas à droite (3e), champ en haut à droite (4e), graphique des tissus (4e long). Non simulés : boussole, menu sous l’eau, cartes, liste des paliers, GF alternatifs, CEIL-CON, multigaz, RGT, mode nuit, niveau des batteries (valeur fictive). Émetteur : HALF TANK à la pression MID TANK WARNING (100 bar par défaut ; libellé repris du Quad Ci, non vérifié) et TANK RESERVE REACHED (50 bar par défaut), jusqu’à l’appui sur un bouton. Avertissements du §2.4 : MAX DEPTH REACHED, TURN AROUND / TIME LIMIT (désactivés par défaut), NO STOP 2 min et entrée en déco (activés supposé ; textes non donnés : « NO STOP 2 MIN » et « ENTERING DECO » déduits).',
+    en: 'Unmodified Bühlmann ZH-L16C with gradient factors: reproduced (R0 85/85, R1 70/80, R3 50/60, T0 30/85 and T3 25/40 from the manual, R2, T1 and T2 interpolated), PHYSIO / DIVE / I TODAY personalization, optional repetitive dive (−8 then +1 per 15 min) and multiday (−2 per day, max −6) conservatism. Depth-dependent maximum ascent rate (5 / 10 / 15 / 20 m/min, 20 % arrows on the left, SLOW DOWN!); more than 120 % over more than 20 m or a missed stop (< 1 m for 3 min, > 1 m for 1 min) = 48 h lock. BACK TO STOP DEPTH 0.3 m above the stop; RUNAWAY DECO; CNS > 75%; TANK RESERVE REACHED; LOW TANK PRESSURE (TTR < TTS). Buttons: profile (2nd), bottom-right field (3rd), top-right field (4th), tissue graph (4th hold). Not simulated: compass, underwater menu, maps, list of stops, alternate GF, CEIL-CON, multigas, RGT, night mode, battery levels (fictitious value). Transmitter: HALF TANK at the MID TANK WARNING pressure (100 bar by default; wording taken from the Quad Ci, not verified) and TANK RESERVE REACHED (50 bar by default), until a button is pressed. §2.4 warnings: MAX DEPTH REACHED, TURN AROUND / TIME LIMIT (off by default), NO STOP 2 min and entering deco (on assumed; texts not given: "NO STOP 2 MIN" and "ENTERING DECO" deduced).',
   };
   readonly settingDefs: SettingDef[] = [
     {
@@ -115,6 +116,12 @@ export abstract class GeniusRules extends DiveComputer {
     },
     // Manual: ppO2max 1.4 bar from the factory, up to 1.6 bar (from 1.2, step 0.1: assumed as on the other Mares).
     ppo2Setting(1.2, 1.6, 1.4, 'ppO2max'),
+    // §2.3 GAS INTEGRATION: "MID TANK WARNING, is the value at which Genius triggers a half tank warning
+    // [...] Default values are 100bar"; "TANK RESERVE, is the value at which an alarm is triggered [...]
+    // Default values are 50bar". Ranges not given: 5 bar steps offered.
+    pressureSetting('halfTank', { fr: 'Avertissement de demi-bloc (MID TANK WARNING)', en: 'Mid tank warning' }, 60, 200, 5, 100),
+    pressureSetting('reserve', { fr: 'Réserve (TANK RESERVE)', en: 'Tank reserve' }, 20, 100, 5, 50),
+    ...maresWarningSettings('NO STOP'),
   ];
 
   protected fast = new FastAscentZhl();
@@ -165,7 +172,7 @@ export abstract class GeniusRules extends DiveComputer {
 
   /** §2.3: TTR, minutes before the tank reserve at the current depth and breathing rate. */
   gasTime(s: DiveSession, _p: DecoParams, sacBar: number): number | null {
-    return Math.max(0, Math.min(99, Math.floor((s.tankPressure - s.tank.reserve) / (sacBar * atm(s.depth)))));
+    return Math.max(0, Math.min(99, Math.floor((s.tankPressure - this.reservePressure()) / (sacBar * atm(s.depth)))));
   }
 
   onDiveStart(s: DiveSession): void {
@@ -234,6 +241,11 @@ export abstract class GeniusRules extends DiveComputer {
    * Audible alarms (instruction manual §5): fast ascent, MOD exceeded and missed deco stop sound while they last;
    * CNS 100 %: 5 s in one-minute intervals; CNS 75 %%, once. §4 ALL SILENT MODE turns the audible alarms off (off by default, assumed).
    */
+  /** §2.3 MID TANK WARNING (bar): the half tank warning, and the limit of the blue / green and yellow ranges (§2.3.1). */
+  halfTank(): number {
+    return Number(this.settings.halfTank) || 100;
+  }
+
   alertCues(v: ComputerView): AlertCue[] {
     if (this.settings.silent === 'on' || !v.inDive) return [];
     const cues = maresCues(v);
@@ -241,6 +253,8 @@ export abstract class GeniusRules extends DiveComputer {
     // TANK RESERVE alarm (with a tank module; "alarms are both visual and audible"). How it is
     // acknowledged is not given: a button press, as on the Quad Air, assumed.
     if (v.tank.ai && v.tank.pressure <= v.tank.reserve) cues.push({ key: 'reserve', kind: 'beep', level: 'warning', until: 'ack', every: 3 });
+    // Half tank warning (§2.3): its sound is not described, a notice until a button is pressed assumed.
+    else if (v.tank.ai && v.tank.pressure <= this.halfTank()) cues.push({ key: 'half', kind: 'beep', level: 'info', until: 'ack', every: 3 });
     return cues;
   }
 }

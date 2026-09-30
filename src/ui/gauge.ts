@@ -2,7 +2,7 @@ import { imperial, pressUnit, pressVal } from '../units';
 
 /**
  * Analog submersible pressure gauge (SPG), shown next to the computer when the tank data is not
- * displayed on it. Scale 0–300 bar or 0–5000 psi, red zone up to the reserve.
+ * displayed on it. Scale 0–300 bar or 0–5000 psi, red zone up to `reserveBar`.
  */
 export function renderGauge(bar: number, reserveBar: number, title: string): string {
   const max = imperial() ? 5000 : 300;
