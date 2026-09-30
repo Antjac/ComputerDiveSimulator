@@ -6,7 +6,8 @@
 @import './styles/header.css';
 @import './styles/device.css';
 @import './styles/scene.css';
-@import './computers/shearwater/shearwater.css';
+@import './computers/shearwater/perdix/shearwater.css';
+@import './computers/shearwater/peregrine/peregrine.css';
 @import './computers/garmin/garmin.css';
 @import './computers/suunto/d5/suunto.css';
 @import './computers/suunto/zoopnovo/zoopnovo.css';

@@ -1,9 +1,9 @@
-import { type DecoParams, ndl, SURFACE_PRESSURE } from '../../engine/buhlmann';
-import type { DiveSession } from '../../engine/session';
-import { remainingTime } from '../../engine/gas';
-import { type AlertCue, type ComputerView, DiveComputer, SettingDef } from '../base';
-import { Notices } from '../common/notices';
-import { ppo2Setting } from '../common/ppo2';
+import { type DecoParams, ndl, SURFACE_PRESSURE } from '../../../engine/buhlmann';
+import type { DiveSession } from '../../../engine/session';
+import { remainingTime } from '../../../engine/gas';
+import { type AlertCue, type ComputerView, DiveComputer, SettingDef } from '../../base';
+import { Notices } from '../../common/notices';
+import { ppo2Setting } from '../../common/ppo2';
 
 export type PerdixNotice = 'high-ppo2' | 'missed-stop' | 'fast-ascent' | 'high-cns' | 'gas';
 

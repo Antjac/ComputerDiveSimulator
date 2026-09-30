@@ -1,8 +1,8 @@
-import { Tissues, depthToPressure, planAscent } from '../../engine/buhlmann';
-import type { DiveSession } from '../../engine/session';
-import type { Lang } from '../../i18n';
-import { depthInt, depthText, depthUnit, imperial, pressText, pressUnit, tempUnit, tempVal } from '../../units';
-import { ButtonHelp, ComputerView, clockOfDay, leadingOnGas } from '../base';
+import { Tissues, depthToPressure, planAscent } from '../../../engine/buhlmann';
+import type { DiveSession } from '../../../engine/session';
+import type { Lang } from '../../../i18n';
+import { depthInt, depthText, depthUnit, imperial, pressText, pressUnit, tempUnit, tempVal } from '../../../units';
+import { ButtonHelp, ComputerView, clockOfDay, leadingOnGas } from '../../base';
 import { type PerdixNotice, PerdixRules } from './rules';
 
 const NOTICE_TEXT: Record<PerdixNotice, string> = {

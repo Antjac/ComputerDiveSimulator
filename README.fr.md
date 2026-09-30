@@ -15,6 +15,7 @@ Interface disponible en français et en anglais, unités métriques ou impérial
 | Modèle | Algorithme | Fidélité |
 | --- | --- | --- |
 | Shearwater Perdix 2 (mode Recreational) | Bühlmann ZHL-16C + GF | Algorithme public, reproduit |
+| Shearwater Peregrine TX (modes Air / Nitrox) | Bühlmann ZHL-16C + GF | Algorithme public, reproduit |
 | Garmin Descent Mk3i | Bühlmann ZHL-16C + GF | Algorithme public, reproduit |
 | Suunto D5 | Fused RGBM 2 | Approximation (≈) |
 | Suunto Zoop Novo | Suunto RGBM | Approximation (≈) |
@@ -61,7 +62,7 @@ npm run stops     # contrôle le comportement aux paliers de déco de chaque ord
 - **Comment s'en servir ?** (à côté du titre, ou « Faire la visite » dans l'avertissement d'accueil) lance une visite guidée de l'interface.
 - Les boutons des ordinateurs sont cliquables, avec appui long quand le modèle en a un. Une info-bulle indique la fonction réelle de chaque bouton pendant la plongée (d'après le manuel du fabricant) et précise ce qui n'est pas simulé ; les boutons sans aucune fonction simulée apparaissent grisés.
 
-- 🔇 / 🔊 (dans l'en-tête) active ou coupe les sons des alarmes des ordinateurs (coupés par défaut, le choix est mémorisé). Chaque modèle sonne comme le décrit son manuel : bips (Mares, Scubapro, Cressi), sons et vibrations (Garmin, Suunto), vibrations seules pour le Perdix 2. Une vibration est jouée comme un bourdonnement, fait trembler l'ordinateur à l'écran et, sur les téléphones qui le permettent (Android), vibre vraiment. Les alarmes qui se répètent jusqu'à acquittement s'arrêtent quand on appuie sur un bouton de l'ordinateur (SELECT sur le Perdix 2). Les réglages de chaque modèle comprennent son propre interrupteur (ALRM, All silent, Silent diving…).
+- 🔇 / 🔊 (dans l'en-tête) active ou coupe les sons des alarmes des ordinateurs (coupés par défaut, le choix est mémorisé). Chaque modèle sonne comme le décrit son manuel : bips (Mares, Scubapro, Cressi), sons et vibrations (Garmin, Suunto), vibrations seules pour le Perdix 2 et le Peregrine TX. Une vibration est jouée comme un bourdonnement, fait trembler l'ordinateur à l'écran et, sur les téléphones qui le permettent (Android), vibre vraiment. Les alarmes qui se répètent jusqu'à acquittement s'arrêtent quand on appuie sur un bouton de l'ordinateur (SELECT sur le Perdix 2, l'un ou l'autre bouton sur le Peregrine TX). Les réglages de chaque modèle comprennent son propre interrupteur (ALRM, All silent, Silent diving…).
 
 ## Exercices
 
@@ -90,7 +91,7 @@ scripts/         scripts de calibration, de scénarios et de non-régression (sn
 
 ## Marques et affiliation
 
-Ce projet est indépendant et **n'est ni affilié, ni approuvé, ni sponsorisé** par les fabricants cités. Shearwater, Perdix, Garmin, Descent, Suunto, Zoop, Mares, Puck, Quad, Genius, Scubapro, Galileo, Luna, Cressi, Goa et Donatello sont des marques de leurs propriétaires respectifs ; elles sont citées uniquement pour identifier les modèles dont les interfaces sont inspirées. Aucun logo, code ou élément graphique des fabricants n'est inclus.
+Ce projet est indépendant et **n'est ni affilié, ni approuvé, ni sponsorisé** par les fabricants cités. Shearwater, Perdix, Peregrine, Garmin, Descent, Suunto, Zoop, Mares, Puck, Quad, Genius, Scubapro, Galileo, Luna, Cressi, Goa et Donatello sont des marques de leurs propriétaires respectifs ; elles sont citées uniquement pour identifier les modèles dont les interfaces sont inspirées. Aucun logo, code ou élément graphique des fabricants n'est inclus.
 
 Si vous représentez l'un de ces fabricants et souhaitez qu'un élément soit modifié ou retiré, ouvrez une issue.
 

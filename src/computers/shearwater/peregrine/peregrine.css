@@ -1,0 +1,93 @@
+/* Shearwater Peregrine TX: 2.2" QVGA colour LCD (320×240), three areas separated by cyan lines
+   (manual §4.3). Square black case with strap lugs, MENU button on the left side and FUNC on the
+   right side (§2.2 figure). */
+.pt-body {
+  position: relative; padding: 30px 26px; border-radius: 26px;
+  background: linear-gradient(165deg, #34373c, #17181b 50%, #0c0c0d);
+  box-shadow: 0 16px 30px rgba(0,0,0,0.55), inset 0 0 0 2px #45484e;
+}
+.pt-lug { position: absolute; left: 50%; width: 190px; height: 16px; translate: -50% 0; background: linear-gradient(#26282c, #121315); border-radius: 6px; box-shadow: inset 0 0 0 2px #3b3e43; }
+.pt-lug.t { top: -12px; } .pt-lug.b { bottom: -12px; }
+.pt-bezel { padding: 10px 30px 10px 10px; background: #050506; border-radius: 12px; box-shadow: inset 0 0 0 2px #2a2c30; }
+.pt-btn { position: absolute; width: 14px; height: 40px; top: 136px; border-radius: 6px; background: linear-gradient(90deg, #1b1c1f, #45484e, #1b1c1f); box-shadow: 0 0 0 2px #0b0b0c; }
+.pt-btn.l { left: -8px; } .pt-btn.r { right: -8px; }
+.pt-btn.l.pressed { translate: 3px 0; } .pt-btn.r.pressed { translate: -3px 0; }
+
+.pt-screen {
+  --pt-cyan: #1fa8ec;
+  width: 320px; height: 240px; background: #000; color: #fff; overflow: hidden;
+  display: flex; flex-direction: column; font-family: Oswald, 'Roboto Condensed', sans-serif; line-height: 1;
+}
+.pt-screen small { font-size: 0.5em; }
+.pt-cyan { color: var(--pt-cyan); } .pt-gray { color: #6d7278; }
+.pt-screen .red { color: #ff2a1f; } .pt-screen .yellow { color: #ffd400; } .pt-screen .green { color: #2fdb4a; } .pt-screen .white { color: #fff; }
+.pt-top { display: grid; grid-template-columns: 144px 1fr; height: 162px; border-bottom: 2px solid var(--pt-cyan); }
+.pt-left { border-right: 2px solid var(--pt-cyan); padding: 2px 4px; display: flex; flex-direction: column; }
+.pt-depthrow { display: flex; justify-content: flex-end; align-items: flex-start; height: 84px; }
+.pt-depth { font-size: 76px; font-weight: 500; letter-spacing: -2px; display: flex; align-items: flex-start; }
+.pt-dec { display: inline-flex; flex-direction: column; margin-left: 1px; letter-spacing: 0; vertical-align: top; }
+.pt-dec b { font-weight: 500; font-size: 32px; height: 36px; margin-top: 6px; }
+.pt-dec small { font-size: 18px; color: var(--pt-cyan); }
+.pt-dec.s b { font-size: 0.5em; height: 1.1em; margin-top: 0.1em; }
+.pt-dec.s small { font-size: 0.42em; }
+.pt-arrows { display: flex; flex-direction: column; gap: 1px; margin: 6px 0 0 3px; }
+.pt-arrows i { width: 14px; height: 10px; clip-path: polygon(50% 0, 100% 55%, 100% 100%, 50% 45%, 0 100%, 0 55%); background: #2b2b2b; }
+.pt-arrows i.white { background: #e8e8e8; } .pt-arrows i.yellow { background: #ffd400; } .pt-arrows i.red { background: #ff2a1f; }
+.pt-lbl { color: var(--pt-cyan); font-size: 18px; letter-spacing: 0.5px; white-space: nowrap; }
+.pt-lbl.r { text-align: right; }
+.pt-time { font-size: 50px; font-weight: 500; display: flex; align-items: flex-start; padding-left: 18px; }
+.pt-time sup { font-size: 24px; vertical-align: top; margin-top: 4px; }
+.pt-time small { font-size: 22px; color: var(--pt-cyan); align-self: flex-end; margin-bottom: 4px; }
+.pt-bat { display: inline-block; width: 12px; height: 30px; border: 2px solid var(--pt-cyan); margin-left: auto; position: relative; align-self: flex-end; }
+.pt-bat i { position: absolute; left: 1px; right: 1px; bottom: 1px; height: 75%; background: var(--pt-cyan); }
+
+.pt-right { display: flex; flex-direction: column; padding: 2px 4px; min-width: 0; }
+.pt-stopzone { height: 78px; text-align: center; }
+.pt-title { font-size: 22px; color: var(--pt-cyan); letter-spacing: 0.5px; white-space: nowrap; }
+.pt-stop { font-size: 52px; margin-top: 2px; white-space: nowrap; }
+.pt-stop.sm { font-size: 44px; } .pt-stop.xs { font-size: 38px; }
+.pt-stop small { font-size: 20px; color: var(--pt-cyan); margin-right: 4px; }
+.pt-stop.done { font-size: 32px; margin-top: 12px; }
+.pt-mark { font-size: 26px; margin-right: 4px; vertical-align: 14px; }
+.pt-hl { display: inline-block; line-height: 1; background: #ffd400; color: #000; padding: 1px 3px 0; }
+.pt-hl-red { display: inline-block; line-height: 1; background: #ff2a1f; color: #000; padding: 0 2px; }
+.pt-hl-yellow { display: inline-block; line-height: 1; background: #ffd400; color: #000; padding: 0 2px; }
+.pt-ndlrow { flex: 1; display: flex; align-items: flex-end; gap: 4px; min-height: 0; }
+.pt-ndl { flex: 1; text-align: right; }
+.pt-big { font-size: 58px; font-weight: 500; }
+.pt-n2 { position: relative; width: 14px; height: 74px; margin-bottom: 4px; border: 2px solid var(--pt-cyan); }
+.pt-n2 span { position: absolute; top: 1px; left: 1px; font-size: 9px; color: var(--pt-cyan); z-index: 1; }
+.pt-n2-fill { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(to top, #2d8a2d 0, #4caf3c 45%, #d6c52a 75%, #e6392e); background-size: 100% 70px; background-position: bottom; }
+.pt-warn { border: 2px solid currentColor; font-size: 17px; text-align: center; padding: 2px 4px; line-height: 1.05; margin-bottom: 4px; white-space: nowrap; }
+
+.pt-bottom { flex: 1; display: flex; align-items: flex-end; padding: 0 4px 4px; gap: 4px; min-height: 0; }
+.pt-gas { font-size: 50px; font-weight: 500; min-width: 96px; white-space: nowrap; }
+.pt-cell { flex: 1; text-align: left; min-width: 0; }
+.pt-cell.c { text-align: center; } .pt-cell.r { text-align: right; }
+.pt-cell.wide { flex: 2.2; }
+.pt-val { font-size: 40px; font-weight: 500; white-space: nowrap; }
+.pt-val.sm { font-size: 30px; } .pt-val.xs { font-size: 22px; }
+.pt-mini { font-size: 22px; line-height: 1.1; white-space: nowrap; }
+.pt-mini.r { text-align: right; } .pt-mini.c { font-size: 20px; text-align: center; } .pt-mini.l { text-align: left; font-size: 20px; }
+.pt-vunit { display: inline-block; font-size: 9px; line-height: 1; color: var(--pt-cyan); margin-left: 2px; vertical-align: 6px; text-align: center; }
+.pt-vunit.u { font-size: 11px; }
+.pt-pbar { display: inline-flex; gap: 1px; margin-left: 4px; padding: 2px; border: 1px solid #fff; border-right-width: 3px; vertical-align: 2px; }
+.pt-pbar i { width: 4px; height: 9px; background: transparent; }
+.pt-pbar i.on { background: #fff; }
+.pt-pbar.yellow { border-color: #ffd400; } .pt-pbar.yellow i.on { background: #ffd400; }
+.pt-pbar.red { border-color: #ff2a1f; } .pt-pbar.red i.on { background: #ff2a1f; }
+.pt-bottom.info .pt-cell { text-align: left; }
+.pt-bottom.info .pt-cell.c { text-align: center; } .pt-bottom.info .pt-cell.r { text-align: right; }
+/* §4.8 primary notification: "Warning" (or "Alert") and "Confirm" above the yellow message. */
+.pt-err { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; min-width: 0; }
+.pt-err-lbls { display: flex; justify-content: space-between; font-size: 18px; }
+.pt-err-msg { color: #ffd400; font-size: 40px; line-height: 1.1; white-space: nowrap; }
+.pt-batt { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
+.pt-press { display: flex; justify-content: space-between; font-size: 36px; font-weight: 500; white-space: nowrap; }
+.pt-press small { font-size: 16px; margin-right: 2px; }
+.pt-last { flex: 1; }
+.pt-lastrow { display: flex; justify-content: space-between; align-items: baseline; font-size: 20px; }
+.pt-lastrow.big { font-size: 40px; }
+.pt-lastrow small { font-size: 18px; }
+.pt-tissues { flex: 1; }
+.pt-tgraph { display: block; width: 100%; height: 44px; }
