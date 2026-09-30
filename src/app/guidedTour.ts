@@ -31,13 +31,14 @@ const TOUR: TourStep[] = [
   { targets: () => [q('.scene-panel')], title: () => t('tourSceneT'), body: () => t('tourSceneB') },
   { targets: () => [q('.scene-ctl:not(.turn)')], title: () => t('tourRateT'), body: () => t('tourRateB') },
   { targets: () => [q('.scene-top')], title: () => t('tourViewT'), body: () => t('tourViewB') },
+  { targets: () => [$('time-bar')], title: () => t('tourTimeT'), body: () => t('tourTimeB') },
   { targets: () => [$('device'), $('spg'), $('device-alarms')], title: () => t('tourDeviceT'), body: () => t('tourDeviceB') },
   { targets: () => [q('.profile-box')], optional: true, title: () => t('tourProfileT'), body: () => t('tourProfileB') },
   // Phones: the tab is in the bottom bar, below the sheet, and would stretch the spotlight over the
   // time controls (next step).
   tabStep('settings', 'tourSettingsT', 'tourSettingsB', () =>
     [compactMq.matches ? null : q('[data-tab="settings"]'), $('algo-info'), $('advanced')]),
-  tabStep('settings', 'tourTimeT', 'tourTimeB', () => [$('speed-group').parentElement, q('[data-pane="settings"] .button-row')]),
+  tabStep('settings', 'tourSurfaceT', 'tourSurfaceB', () => [q('[data-pane="settings"] .button-row')]),
   tabStep('compare', 'tourCompareT', 'tourCompareB'),
   tabStep('tissues', 'tourTissuesT', 'tourTissuesB'),
   tabStep('log', 'tourLogT', 'tourLogB'),

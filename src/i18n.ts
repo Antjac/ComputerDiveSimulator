@@ -284,8 +284,13 @@ const dict = {
   },
   tourTimeT: { fr: 'Le temps', en: 'Time' },
   tourTimeB: {
-    fr: 'Accélérez le temps (touches + / −), mettez en pause (Espace), ajoutez une heure d’intervalle surface entre deux plongées, ou réinitialisez les tissus.',
-    en: 'Speed time up (+ / − keys), pause (Space), add an hour of surface interval between two dives, or reset the tissues.',
+    fr: 'Sous la colonne d’eau, toujours accessibles : mettez en pause (Espace) ou accélérez le temps (touches + / −).',
+    en: 'Under the water column, always at hand: pause (Space) or speed time up (+ / − keys).',
+  },
+  tourSurfaceT: { fr: 'Entre deux plongées', en: 'Between dives' },
+  tourSurfaceB: {
+    fr: 'Ajoutez une heure d’intervalle surface entre deux plongées, ou réinitialisez les tissus.',
+    en: 'Add an hour of surface interval between two dives, or reset the tissues.',
   },
   tourCompareT: { fr: 'Comparer', en: 'Compare' },
   tourCompareB: {

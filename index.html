@@ -32,6 +32,8 @@
     </header>
 
     <main class="app">
+      <!-- Water column (or 3D view) and, under it, the time controls: always in view. -->
+      <div class="scene-area">
       <section class="panel scene-panel" id="scene-panel">
         <canvas id="scene" aria-label="Water column"></canvas>
         <canvas id="scene3d" aria-label="3D dive view" hidden></canvas>
@@ -83,6 +85,11 @@
           <span id="hud-state"></span>
         </div>
       </section>
+      <div class="panel time-bar" id="time-bar">
+        <button id="btn-pause" class="btn"></button>
+        <div id="speed-group" class="seg-toggle" role="group" data-i18n-title="speed"></div>
+      </div>
+      </div>
 
       <section class="panel device-panel">
         <p class="device-caption" id="device-caption"></p>
@@ -132,12 +139,7 @@
             </section>
             <div id="computer-settings-adv"></div>
           </details>
-          <div class="field">
-            <span data-i18n="speed"></span>
-            <div id="speed-group" class="seg-toggle wide" role="group"></div>
-          </div>
           <div class="button-row">
-            <button id="btn-pause" class="btn"></button>
             <button id="btn-skip" class="btn" data-i18n="surfaceSkip"></button>
             <button id="btn-reset" class="btn danger" data-i18n="resetShort"></button>
           </div>

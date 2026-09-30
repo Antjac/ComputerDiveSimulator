@@ -136,7 +136,12 @@ export function renderControls(): void {
   document.querySelectorAll<HTMLButtonElement>('[data-view]').forEach((b) => b.classList.toggle('on', b.dataset.view === app.view));
 
   $('speed-group').innerHTML = SPEEDS.map((s) => `<button data-speed="${s}" class="${s === app.speed ? 'on' : ''}">×${s}</button>`).join('');
-  $('btn-pause').textContent = app.paused ? `▶ ${t('play')}` : `❚❚ ${t('pause')}`;
+  // Icon and label: a narrow time bar keeps only the icon (the label stays as the tooltip).
+  const pause = $('btn-pause');
+  const label = t(app.paused ? 'play' : 'pause');
+  pause.innerHTML = `<span aria-hidden="true">${app.paused ? '▶' : '❚❚'}</span> <span class="lbl">${label}</span>`;
+  pause.title = label;
+  pause.setAttribute('aria-label', label);
   // After a rescue alert, only a reset restarts the simulation.
   const stopped = !!session.emergency;
   $<HTMLButtonElement>('btn-pause').disabled = stopped;
