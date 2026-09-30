@@ -39,6 +39,13 @@ export interface Emergency {
   surfGf?: number;
 }
 
+/** Ascent judged too fast: average speed (m/min) from `fromDepth` to `toDepth` (m). */
+export interface RapidAscent {
+  rate: number;
+  fromDepth: number;
+  toDepth: number;
+}
+
 export interface ProfileSample {
   t: number; // s since dive start
   depth: number;
@@ -127,7 +134,11 @@ export class DiveSession {
   private steadySince = 0;
   private steadyJudged = false;
   /** Fastest ascent over RAPID_RATE this dive, reported on surfacing. */
-  private rapid: { rate: number; fromDepth: number; toDepth: number } | null = null;
+  private rapid: RapidAscent | null = null;
+  /** Fastest ascent over RAPID_RATE of the current (or last) dive, judged so far. */
+  get rapidAscent(): RapidAscent | null {
+    return this.rapid;
+  }
 
   // Gas supply.
   tank: Tank = { volume: 12, fill: 200 };
@@ -241,7 +252,7 @@ export class DiveSession {
       this.track.push([this.clock, this.depth]);
       while (this.track.length > 2 && this.clock - this.track[0][0] > 600) this.track.shift();
       this.watchStops();
-      if (this.rescueAlert && prevDepth >= DIVE_START_DEPTH && this.depth < DIVE_START_DEPTH) this.checkSurfacing();
+      if (prevDepth >= DIVE_START_DEPTH && this.depth < DIVE_START_DEPTH) this.checkSurfacing();
       this.diveTime += dt;
       this.depthIntegral += this.depth * dt;
       this.maxDepth = Math.max(this.maxDepth, this.depth);
@@ -260,8 +271,11 @@ export class DiveSession {
     }
   }
 
-  /** Arrival at the surface: too fast over the last metres, or with stops still due. */
+  /** Arrival at the surface: too fast over the last metres (always judged, the boat reports it), or
+   *  with stops still due. The rescue alert is raised only when it is on. */
   private checkSurfacing(): void {
+    this.noteAscent(this.track.length - 1);
+    if (!this.rescueAlert) return;
     const reasons: EmergencyReason[] = [];
     const e: Omit<Emergency, 'reasons'> = { clock: this.clock, depth: this.depth };
     const surfGf = this.tissues.maxGradientPercent(SURFACE_PRESSURE);
@@ -269,7 +283,6 @@ export class DiveSession {
       reasons.push('MISSED_DECO');
       e.surfGf = surfGf;
     }
-    this.noteAscent(this.track.length - 1);
     if (this.rapid) {
       reasons.push('RAPID_ASCENT');
       Object.assign(e, this.rapid);

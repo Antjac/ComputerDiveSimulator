@@ -66,12 +66,16 @@
         </div>
         <button class="rescue-mini" id="rescue-mini" data-i18n-title="rescueShow" hidden><span class="beacon" aria-hidden="true"><i class="beam"></i><i class="glint"></i></span></button>
         <!-- Boat offering a full tank at the surface (main.ts, updateBoat). -->
-        <div class="boat-offer" id="boat-offer" role="dialog" aria-labelledby="boat-text" hidden>
+        <div class="boat-offer" id="boat-offer" role="dialog" aria-labelledby="boat-warn boat-text" hidden>
+          <p class="boat-warn" id="boat-warn" hidden></p>
           <p id="boat-text"></p>
           <p class="boat-note" id="boat-note" data-i18n="boatAskNote"></p>
           <div class="boat-btns" id="boat-btns">
             <button class="btn primary" id="boat-yes" data-i18n="boatYes"></button>
             <button class="btn" id="boat-no" data-i18n="boatNo"></button>
+          </div>
+          <div class="boat-btns" id="boat-ok-btns" hidden>
+            <button class="btn primary" id="boat-ok" data-i18n="boatOk"></button>
           </div>
         </div>
         <div class="scene-hud">

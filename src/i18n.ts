@@ -184,6 +184,12 @@ const dict = {
   boatYes: { fr: 'Oui', en: 'Yes' },
   boatNo: { fr: 'Non', en: 'No' },
   boatYesReply: { fr: 'Voilà un bloc plein : {p}. Bonne pause à bord !', en: 'Here is a full tank: {p}. Enjoy the break on board!' },
+  // Boat arriving after an ascent judged too fast (session.rapidAscent, same criterion as the rescue alert).
+  boatRapid: {
+    fr: 'Votre remontée était trop rapide : {rate} de {from} à {to} (au-delà de {max}). Déclenchez la procédure adaptée selon votre formation.',
+    en: 'Your ascent was too fast: {rate} from {from} to {to} (above {max}). Start the appropriate procedure according to your training.',
+  },
+  boatOk: { fr: 'Compris', en: 'Understood' },
   boatNoReply: { fr: 'Pas de souci, bonne plongée !', en: 'No worries, enjoy your dive!' },
   alarms: { fr: 'Alarmes', en: 'Alarms' },
   none: { fr: 'aucune', en: 'none' },

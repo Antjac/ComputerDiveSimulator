@@ -74,7 +74,7 @@ The **Exercises** tab offers situations to provoke and observe, for a student on
 
 ## Surface, boat and repetitive dives
 
-The tank is not refilled automatically between dives. Five seconds after surfacing during a dive (tank below 90 %), a boat comes alongside the diver and offers a full tank in a comic speech bubble, in both the 2D and 3D views. **Yes**: the diver climbs aboard, the dive ends and the tank is refilled; the next descent is a new dive. **No**: the boat leaves. A dive is also closed after 3 minutes at the surface. Tissues stay loaded from one dive to the next; the logbook shows each dive's type: consecutive (surface interval under 15 min), repetitive (under 12 h) or single.
+The tank is not refilled automatically between dives. Five seconds after surfacing during a dive (tank below 90 %), a boat comes alongside the diver and offers a full tank in a comic speech bubble, in both the 2D and 3D views. **Yes**: the diver climbs aboard, the dive ends and the tank is refilled; the next descent is a new dive. **No**: the boat leaves. After an ascent clearly too fast (average above 15 m/min over its last 10 m, the rescue alert's criterion, whatever the computer), the boat comes even with a full tank and first says the ascent was too fast and that the procedure from your training should be started. A dive is also closed after 3 minutes at the surface. Tissues stay loaded from one dive to the next; the logbook shows each dive's type: consecutive (surface interval under 15 min), repetitive (under 12 h) or single.
 
 ## 3D view
 

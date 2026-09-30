@@ -178,7 +178,8 @@
 .boat-offer.above::after { top: calc(100% - 3px); bottom: auto; border-width: 11px 7px 0; border-color: #fffdf5 transparent transparent; }
 .boat-offer p { margin: 0; font-weight: 600; }
 .boat-offer .boat-note { margin-top: 4px; font-weight: 400; font-size: 12px; color: #4a5663; }
-.boat-offer .boat-note[hidden], .boat-btns[hidden] { display: none; }
+.boat-offer .boat-note[hidden], .boat-offer .boat-warn[hidden], .boat-btns[hidden] { display: none; }
+.boat-offer .boat-warn { margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #d9d2bf; color: #b3261e; }
 .boat-btns { display: flex; gap: 8px; margin-top: 8px; }
 .boat-btns .btn { flex: 1; color: #1d2630; background: #fff; border: 2px solid #1d2630; font-weight: 700; }
 .boat-btns .btn.primary { background: #1d2630; color: #fffdf5; }
