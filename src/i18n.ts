@@ -130,8 +130,8 @@ const dict = {
   LOW_GAS: { fr: 'Réserve atteinte', en: 'Reserve reached' },
   OUT_OF_GAS: { fr: 'Bloc vide !', en: 'Out of gas!' },
   deviceHint: {
-    fr: 'Survolez ou touchez un bouton de l’ordinateur pour voir sa fonction. Maintenez-le pour un appui long.',
-    en: 'Hover over or tap a computer button to see what it does. Keep it pressed for a long press.',
+    fr: 'Appuyez sur les boutons de l’ordinateur, maintenez-les pour un appui long. À la souris, le survol d’un bouton affiche sa fonction.',
+    en: 'Press the computer’s buttons, keep them pressed for a long press. With a mouse, hovering over a button shows what it does.',
   },
   ndl: { fr: 'NDL (min)', en: 'NDL (min)' },
   stop: { fr: 'Palier', en: 'Stop' },
@@ -269,8 +269,8 @@ const dict = {
   },
   tourDeviceT: { fr: 'L’écran de l’ordinateur', en: 'The computer display' },
   tourDeviceB: {
-    fr: 'Il affiche ce que montrerait le modèle choisi : profondeur, durée, NDL, paliers… Survolez ou touchez un <b>bouton</b> de l’ordinateur pour voir sa fonction ; maintenez-le pour un appui long. Les alarmes s’affichent juste en dessous.',
-    en: 'It shows what the chosen model would display: depth, time, NDL, stops… Hover over or tap one of the computer’s <b>buttons</b> to see what it does; keep it pressed for a long press. Alarms are listed right below.',
+    fr: 'Il affiche ce que montrerait le modèle choisi : profondeur, durée, NDL, paliers… Survolez un <b>bouton</b> de l’ordinateur à la souris pour voir sa fonction ; maintenez-le pour un appui long. Les alarmes s’affichent juste en dessous.',
+    en: 'It shows what the chosen model would display: depth, time, NDL, stops… Hover over one of the computer’s <b>buttons</b> with the mouse to see what it does; keep it pressed for a long press. Alarms are listed right below.',
   },
   tourProfileT: { fr: 'Profil de plongée', en: 'Dive profile' },
   tourProfileB: {

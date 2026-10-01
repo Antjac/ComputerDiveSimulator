@@ -1,4 +1,4 @@
-// The computer on screen: its buttons (press, long press, pressed look), their tooltip, and its scale.
+// The computer on screen: its buttons (press, long press, pressed look), their tooltip (mouse only), and its scale.
 // The device is re-rendered several times per second, so the pressed look and the tooltip are tracked
 // by button id and re-applied after each render (decorateButtons).
 import { ackAlertSounds } from './alertSounds';
@@ -11,7 +11,6 @@ const HOLD_MS = 700;
 let pressed: { id: string; held: boolean; timer: number } | null = null;
 let released: { id: string; until: number } | null = null;
 let hoverBtn: string | null = null;
-let touchTip: { id: string; until: number } | null = null;
 
 const isActive = (h: ButtonHelp | undefined) => !!h && (!!h.press?.simulated || !!h.hold?.simulated);
 
@@ -32,7 +31,7 @@ function tipHtml(id: string): string {
 
 function updateTip(): void {
   const tip = $('btn-tip');
-  const id = hoverBtn ?? (touchTip && performance.now() < touchTip.until ? touchTip.id : null);
+  const id = hoverBtn; // mouse hover only: on a phone the tooltip would cover the whole computer
   const btn = id ? $('device').querySelector<HTMLElement>(`[data-btn="${id}"]`) : null;
   if (!id || !btn) {
     tip.hidden = true;
@@ -95,7 +94,6 @@ export function setupDevice(): void {
     e.preventDefault();
     const id = btn.dataset.btn!;
     ackAlertSounds(id); // alerts waiting for a button press stop repeating
-    if (e.pointerType !== 'mouse') touchTip = { id, until: performance.now() + 3000 };
     // Phones: the "tap a button" hint is dropped once the buttons have been found.
     document.body.classList.add('dev-used');
     // Buttons with a simulated long press act on release (or after HOLD_MS); the others at once.
