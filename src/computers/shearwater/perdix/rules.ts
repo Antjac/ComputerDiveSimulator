@@ -8,8 +8,14 @@ import { pressureSetting } from '../../common/tank';
 
 export type PerdixNotice = 'high-ppo2' | 'missed-stop' | 'fast-ascent' | 'very-high-cns' | 'high-cns' | 'low-ndl' | 'depth-alert' | 'time-alert' | 'gas';
 
-// Perdix 2 Recreational manual, §8.2: Low 45/95, Med 40/85, High 35/75 (not editable in Rec mode).
+// Perdix 2 Recreational manual (RevC), §12.2 Conservatism: Low 45/95, Med 40/85 (default), High 35/75,
+// or Custom ("A custom GF option is also available in every dive mode").
 export const GF_PRESETS: Record<string, [number, number]> = { low: [45, 95], med: [40, 85], high: [35, 75] };
+
+// §12.2: "If selected, GF Low and GF High fields will appear in the Deco Menu". Range and step not given
+// by the manual: 10 to 100 % by 5 assumed (not verified).
+const GF_VALUES = Array.from({ length: 19 }, (_, i) => String(10 + i * 5));
+const customGf = (s: Record<string, string>) => s.gf === 'custom';
 
 /**
  * Shearwater Perdix 2, Nitrox Recreational mode.
@@ -34,8 +40,23 @@ export abstract class PerdixRules extends DiveComputer {
         { value: 'low', label: 'Low (45/95)' },
         { value: 'med', label: 'Med (40/85)' },
         { value: 'high', label: 'High (35/75)' },
+        { value: 'custom', label: 'Custom' },
       ],
-      default: 'med',
+      default: 'med', // §12.2: "Medium conservatism is the default setting."
+    },
+    {
+      key: 'gfLow',
+      label: { fr: 'GF bas (Custom)', en: 'GF low (Custom)' },
+      options: GF_VALUES.map((v) => ({ value: v, label: `${v} %` })),
+      default: '40',
+      showIf: customGf,
+    },
+    {
+      key: 'gfHigh',
+      label: { fr: 'GF haut (Custom)', en: 'GF high (Custom)' },
+      options: GF_VALUES.map((v) => ({ value: v, label: `${v} %` })),
+      default: '85',
+      showIf: customGf,
     },
     {
       key: 'safety',
@@ -184,8 +205,19 @@ export abstract class PerdixRules extends DiveComputer {
     this.init();
   }
 
+  /** Custom starts from the preset in use (not described in the manual). */
+  settingChanged(key: string, previous: string): void {
+    const preset = GF_PRESETS[previous];
+    if (key === 'gf' && this.settings.gf === 'custom' && preset) {
+      [this.settings.gfLow, this.settings.gfHigh] = preset.map(String);
+    }
+  }
+
   baseParams(): DecoParams {
-    const [lo, hi] = GF_PRESETS[this.settings.gf] ?? GF_PRESETS.med;
+    let [lo, hi] = this.settings.gf === 'custom'
+      ? [Number(this.settings.gfLow), Number(this.settings.gfHigh)]
+      : GF_PRESETS[this.settings.gf] ?? GF_PRESETS.med;
+    lo = Math.min(lo, hi); // a GF low above the GF high is not meaningful (device check not described)
     return { gfLow: lo / 100, gfHigh: hi / 100, lastStop: 3, stopStep: 3, ascentRate: 10 };
   }
 

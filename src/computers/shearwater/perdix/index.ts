@@ -250,7 +250,7 @@ export class ShearwaterPerdix extends PerdixRules {
       case 'temp':
         // CNS: yellow above 90 %, red above 150 % (§4.7).
         return cell('TEMP', `${Math.round(tempVal(v.temperature))}<small class="pd-blue">${tempUnit()}</small>`) +
-          `<div class="pd-cell"><div class="pd-lbl">CONSERV</div><div class="pd-small c">${({ low: 'Low', med: 'Med', high: 'High' } as Record<string, string>)[this.settings.gf]}<br>${v.gfLow}/${v.gfHigh}</div></div>` +
+          `<div class="pd-cell"><div class="pd-lbl">CONSERV</div><div class="pd-small c">${({ low: 'Low', med: 'Med', high: 'High', custom: 'Custom' } as Record<string, string>)[this.settings.gf]}<br>${v.gfLow}/${v.gfHigh}</div></div>` +
           cell('CNS', `${Math.round(v.cns)}<small class="pd-blue">%</small>`, v.cns > 150 ? 'red' : v.cns > 90 ? 'yellow' : '');
       case 'gf': {
         // §4.7: GF99 yellow above GF high, red above 100 %; SurGF takes the colour of GF99. "On Gas"
