@@ -15,7 +15,7 @@ export interface DevHook {
 type Box = { left: number; right: number; top: number; bottom: number };
 interface Item { t: string; el: Element; rc: Box }
 
-const SCREENS = '.pd-screen, .pt-screen, .aq3-screen, .aq7-screen, .qc-screen, .qa-lcd, .gn-screen, .g2-screen, .mr-lcd, .cg-lcd, .gm-screen, .su-screen, .ln-screen, .zn-lcd';
+const SCREENS = '.pd-screen, .pt-screen, .aq3-screen, .aq7-screen, .qc-screen, .qa-lcd, .gn-screen, .g2-screen, .mr-lcd, .cg-lcd, .gm-screen, .su-screen, .ln-screen, .zn-lcd, .od-screen';
 const ctx = document.createElement('canvas').getContext('2d')!;
 
 /** Ink box of a text run: the line box shrunk to the glyphs actually drawn. */

@@ -106,6 +106,11 @@ export abstract class DiveComputer {
     return this.ascentLevel(rate, depth) === 2;
   }
 
+  /** Does this computer (with its current settings) ask for a safety stop? */
+  get hasSafetyStop(): boolean {
+    return true;
+  }
+
   /** Safety stop duration in seconds (can depend on settings or on the dive). */
   safetySeconds(_s: DiveSession): number {
     return 180;

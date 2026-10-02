@@ -163,12 +163,19 @@ export const EXERCISES: Exercise[] = [
       { fr: 'Ce qui se passe si vous sortez de la zone du palier pendant le décompte.', en: 'What happens if you leave the stop zone during the countdown.' },
     ],
     done: (x) => {
-      if (x.c.safetyState === 'done') x.mem.safetyDone = true;
+      // A computer that asks for no safety stop (none in its manual, or switched off): surfacing calmly is enough.
+      if (x.c.safetyState === 'done' || !x.c.hasSafetyStop) x.mem.safetyDone = true;
       return surfaced(x) && x.mem.safetyDone === true;
     },
     fail: (x) => (surfaced(x) && x.mem.safetyDone !== true ? { fr: 'Vous êtes sorti avant la fin du palier de sécurité.', en: 'You surfaced before the end of the safety stop.' } : null),
     rules: (c, s) => {
       const ss = c.safetyStop;
+      if (!c.hasSafetyStop) {
+        return [{
+          fr: `Votre ${c.name} ne demande pas de palier de sécurité avec ses réglages actuels : faites-en un quand même, par prudence, vers ${depthLabel(5, 0)}.`,
+          en: `Your ${c.name} asks for no safety stop with its current settings: do one anyway, as a precaution, around ${depthLabel(5, 0)}.`,
+        }];
+      }
       return [{
         fr: `Palier de sécurité de votre ${c.name} : ${mmss(c.safetySeconds(s))} entre ${depthLabel(ss.top, 0)} et ${depthLabel(ss.bottom, 0)}, après une plongée plus profonde que ${depthLabel(ss.trigger, 0)} ; redescendre sous ${depthLabel(ss.reset, 0)} le fait repartir de zéro.`,
         en: `Safety stop of your ${c.name}: ${mmss(c.safetySeconds(s))} between ${depthLabel(ss.top, 0)} and ${depthLabel(ss.bottom, 0)}, after a dive deeper than ${depthLabel(ss.trigger, 0)}; going back below ${depthLabel(ss.reset, 0)} restarts it.`,

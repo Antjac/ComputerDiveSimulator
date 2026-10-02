@@ -47,7 +47,7 @@ for (const ex of EXERCISES) {
           break;
         case 'safety':
           if (phase === 0) { s.setTarget(4.5); phase = 1; }
-          else if (phase === 1 && c.safetyState === 'done') { s.setTarget(0); phase = 2; }
+          else if (phase === 1 && (c.safetyState === 'done' || (!c.hasSafetyStop && s.depth < 5))) { s.setTarget(0); phase = 2; }
           break;
         case 'deco':
           if (!v.inDeco && !(c.safetyState === 'pending' || c.safetyState === 'active' || c.safetyState === 'paused')) s.setTarget(0);

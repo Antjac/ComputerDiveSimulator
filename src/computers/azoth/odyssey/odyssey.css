@@ -1,0 +1,91 @@
+/* Azoth Systems Odyssey: rectangular case held by screws, 2.4" colour TFT (320×240), three piezo
+   buttons: G on the left side, D on the right side, OK under the screen (manual §4.2, figure). */
+.od-body {
+  position: relative; padding: 30px 22px 36px; border-radius: 26px;
+  background: linear-gradient(170deg, #4a4d50, #2b2d30 55%, #1d1e20);
+  box-shadow: 0 16px 30px rgba(0,0,0,0.55), inset 0 0 0 2px #5d6064, inset 0 -14px 0 -6px #4d5236;
+}
+.od-screw { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: radial-gradient(circle, #9aa0a6 30%, #5d6268 75%); }
+.od-btn { position: absolute; border-radius: 8px; background: linear-gradient(90deg, #26282b, #45484d, #26282b); box-shadow: 0 0 0 2px #121314; }
+.od-btn.l { left: -12px; top: 118px; width: 16px; height: 64px; }
+.od-btn.r { right: -12px; top: 118px; width: 16px; height: 64px; }
+.od-btn.ok { left: 50%; bottom: -10px; width: 64px; height: 16px; margin-left: -32px; background: linear-gradient(#26282b, #45484d, #26282b); }
+.od-btn.l.pressed { translate: 3px 0; } .od-btn.r.pressed { translate: -3px 0; } .od-btn.ok.pressed { translate: 0 -3px; }
+.od-bezel { padding: 8px; background: #0c0c0d; border-radius: 10px; box-shadow: inset 0 0 0 2px #333; }
+.od-screen {
+  --od-acc: #3e9a43; --od-hl: #3e9a43;
+  position: relative; width: 320px; height: 240px; background: #000; color: #ececec; overflow: hidden;
+  font-family: 'Roboto Condensed', 'Arial Narrow', sans-serif; font-weight: 300; line-height: 1;
+}
+/* At the surface the dive page shows blue labels (figures §5.1 and §8, deduced). */
+.od-screen.surf { --od-acc: #2f7fd6; --od-hl: #1e6fc0; }
+
+/* Ascent rate column (§10.3). */
+.od-vr { position: absolute; left: 0; top: 0; width: 22px; height: 196px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.od-rate { width: 22px; font-size: 15px; font-weight: 400; text-align: center; padding: 2px 0; color: #ddd; }
+.od-rate.od-desc { color: #777; } .od-rate.od-al { background: #6e1010; color: #fff; }
+.od-vr i { display: block; width: 16px; flex: none; }
+.od-vr i.dash { height: 4px; border-radius: 2px; margin: 2px 0; }
+.od-vr i.dn { height: 13px; clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.od-vr i.up { height: 13px; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.od-vr i { background: #2c2c2c; }
+.od-vr i.on { background: #e6e6e6; } .od-vr i.green { background: #3e9a43; }
+.od-vr.green i { background: #24642a; } .od-vr.green i.on { background: #2f8a36; }
+.od-vr.red i { background: #3c0b0b; } .od-vr.red i.on { background: #c3302a; }
+.od-dome { margin-top: 6px; width: 18px; height: 14px; border-radius: 9px 9px 2px 2px; border: 2px solid #3a3a3a; box-sizing: border-box; }
+
+.od-main { position: absolute; left: 24px; right: 0; top: 0; bottom: 0; display: flex; flex-direction: column; }
+.od-row { height: 98px; display: flex; border-bottom: 1px solid var(--od-acc); }
+.od-row.two { height: 98px; }
+.od-cell { position: relative; flex: 1; display: flex; flex-direction: column; padding: 2px 3px 0; min-width: 0; }
+.od-cell.l { flex: 1.25; } .od-cell.c { flex: 1.05; align-items: center; } .od-cell.r { flex: 0.95; align-items: flex-end; }
+.od-cell.wide { flex: 1; } .od-cell.ndl { flex: 2.3; }
+.od-lbl { color: var(--od-acc); font-size: 15px; font-weight: 400; letter-spacing: 0.3px; white-space: nowrap; }
+.od-val { font-size: 70px; letter-spacing: -2px; white-space: nowrap; margin-top: 4px; transform: scaleX(0.74); transform-origin: left; }
+.od-cell.c .od-val { transform-origin: center; } .od-cell.r .od-val { transform-origin: right; }
+.od-two { display: flex; flex-direction: column; align-items: flex-end; font-size: 40px; letter-spacing: -1px; margin-top: 2px; transform: scaleX(0.8); transform-origin: right; }
+.od-cell.od-hl { background: var(--od-hl); }
+.od-cell.od-hl .od-lbl { color: #fff; }
+.od-cell.od-brown { background: #4f3d00; } .od-cell.od-red { background: #b0282a; }
+.od-cell.od-red .od-lbl, .od-cell.od-brown .od-lbl { color: var(--od-acc); }
+.od-cell.ndl.od-grey .od-val { background: #5a5a5a; padding: 0 4px; }
+.od-cell.ndl.od-dim .od-val { color: #5c5c5c; }
+.od-nf { color: #e0302a; font-size: 18px; font-weight: 400; text-align: center; margin-top: 26px; }
+
+.od-bot { flex: 1; display: flex; align-items: stretch; }
+.od-b { display: flex; align-items: center; justify-content: center; font-size: 38px; letter-spacing: -2px; white-space: nowrap; border-left: 1px solid var(--od-acc); padding: 0 3px; }
+.od-b.mode { border-left: 0; width: 42px; flex: none; }
+.od-b.gas { width: 76px; flex: none; }
+.od-b.mid { flex: 1; min-width: 0; }
+.od-b.po2 { width: 62px; flex: none; }
+.od-b.od-hl { background: var(--od-hl); }
+.od-b.od-al { background: #c8191c; } .od-b.od-wa { background: #4f3d00; }
+.od-b small { font-size: 0.8em; } .od-b sub { font-size: 13px; vertical-align: -2px; margin: 0 4px 0 1px; }
+.od-tank { position: relative; display: inline-block; width: 9px; height: 24px; border: 2px solid #ddd; border-radius: 4px 4px 2px 2px; box-sizing: border-box; overflow: hidden; }
+.od-tank i { position: absolute; left: 0; right: 0; bottom: 0; }
+.od-tank.g i { background: #3a9a3a; } .od-tank.o i { background: #e98d1a; } .od-tank.r i { background: #e02020; }
+.od-bat { display: inline-flex; gap: 2px; padding: 2px; border: 2px solid #eee; border-radius: 2px; position: relative; }
+.od-bat::after { content: ''; position: absolute; right: -6px; top: 5px; width: 3px; height: 7px; background: #eee; }
+.od-bat i { width: 5px; height: 12px; background: #eee; }
+.od-tis { position: relative; display: block; width: 100%; height: 32px; background: #333; }
+.od-tis i { position: absolute; height: 2px; }
+.od-tis b { position: absolute; left: 45%; top: 0; bottom: 0; width: 1px; background: #fff; }
+
+/* §10 "Alertes" box. */
+.od-dlg { position: absolute; left: 60px; top: 40px; width: 200px; height: 140px; background: #000; border: 1px solid #888; }
+.od-dlg-h { background: #c96e00; color: #fff; font-size: 18px; font-weight: 400; padding: 3px 4px; }
+.od-dlg-b { display: flex; align-items: center; gap: 22px; padding: 14px 10px 8px; font-size: 20px; font-weight: 400; }
+.od-dlg-b i { width: 34px; height: 34px; background: #c96e00; transform: rotate(45deg); display: grid; place-items: center; font-style: normal; color: #000; font-weight: 700; font-size: 22px; }
+.od-dlg-b i::first-letter { display: inline-block; }
+.od-dlg-ok { position: absolute; left: 66px; bottom: 8px; width: 68px; text-align: center; background: #c96e00; color: #fff; font-size: 18px; font-weight: 400; padding: 3px 0; border-radius: 2px; }
+
+/* Home screen (§4.2, §4.4 figures). */
+.od-home { display: grid; grid-template-columns: 96px 1fr 96px; grid-template-rows: 1fr 1fr; height: 100%; padding: 6px; gap: 6px; box-sizing: border-box; font-weight: 400; }
+.od-tile { position: relative; background: #1d2f6e; border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+.od-tile.sel { background: #2f62b8; }
+.od-tile b { font-size: 34px; font-weight: 400; }
+.od-tile span { font-size: 15px; }
+.od-nofly { position: absolute; right: 6px; top: 6px; width: 20px; height: 20px; border-radius: 50%; background: #d42020; color: #fff; font-size: 12px; font-style: normal; display: grid; place-items: center; }
+.od-hc { display: flex; flex-direction: column; align-items: center; justify-content: space-around; font-size: 17px; }
+.od-hc.top { border-bottom: 1px solid #ccc; }
+.od-hc small { font-size: 12px; }
