@@ -14,7 +14,7 @@ User interface in English and French, metric or imperial units.
 
 | Model | Algorithm | Fidelity |
 | --- | --- | --- |
-| Aqualung i330R (Dive mode) | Bühlmann ZHL-16C + GF | Public algorithm, reproduced |
+| Aqualung i330R (Dive mode) | Bühlmann ZHL-16C + GF | Approximation (≈): the real device adds an undocumented margin (stops 2–3 min longer than GF 90/90 in field comparisons), not simulated |
 | Aqualung i770R (Dive mode) | Pelagic Z+ | Approximation (≈) |
 | Shearwater Perdix 2 (Recreational mode) | Bühlmann ZHL-16C + GF | Public algorithm, reproduced |
 | Shearwater Peregrine TX (Air / Nitrox modes) | Bühlmann ZHL-16C + GF | Public algorithm, reproduced |
@@ -30,7 +30,7 @@ User interface in English and French, metric or imperial units.
 | Cressi Goa | Cressi RGBM | Approximation (≈) |
 | Cressi Donatello | Cressi RGBM | Approximation (≈) |
 
-Proprietary algorithms (RGBM, ZH-L16 ADT MB, Pelagic Z+) are unpublished: they are approximated from Bühlmann ZHL-16C with gradient factors and penalties calibrated on published values. Displays and rules (alarms, stops, lockouts…) are inspired by each model's public user manual.
+Proprietary algorithms (RGBM, ZH-L16 ADT MB, Pelagic Z+) are unpublished: they are approximated from Bühlmann ZHL-16C with gradient factors and penalties calibrated on published values. The Aqualung i330R states Bühlmann ZHL-16C + GF but departs from it in an undocumented way: it runs here with its published gradient factors, marked ≈. Displays and rules (alarms, stops, lockouts…) are inspired by each model's public user manual.
 
 In the app, a notice is shown on every visit (educational use, approximated algorithms, no affiliation), and a ✓ / ≈ caption above each computer reminds you that it is an unofficial interpretation.
 

@@ -2,7 +2,7 @@
 // what is assumed, what is not, and its alert settings with the values in use.
 import type { DiveComputer, SettingDef } from '../computers/base';
 import { lang, t } from '../i18n';
-import { alertSettings, optText } from './settings';
+import { alertSettings, fidelityLabel, optText } from './settings';
 import { type Section, noteItems } from './noteItems';
 import { $, app } from './state';
 
@@ -25,7 +25,7 @@ function render(c: DiveComputer): string {
       <h2 id="model-info-title">${esc(c.name)}</h2>
       <div class="mi-tags">
         <span class="mi-tag">${t('algorithm')} : <b>${esc(c.algorithm.replace(' (≈)', ''))}</b></span>
-        <span class="badge ${c.exact ? 'exact' : 'approx'}">${c.exact ? '✓ ' + t('exact') : '≈ ' + t('approx')}</span>
+        <span class="badge ${c.exact ? 'exact' : 'approx'}">${fidelityLabel(c)}</span>
         ${c.transmitter ? `<span class="mi-tag">${t('transmitterModel')} : <b>${esc(c.transmitter)}</b></span>` : ''}
       </div>
     </header>

@@ -15,6 +15,11 @@ export abstract class DiveComputer {
   abstract readonly name: string;
   abstract readonly algorithm: string;
   abstract readonly exact: boolean;
+  /**
+   * Not exact although the manual names a public algorithm: the real device departs from it in a way
+   * the manufacturer does not document (shown as "undocumented variant" rather than "proprietary").
+   */
+  readonly undocumentedVariant: boolean = false;
   abstract readonly notes: { fr: string; en: string };
   abstract readonly settingDefs: SettingDef[];
   /** Name of the optional wireless tank transmitter, or null when the model has none. */

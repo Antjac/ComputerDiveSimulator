@@ -61,6 +61,11 @@ const GROUPS: { id: SettingGroup; title: I18nKey }[] = [
   { id: 'display', title: 'grpDisplay' },
 ];
 
+/** Fidelity badge text: ✓ public algorithm reproduced, ≈ proprietary or undocumented variant. */
+export function fidelityLabel(c: DiveComputer): string {
+  return c.exact ? `✓ ${t('exact')}` : `≈ ${t(c.undocumentedVariant ? 'approxVariant' : 'approx')}`;
+}
+
 export function renderControls(): void {
   const active = app.active;
   const sel = $<HTMLSelectElement>('computer-select');
@@ -71,13 +76,13 @@ export function renderControls(): void {
   $('device-hint').textContent = t('deviceHint');
   $('about-models').innerHTML = `<tr><th>${t('aboutModel')}</th><th>${t('algorithm')}</th><th>${t('aboutFidelity')}</th></tr>`
     + computers.map((c) => `<tr><td>${c.name}</td><td>${c.algorithm.replace(' (≈)', '')}</td>
-      <td><span class="badge small ${c.exact ? 'exact' : 'approx'}">${c.exact ? '✓ ' + t('exact') : '≈ ' + t('approx')}</span></td></tr>`).join('');
+      <td><span class="badge small ${c.exact ? 'exact' : 'approx'}">${fidelityLabel(c)}</span></td></tr>`).join('');
   $('device-caption').innerHTML = `<span class="badge small ${active.exact ? 'exact' : 'approx'}">${active.exact ? '✓' : '≈'}</span>
-    <span>${active.name} · ${t(active.exact ? 'captionExact' : 'captionApprox')}</span>`;
+    <span>${active.name} · ${t(active.exact ? 'captionExact' : active.undocumentedVariant ? 'captionApproxVariant' : 'captionApprox')}</span>`;
   // The model's notes are long: they open in a dialog (app/modelInfo.ts).
   $('algo-info').innerHTML = `
     <div class="algo-line"><span class="muted">${t('algorithm')} : ${active.algorithm}</span>
-      <span class="badge ${active.exact ? 'exact' : 'approx'}">${active.exact ? '✓ ' + t('exact') : '≈ ' + t('approx')}</span></div>
+      <span class="badge ${active.exact ? 'exact' : 'approx'}">${fidelityLabel(active)}</span></div>
     <button class="btn small info-btn" data-model-info><span class="icon" aria-hidden="true">i</span>${t('modelNotes')}</button>`;
 
   // Essential settings (screen layout) are always shown, the others only in the advanced section.

@@ -39,6 +39,7 @@ const dict = {
   modelNotes: { fr: 'Détails de la simulation', en: 'Simulation details' },
   exact: { fr: 'Algorithme public, reproduit fidèlement', en: 'Public algorithm, faithfully reproduced' },
   approx: { fr: 'Algorithme propriétaire : approximation', en: 'Proprietary algorithm: approximation' },
+  approxVariant: { fr: 'Variante non documentée : approximation', en: 'Undocumented variant: approximation' },
   compare: { fr: 'Comparaison des ordinateurs', en: 'Computer comparison' },
   compareShort: { fr: 'Comparer', en: 'Compare' },
   exercisesShort: { fr: 'Exercices', en: 'Exercises' },
@@ -211,14 +212,18 @@ const dict = {
     fr: 'Interprétation non officielle · algorithme propriétaire approché : les valeurs diffèrent de l’appareil réel',
     en: 'Unofficial interpretation · approximated proprietary algorithm: values differ from the real device',
   },
+  captionApproxVariant: {
+    fr: 'Interprétation non officielle · Bühlmann publié, mais l’appareil réel s’en écarte sans que le fabricant documente comment : les valeurs diffèrent',
+    en: 'Unofficial interpretation · published Bühlmann, but the real device departs from it in an undocumented way: values differ',
+  },
   introTitle: { fr: 'Avant de commencer', en: 'Before you start' },
   introEdu: {
     fr: 'Ce simulateur est un outil pédagogique. Ne l’utilisez jamais pour planifier ou conduire une vraie plongée : suivez votre formation, vos tables et le manuel de votre ordinateur.',
     en: 'This simulator is an educational tool. Never use it to plan or conduct a real dive: follow your training, your tables and your computer’s manual.',
   },
   introApprox: {
-    fr: 'Les écrans sont des interprétations inspirées des modèles cités, pas des reproductions. Les ordinateurs marqués ≈ utilisent des algorithmes propriétaires non publiés, approchés ici : leurs valeurs (NDL, paliers…) diffèrent de celles de l’appareil réel.',
-    en: 'Displays are interpretations inspired by the listed models, not reproductions. Computers marked ≈ use unpublished proprietary algorithms, approximated here: their values (NDL, stops…) differ from the real device.',
+    fr: 'Les écrans sont des interprétations inspirées des modèles cités, pas des reproductions. Les ordinateurs marqués ≈ utilisent des algorithmes propriétaires non publiés, ou s’écartent sans explication de l’algorithme annoncé, et sont approchés ici : leurs valeurs (NDL, paliers…) diffèrent de celles de l’appareil réel.',
+    en: 'Displays are interpretations inspired by the listed models, not reproductions. Computers marked ≈ use unpublished proprietary algorithms, or depart without explanation from the stated algorithm, and are approximated here: their values (NDL, stops…) differ from the real device.',
   },
   introBrands: {
     fr: 'Projet indépendant, sans affiliation avec les fabricants. Les noms de marques appartiennent à leurs propriétaires et ne servent qu’à identifier les modèles.',
@@ -250,8 +255,8 @@ const dict = {
   },
   tourComputerT: { fr: 'Choisir un ordinateur', en: 'Pick a computer' },
   tourComputerB: {
-    fr: 'Choisissez le modèle simulé. <b>✓</b> : algorithme public (Bühlmann + facteurs de gradient), reproduit fidèlement. <b>≈</b> : algorithme propriétaire, approché. Tous les ordinateurs suivent la même plongée : vous pouvez en changer à tout moment, même sous l’eau.',
-    en: 'Choose the simulated model. <b>✓</b>: public algorithm (Bühlmann + gradient factors), faithfully reproduced. <b>≈</b>: proprietary algorithm, approximated. All computers follow the same dive: you can switch at any time, even underwater.',
+    fr: 'Choisissez le modèle simulé. <b>✓</b> : algorithme public (Bühlmann + facteurs de gradient), reproduit fidèlement. <b>≈</b> : algorithme propriétaire, ou variante non documentée, approché. Tous les ordinateurs suivent la même plongée : vous pouvez en changer à tout moment, même sous l’eau.',
+    en: 'Choose the simulated model. <b>✓</b>: public algorithm (Bühlmann + gradient factors), faithfully reproduced. <b>≈</b>: proprietary algorithm, or undocumented variant, approximated. All computers follow the same dive: you can switch at any time, even underwater.',
   },
   tourSceneT: { fr: 'La colonne d’eau', en: 'The water column' },
   tourSceneB: {
@@ -326,8 +331,8 @@ const dict = {
   aboutModel: { fr: 'Modèle', en: 'Model' },
   aboutFidelity: { fr: 'Fidélité', en: 'Fidelity' },
   aboutModelsNote: {
-    fr: 'Les algorithmes propriétaires (RGBM, ZH-L16 ADT MB) ne sont pas publiés : ils sont approchés à partir de Bühlmann ZHL-16C avec des facteurs de gradient et des pénalités calibrés sur des valeurs publiées. Les écrans et les règles (alarmes, paliers, verrouillages…) s’inspirent des manuels utilisateurs publics de chaque modèle, sans les reproduire : disposition, couleurs, polices, textes, menus, comportements et valeurs peuvent différer, et seule une partie des fonctions est simulée. Le manuel officiel et l’appareil réel font foi.',
-    en: 'Proprietary algorithms (RGBM, ZH-L16 ADT MB) are unpublished: they are approximated from Bühlmann ZHL-16C with gradient factors and penalties calibrated on published values. Displays and rules (alarms, stops, lockouts…) are inspired by each model’s public user manual without reproducing it: layout, colours, fonts, texts, menus, behaviour and values may differ, and only part of the features are simulated. The official manual and the real device prevail.',
+    fr: 'Les algorithmes propriétaires (RGBM, ZH-L16 ADT MB) ne sont pas publiés : ils sont approchés à partir de Bühlmann ZHL-16C avec des facteurs de gradient et des pénalités calibrés sur des valeurs publiées. L’Aqualung i330R annonce Bühlmann ZHL-16C + GF mais s’en écarte d’une façon non documentée : il est simulé avec ses facteurs de gradient publiés, marqué ≈. Les écrans et les règles (alarmes, paliers, verrouillages…) s’inspirent des manuels utilisateurs publics de chaque modèle, sans les reproduire : disposition, couleurs, polices, textes, menus, comportements et valeurs peuvent différer, et seule une partie des fonctions est simulée. Le manuel officiel et l’appareil réel font foi.',
+    en: 'Proprietary algorithms (RGBM, ZH-L16 ADT MB) are unpublished: they are approximated from Bühlmann ZHL-16C with gradient factors and penalties calibrated on published values. The Aqualung i330R states Bühlmann ZHL-16C + GF but departs from it in an undocumented way: it runs with its published gradient factors, marked ≈. Displays and rules (alarms, stops, lockouts…) are inspired by each model’s public user manual without reproducing it: layout, colours, fonts, texts, menus, behaviour and values may differ, and only part of the features are simulated. The official manual and the real device prevail.',
   },
   aboutBrandsTitle: { fr: 'Marques et affiliation', en: 'Trademarks and affiliation' },
   aboutBrands: {
