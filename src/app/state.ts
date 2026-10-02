@@ -30,4 +30,6 @@ export const app = {
   scene3d: null as Scene3D | null,
   /** Alarm sounds of the computers (off until the user turns them on). */
   sound: false,
+  /** Analog pressure gauge also shown with a transmitter (a backup gauge on the regulator). */
+  spgWithTx: false,
 };

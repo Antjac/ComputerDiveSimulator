@@ -13,6 +13,7 @@ interface Prefs {
   tank: string;
   rmv: number;
   transmitter: boolean;
+  spgWithTx: boolean;
   rescue: boolean;
   view: '2d' | '3d';
   env: Environment;
@@ -38,6 +39,7 @@ export function savePrefs(): void {
     tank: app.tankId,
     rmv: session.rmv,
     transmitter: session.transmitterOn,
+    spgWithTx: app.spgWithTx,
     rescue: session.rescueAlert,
     view: app.view,
     env: app.env,
@@ -65,6 +67,7 @@ export function applyPrefs(): void {
   if (prefs.units === 'imperial') setUnits('imperial');
   if (prefs.rmv) session.rmv = prefs.rmv;
   if (prefs.transmitter === false) session.transmitterOn = false;
+  app.spgWithTx = prefs.spgWithTx === true; // off unless chosen
   session.rescueAlert = prefs.rescue === true; // off unless chosen
   applyTank();
   app.view = prefs.view === '3d' ? '3d' : '2d';

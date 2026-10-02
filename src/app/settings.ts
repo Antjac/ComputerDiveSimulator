@@ -123,7 +123,9 @@ export function renderControls(): void {
     `<option value="${l}" ${session.rmv === l ? 'selected' : ''}>${imperial() ? `${(l / 28.3168).toFixed(2)} cuft/min` : `${l} L/min`}</option>`).join('');
   $<HTMLSelectElement>('rescue-select').innerHTML = `<option value="off" ${session.rescueAlert ? '' : 'selected'}>${t('disabled')}</option><option value="on" ${session.rescueAlert ? 'selected' : ''}>${t('enabled')}</option>`;
   const txSel = $<HTMLSelectElement>('tx-select');
-  txSel.innerHTML = `<option value="on" ${session.transmitterOn ? 'selected' : ''}>${t('on')}</option><option value="off" ${session.transmitterOn ? '' : 'selected'}>${t('off')}</option>`;
+  const txMode = !session.transmitterOn ? 'off' : app.spgWithTx ? 'on-spg' : 'on';
+  txSel.innerHTML = ([['on', t('on')], ['on-spg', t('onSpg')], ['off', t('off')]] as const)
+    .map(([value, label]) => `<option value="${value}" ${txMode === value ? 'selected' : ''}>${label}</option>`).join('');
   $('tx-hint').textContent = active.transmitter ? `${t('transmitterModel')} : ${active.transmitter}` : t('noTransmitter');
   // Models without a transmitter: nothing to switch on or off, only the hint remains.
   $('tx-field').style.display = active.transmitter ? '' : 'none';
@@ -215,7 +217,9 @@ export function setupSettings(): void {
   });
 
   $('tx-select').addEventListener('change', (e) => {
-    session.transmitterOn = (e.target as HTMLSelectElement).value === 'on';
+    const mode = (e.target as HTMLSelectElement).value;
+    session.transmitterOn = mode !== 'off';
+    app.spgWithTx = mode === 'on-spg';
     savePrefs();
     refresh(true);
   });

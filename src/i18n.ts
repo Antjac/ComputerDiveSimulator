@@ -123,6 +123,7 @@ const dict = {
   transmitterModel: { fr: 'Émetteur compatible', en: 'Compatible transmitter' },
   noTransmitter: { fr: 'Cet ordinateur n’a pas d’émetteur : manomètre à côté.', en: 'No transmitter for this computer: gauge shown beside it.' },
   on: { fr: 'Activé', en: 'On' },
+  onSpg: { fr: 'Activé + manomètre', en: 'On + gauge' },
   off: { fr: 'Désactivé (manomètre)', en: 'Off (gauge)' },
   gasTime: { fr: 'Gaz (min)', en: 'Gas (min)' },
   spg: { fr: 'Manomètre', en: 'Pressure gauge' },

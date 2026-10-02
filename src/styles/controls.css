@@ -85,3 +85,5 @@ td.deco { color: var(--warn); }
 
 .btn.primary { border-color: var(--accent); color: var(--accent); }
 .tx-hint { grid-column: 1 / -1; margin: 0; }
+/* Long options (“On + gauge”, “Off (gauge)”): the field takes the whole row. */
+#tx-field { grid-column: 1 / -1; }
