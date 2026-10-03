@@ -29,6 +29,10 @@
   font-size: 12px; line-height: 1.4; color: var(--ink); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
 }
 .btn-tip[hidden] { display: none; }
+/* Phones and touch screens: no tooltip, it would hide the buttons (device.ts shows it on mouse hover only). */
+@media (hover: none), (pointer: coarse), (max-width: 640px), (max-height: 500px) and (orientation: landscape) {
+  .btn-tip { display: none; }
+}
 .btn-tip .tip-name { font-weight: 700; margin-bottom: 3px; }
 .btn-tip em { color: var(--muted); font-style: normal; }
 .btn-tip .tip-off { color: var(--muted); }
