@@ -332,6 +332,8 @@ const dict = {
   },
   about: { fr: 'À propos', en: 'About' },
   soundOn: { fr: 'Sons des alarmes activés (cliquer pour couper)', en: 'Alarm sounds on (click to mute)' },
+  tipsOn: { fr: 'Infobulles des boutons activées (cliquer pour les masquer)', en: 'Button tooltips on (click to hide them)' },
+  tipsOff: { fr: 'Infobulles des boutons masquées (cliquer pour les afficher)', en: 'Button tooltips off (click to show them)' },
   soundOff: { fr: 'Sons des alarmes coupés (cliquer pour les activer)', en: 'Alarm sounds off (click to turn on)' },
   close: { fr: 'Fermer', en: 'Close' },
   aboutModels: { fr: 'Ordinateurs simulés', en: 'Simulated computers' },

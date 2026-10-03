@@ -4,6 +4,7 @@
 import { ackAlertSounds } from './alertSounds';
 import type { ButtonAction, ButtonHelp } from '../computers/base';
 import { lang, t } from '../i18n';
+import { savePrefs } from './prefs';
 import { refresh } from './render';
 import { $, app, session } from './state';
 
@@ -34,7 +35,7 @@ function tipHtml(id: string): string {
 
 function updateTip(): void {
   const tip = $('btn-tip');
-  const id = fineHover.matches ? hoverBtn : null; // mouse hover only: on a phone the tooltip would cover the computer
+  const id = app.tips && fineHover.matches ? hoverBtn : null; // mouse hover only: on a phone the tooltip would cover the computer
   const btn = id ? $('device').querySelector<HTMLElement>(`[data-btn="${id}"]`) : null;
   if (!id || !btn) {
     tip.hidden = true;
@@ -90,7 +91,23 @@ export function fitDevice(): void {
   host.style.setProperty('--dev-scale', String(Math.max(0.3, scale)));
 }
 
+/** Header button that shows or hides the tooltips (labels follow the language). */
+export function renderTipsButton(): void {
+  const b = $<HTMLButtonElement>('tips-toggle');
+  b.setAttribute('aria-pressed', String(app.tips));
+  const label = t(app.tips ? 'tipsOn' : 'tipsOff');
+  b.title = label;
+  b.setAttribute('aria-label', label);
+}
+
 export function setupDevice(): void {
+  renderTipsButton();
+  $('tips-toggle').addEventListener('click', () => {
+    app.tips = !app.tips;
+    renderTipsButton();
+    updateTip();
+    savePrefs();
+  });
   $('device').addEventListener('pointerdown', (e) => {
     const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-btn]');
     if (e.pointerType !== 'mouse') hoverBtn = null;

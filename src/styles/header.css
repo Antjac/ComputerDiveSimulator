@@ -5,8 +5,11 @@
 .tour-open { flex: none; padding: 3px 9px; font-size: 12px; border-color: var(--accent); color: var(--accent); }
 .tour-open .icon { display: none; }
 /* Alarm sounds on / off: icon only. */
-#sound-toggle { width: 38px; padding-left: 0; padding-right: 0; flex: none; font-size: 16px; line-height: 1; }
-#sound-toggle[aria-pressed='true'] { border-color: var(--accent); }
+#tips-toggle, #sound-toggle { width: 38px; padding-left: 0; padding-right: 0; flex: none; font-size: 16px; line-height: 1; }
+#tips-toggle[aria-pressed='true'], #sound-toggle[aria-pressed='true'] { border-color: var(--accent); }
+#tips-toggle[aria-pressed='false'] .icon { opacity: 0.4; }
+/* Tooltips are for the mouse only (device.ts): no toggle on touch screens. */
+@media (hover: none), (pointer: coarse) { #tips-toggle { display: none; } }
 @media (max-width: 640px), (max-height: 500px) and (orientation: landscape) {
   .brand { display: block; flex: none; }
   .brand h1, .brand .sub { display: none; }

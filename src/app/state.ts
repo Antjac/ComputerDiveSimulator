@@ -34,6 +34,8 @@ export const app = {
   scene3d: null as Scene3D | null,
   /** Alarm sounds of the computers (off until the user turns them on). */
   sound: false,
+  /** Tooltips of the computer's buttons on mouse hover (on unless the user turns them off). */
+  tips: true,
   /** Analog pressure gauge also shown with a transmitter (a backup gauge on the regulator). */
   spgWithTx: false,
 };
