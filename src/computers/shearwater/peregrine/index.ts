@@ -4,6 +4,7 @@ import type { Lang } from '../../../i18n';
 import { depthInt, depthText, depthUnit, imperial, pressText, pressUnit, tempUnit, tempVal } from '../../../units';
 import { ButtonHelp, ComputerView, clockOfDay, leadingOnGas } from '../../base';
 import { type PeregrineNotice, PeregrineRules } from './rules';
+import { SwMenu, bestGas, nxName, swO2 } from '../multigas';
 
 // §4.10 primary notifications: title ("Warning", or "Alert" for the custom alerts) and message, as on
 // the figures of the table.
@@ -28,9 +29,52 @@ export class ShearwaterPeregrine extends PeregrineRules {
   // a notification on display is dismissed by either button.
   press(button: string, s: DiveSession): boolean {
     if ((button === 'left' || button === 'right') && this.notices.dismiss()) return true;
+    const menu = this.menu;
+    if (this.maxGases > 1 && menu.open) {
+      const items = this.menuItems(s);
+      if (button === 'left') menu.menu(items, this.knownGases(s));
+      else {
+        const g = menu.select(items[menu.item!], this.knownGases(s), this.betterGas(s) ?? s.breathing);
+        if (g !== null) s.switchGas(g);
+      }
+      return true;
+    }
     if (button === 'right') this.setScreen((this.screen + 1) % (this.infoScreens(s).length + 1));
-    else if (button === 'left') this.setScreen(0);
+    else if (button === 'left') {
+      // §11: MENU opens the menu from the main screen (simulated in 3 GasNx, for Select Gas).
+      if (this.screen === 0 && this.maxGases > 1) menu.menu(this.menuItems(s), this.knownGases(s));
+      else this.setScreen(0);
+    }
     return true;
+  }
+
+  /** §11.3 Select Gas: every gas on the row, the best gas queued when a change is suggested. */
+  private menu = new SwMenu('new');
+
+  /**
+   * §11.1 menu structure (3 GasNx): Turn Off (End Dive while still in dive mode), Dive Log, Start
+   * Bluetooth and System Setup at the surface only; Select Gas and Dive Setup always. Only Select Gas is
+   * simulated.
+   */
+  private menuItems(s: DiveSession): string[] {
+    if (s.inDive && s.depth >= 1.2) return ['Select Gas', 'Dive Setup'];
+    return [s.inDive ? 'End Dive' : 'Turn Off', 'Select Gas', 'Dive Setup', ...(s.inDive ? [] : ['Dive Log', 'Start Bluetooth', 'System Setup'])];
+  }
+
+  /** The best gas when it differs from the gas breathed (§4.4: gas in yellow), else null. */
+  private betterGas(s: DiveSession): number | null {
+    if (this.maxGases < 2) return null;
+    const b = bestGas(s, this.knownGases(s), this.modPpo2, this.decoPpo2());
+    return b !== null && b !== s.breathing ? b : null;
+  }
+
+  /** §11.3 figure: every gas "NN%", the active one inverted, ▸ on the one pointed; Next / Select. */
+  private menuRow(s: DiveSession): string {
+    const m = this.menu;
+    if (m.gas === null) return `<div class="pt-menu">${this.menuItems(s)[m.item!]}</div>`;
+    const gases = this.knownGases(s);
+    const items = SwMenu.order(gases).map((i) => `<span class="${i === s.breathing ? 'act' : ''}">${i === m.gas ? '<b class="yellow">▸</b>' : ''}${swO2(gases[i])}<small class="pt-cyan">%</small></span>`).join('');
+    return `<div class="pt-msel"><div class="pt-mlist">${items}</div><div class="pt-mlbl"><span>Next</span><span>${m.gas === s.breathing ? 'Active' : ''}</span><span>Select</span></div></div>`;
   }
 
   /**
@@ -46,19 +90,24 @@ export class ShearwaterPeregrine extends PeregrineRules {
   }
 
   buttons(): Record<string, ButtonHelp> {
+    const multi = this.maxGases > 1;
     return {
       left: {
         name: 'MENU',
         press: {
-          real: { fr: 'Notification → acquittée. Écran d’info → retour à l’écran principal. Écran principal → menu', en: 'Notification → dismissed. Info screen → back to the main screen. Main screen → menu' },
+          real: multi
+            ? { fr: 'Notification → acquittée. Écran d’info → écran principal. Écran principal → menu (Select Gas, Dive Setup…), élément suivant ; dans Select Gas : gaz suivant (Next)', en: 'Notification → dismissed. Info screen → main screen. Main screen → menu (Select Gas, Dive Setup…), next item; in Select Gas: next gas (Next)' }
+            : { fr: 'Notification → acquittée. Écran d’info → retour à l’écran principal. Écran principal → menu', en: 'Notification → dismissed. Info screen → back to the main screen. Main screen → menu' },
           simulated: true,
-          note: { fr: 'les menus ne sont pas simulés', en: 'the menus are not simulated' },
+          note: multi ? { fr: 'seul Select Gas est simulé', en: 'only Select Gas is simulated' } : { fr: 'les menus ne sont pas simulés', en: 'the menus are not simulated' },
         },
       },
       right: {
         name: 'FUNC',
         press: {
-          real: { fr: 'Notification → acquittée. Sinon écran d’info suivant (retour à l’écran principal après le dernier, ou après 10 s)', en: 'Notification → dismissed. Otherwise next info screen (back to the main screen after the last one, or after 10 s)' },
+          real: multi
+            ? { fr: 'Notification → acquittée. Menu : entre dans l’élément (Select Gas) ; dans la liste : choisit le gaz (Select). Sinon écran d’info suivant', en: 'Notification → dismissed. Menu: enters the item (Select Gas); in the list: selects the gas (Select). Otherwise next info screen' }
+            : { fr: 'Notification → acquittée. Sinon écran d’info suivant (retour à l’écran principal après le dernier, ou après 10 s)', en: 'Notification → dismissed. Otherwise next info screen (back to the main screen after the last one, or after 10 s)' },
           simulated: true,
         },
       },
@@ -114,7 +163,8 @@ export class ShearwaterPeregrine extends PeregrineRules {
 
     // --- Bottom row (§4.3, §12.4) or info screen ---
     let bottom: string;
-    if (screen === 0) bottom = this.gasCell(v) + this.bottomCells(v, s);
+    if (this.maxGases > 1 && this.menu.open) bottom = this.menuRow(s);
+    else if (screen === 0) bottom = this.gasCell(v, s) + this.bottomCells(v, s);
     else bottom = this.infoScreen(screens[screen - 1], v, s);
     // §4.8: a primary notification shows across the bottom row, in yellow, until dismissed.
     const notice = v.inDive ? this.notices.top : undefined;
@@ -138,7 +188,7 @@ export class ShearwaterPeregrine extends PeregrineRules {
                 </div>
                 <div class="pt-right">
                   <div class="pt-stopzone">${title}${body}</div>
-                  <div class="pt-ndlrow">${this.persistent(v)}<div class="pt-ndl"><div class="pt-lbl r">NDL</div><div class="pt-big ${ndlCls}">${ndlVal}</div></div>${n2Bar}</div>
+                  <div class="pt-ndlrow">${this.persistent(v, s)}<div class="pt-ndl"><div class="pt-lbl r">NDL</div><div class="pt-big ${ndlCls}">${ndlVal}</div></div>${n2Bar}</div>
                 </div>
               </div>
               <div class="pt-bottom ${screen ? 'info' : ''}">${bottom}</div>
@@ -204,20 +254,28 @@ export class ShearwaterPeregrine extends PeregrineRules {
   }
 
   /** §4.8 persistent notifications left of the NDL, highest priority only. */
-  private persistent(v: ComputerView): string {
+  private persistent(v: ComputerView, s: DiveSession): string {
     const u = depthUnit();
+    const better = this.betterGas(s);
     // "High CNS": CNS limit reached (100 %, deduced; red above 100 % per §4.7).
     if (v.cns >= 100) return `<div class="pt-warn red">High<br>CNS<br>${Math.round(v.cns)}%</div>`;
     if (!v.inDive) return '';
+    // "MOD, switch gas": "Switch to more appropriate gas (another gas must be programmed and turned on for this to appear)".
+    if (v.depth > v.mod && better !== null) return `<div class="pt-warn red">MOD<br>⟳Gas<br>${nxName(s.allGases[better])}</div>`;
     if (v.depth > v.mod) return `<div class="pt-warn red">MOD<br>${depthInt(v.mod)}${u}<br>⇧</div>`;
     if (v.depth > v.mod - 1.9) return `<div class="pt-warn yellow">MOD<br>${depthInt(v.mod)}${u}</div>`; // "Near MOD"
+    // "Better Gas": "Another gas is programmed that is more suitable at the current depth. Only displays when deco stops are needed."
+    if (v.inDeco && better !== null) return `<div class="pt-warn yellow">Best<br>Gas<br>${nxName(s.allGases[better])}</div>`;
     return '';
   }
 
-  /** §4.4: "Air" for 21 % O2, "Nx" + O2 % otherwise; flashing red when the MOD is exceeded. */
-  private gasCell(v: ComputerView): string {
-    const cls = v.inDive && v.depth > v.mod ? 'pt-hl-red blink' : '';
-    return `<div class="pt-gas"><span class="${cls}">${v.o2 === 21 ? 'Air' : `Nx${v.o2}`}</span></div>`;
+  /**
+   * §4.4: "Air" for 21 % O2, "Nx" + O2 % otherwise; yellow (background, figure) when a better gas is
+   * available (3 GasNx only); flashing red when the MOD is exceeded.
+   */
+  private gasCell(v: ComputerView, s: DiveSession): string {
+    const cls = v.inDive && v.depth > v.mod ? 'pt-hl-red blink' : v.inDive && this.betterGas(s) !== null ? 'pt-hl-yellow' : '';
+    return `<div class="pt-gas"><span class="${cls}">${nxName(s.gas)}</span></div>`;
   }
 
   /** Centre and right positions of the bottom row (§4.3, §4.5, §12.4). */

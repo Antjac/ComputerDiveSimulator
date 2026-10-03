@@ -5,6 +5,7 @@ import { type AlertCue, type ComputerView, DiveComputer, SettingDef } from '../.
 import { Notices } from '../../common/notices';
 import { ppo2Setting } from '../../common/ppo2';
 import { pressureSetting } from '../../common/tank';
+import { OC_DECO_PPO2, decoPpo2Setting } from '../multigas';
 
 /** §4.10 primary notifications that can occur here, highest priority first (order of the table). */
 export type PeregrineNotice =
@@ -31,10 +32,27 @@ export abstract class PeregrineRules extends DiveComputer {
   readonly transmitter = 'Swift';
   readonly gasTimeName = 'GTR';
   readonly notes = {
-    fr: 'Modes Air et Nitrox (un seul gaz ; 3 GasNx et Gauge non simulés). Bouton droit (FUNC) : écrans d’info (LAST DIVE, AI, MOD/MAX/PPO2, TEMP/CONSERV/CNS, GF99/SurGF/CEIL, tissus, DET/Δ+5/@+5, batterie, pression, date, n° de série) ; bouton gauche (MENU) : retour à l’écran principal (menus non simulés). Aucun verrouillage en cas de palier manqué (§5.2). Palier de sécurité ajouté au-delà de 11 m, décompte entre 2,4 et 8,3 m (§5.1) ; réglages 3, 4, 5 min, Adapt, CntUp ou Off. Notifications du §4.10 en jaune sur la ligne du bas jusqu’à l’appui sur un bouton (HIGH PPO2, MISSED DECO STOP, FAST ASCENT, VERY HIGH CNS, HIGH CNS, alertes NDL / profondeur / durée, T1 CRITICAL PRES) ; notifications persistantes à gauche du NDL (High CNS, MOD, Near MOD). Compas, boussole, mini-affichages personnalisés et menus non simulés. Émetteur : pression de réserve réglable (50 bar par défaut, §12.3), alerte critique sous max(21 bar, réserve / 2).',
-    en: 'Air and Nitrox modes (single gas; 3 GasNx and Gauge not simulated). Right button (FUNC): info screens (LAST DIVE, AI, MOD/MAX/PPO2, TEMP/CONSERV/CNS, GF99/SurGF/CEIL, tissues, DET/Δ+5/@+5, battery, pressure, date, serial number); left button (MENU): back to the main screen (menus not simulated). No lock-out for missed stops (§5.2). Safety stop added beyond 11 m, counting down between 2.4 and 8.3 m (§5.1); settings 3, 4, 5 min, Adapt, CntUp or Off. §4.10 notifications in yellow on the bottom row until a button is pressed (HIGH PPO2, MISSED DECO STOP, FAST ASCENT, VERY HIGH CNS, HIGH CNS, NDL / depth / time alerts, T1 CRITICAL PRES); persistent notifications left of the NDL (High CNS, MOD, Near MOD). Compass, custom mini displays and menus are not simulated. Transmitter: settable reserve pressure (50 bar by default, §12.3), critical warning below max(21 bar, reserve / 2).',
+    fr: 'Modes Air / Nitrox (un seul gaz) et 3 GasNx (par défaut, §12.1 ; jusqu’à 3 gaz Nx, §12.5) ; Gauge non simulé. 3 GasNx : le gaz le moins riche suit la MOD PPO2, les autres la PPO2 de déco (1,61 par défaut, Adv. Config 2) ; le plan suppose le passage au meilleur gaz (§6.1) ; gaz en jaune quand un meilleur gaz est disponible, notifications persistantes MOD ⟳Gas et Best Gas (§4.8) ; MENU puis FUNC sur Select Gas (§11.3 : liste de tous les gaz, meilleur gaz proposé d’abord) ; dernier palier 3 ou 6 m (§12.2). Bouton droit (FUNC) : écrans d’info (LAST DIVE, AI, MOD/MAX/PPO2, TEMP/CONSERV/CNS, GF99/SurGF/CEIL, tissus, DET/Δ+5/@+5, batterie, pression, date, n° de série) ; bouton gauche (MENU) : retour à l’écran principal (menus non simulés). Aucun verrouillage en cas de palier manqué (§5.2). Palier de sécurité ajouté au-delà de 11 m, décompte entre 2,4 et 8,3 m (§5.1) ; réglages 3, 4, 5 min, Adapt, CntUp ou Off. Notifications du §4.10 en jaune sur la ligne du bas jusqu’à l’appui sur un bouton (HIGH PPO2, MISSED DECO STOP, FAST ASCENT, VERY HIGH CNS, HIGH CNS, alertes NDL / profondeur / durée, T1 CRITICAL PRES) ; notifications persistantes à gauche du NDL (High CNS, MOD, Near MOD). Compas, boussole, mini-affichages personnalisés et menus non simulés. Émetteur : pression de réserve réglable (50 bar par défaut, §12.3), alerte critique sous max(21 bar, réserve / 2).',
+    en: 'Air / Nitrox (single gas) and 3 GasNx (default, §12.1; up to 3 Nx gases, §12.5) modes; Gauge not simulated. 3 GasNx: the leanest gas obeys the MOD PPO2, the others the deco PPO2 (1.61 by default, Adv. Config 2); the plan assumes the switch to the best gas (§6.1); gas in yellow when a better gas is available, MOD ⟳Gas and Best Gas persistent notifications (§4.8); MENU then FUNC on Select Gas (§11.3: list of every gas, best gas offered first); last stop 3 or 6 m (§12.2). Right button (FUNC): info screens (LAST DIVE, AI, MOD/MAX/PPO2, TEMP/CONSERV/CNS, GF99/SurGF/CEIL, tissues, DET/Δ+5/@+5, battery, pressure, date, serial number); left button (MENU): back to the main screen (menus not simulated). No lock-out for missed stops (§5.2). Safety stop added beyond 11 m, counting down between 2.4 and 8.3 m (§5.1); settings 3, 4, 5 min, Adapt, CntUp or Off. §4.10 notifications in yellow on the bottom row until a button is pressed (HIGH PPO2, MISSED DECO STOP, FAST ASCENT, VERY HIGH CNS, HIGH CNS, NDL / depth / time alerts, T1 CRITICAL PRES); persistent notifications left of the NDL (High CNS, MOD, Near MOD). Compass, custom mini displays and menus are not simulated. Transmitter: settable reserve pressure (50 bar by default, §12.3), critical warning below max(21 bar, reserve / 2).',
   };
   readonly settingDefs: SettingDef[] = [
+    {
+      // §12.1 Dive Mode: Air, Nitrox, 3 GasNx (default), Gauge (not simulated). Air is Nitrox at 21 %.
+      key: 'mode',
+      label: { fr: 'Mode de plongée', en: 'Dive mode' },
+      options: [{ value: 'nitrox', label: 'Air / Nitrox' }, { value: '3gasnx', label: '3 GasNx' }],
+      default: '3gasnx',
+      group: 'deco',
+    },
+    {
+      // §12.2 Last Stop: "Only configurable in 3 GasNx mode"; 3 m or 6 m (the figure shows 3m).
+      key: 'lastStop',
+      label: { fr: 'Dernier palier (Last Stop)', en: 'Last Stop' },
+      options: [{ value: '3', label: '3 m' }, { value: '6', label: '6 m' }],
+      default: '3',
+      showIf: (s) => s.mode !== 'nitrox',
+    },
+    decoPpo2Setting((s) => s.mode !== 'nitrox'),
     {
       key: 'gf',
       label: { fr: 'Conservatisme', en: 'Conservatism' },
@@ -160,9 +178,20 @@ export abstract class PeregrineRules extends DiveComputer {
       ? [Number(this.settings.gfLow), Number(this.settings.gfHigh)]
       : GF_PRESETS[this.settings.gf] ?? GF_PRESETS.med;
     lo = Math.min(lo, hi); // a GF low above the GF high is not meaningful (device check not described)
-    // §5.2: stops every 3 m; §12.2: last stop set only in 3 GasNx mode, so 3 m here; §4.4: deco
+    // §5.2: stops every 3 m; §12.2: last stop set only in 3 GasNx mode, 3 m otherwise; §4.4: deco
     // calculations assume 10 m/min.
-    return { gfLow: lo / 100, gfHigh: hi / 100, lastStop: 3, stopStep: 3, ascentRate: 10 };
+    const last = this.maxGases > 1 ? Number(this.settings.lastStop) || 3 : 3;
+    return { gfLow: lo / 100, gfHigh: hi / 100, lastStop: last, stopStep: 3, ascentRate: 10 };
+  }
+
+  /** §12.5: "up to 3 nitrox gases in the 3 GasNx dive mode". */
+  get maxGases(): number {
+    return this.settings.mode === 'nitrox' ? 1 : 3;
+  }
+
+  /** Adv. Config 2: deco gases obey the OC Deco PPO2 (1.61 by default). */
+  decoPpo2(): number {
+    return Number(this.settings.decoPpo2) || OC_DECO_PPO2;
   }
 
   /** §4.4: 1 arrow per 3 m/min; yellow above 9 m/min (4–5 arrows), flashing red above 18 m/min (6). */
@@ -228,8 +257,10 @@ export abstract class PeregrineRules extends DiveComputer {
       if (!this.adaptLong && (s.depth > 30 || n < 5)) this.adaptLong = true;
       if (!s.tissues.tolerates(SURFACE_PRESSURE, gfHigh)) this.hadDeco = true;
       // §4.8: HIGH PPO2 when the average PPO2 stays above the limit for more than 30 s; in Air and
-      // Nitrox modes the limit is the OC MOD PPO2 (§12.10 "Bottom Gases Vs. Deco Gases", deduced).
-      this.highPpo2Sec = s.ppO2 > this.modPpo2 ? this.highPpo2Sec + dt : 0;
+      // Nitrox modes the limit is the OC MOD PPO2, in 3 GasNx the deco gases obey the Deco PPO2 (Adv.
+      // Config 2 "Bottom Gases Vs. Deco Gases", deduced).
+      const limit = s.breathing > 0 && this.maxGases > 1 ? this.decoPpo2() : this.modPpo2;
+      this.highPpo2Sec = s.ppO2 > limit ? this.highPpo2Sec + dt : 0;
       this.fastSec = s.ascentRate > 10 ? this.fastSec + dt : 0;
       if (this.highPpo2Sec > 30) now.push('high-ppo2');
       // §5.2: "Significant stop violations will result in a MISSED STOP notification": threshold not

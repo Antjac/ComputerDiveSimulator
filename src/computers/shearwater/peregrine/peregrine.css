@@ -91,3 +91,13 @@
 .pt-lastrow small { font-size: 18px; }
 .pt-tissues { flex: 1; }
 .pt-tgraph { display: block; width: 100%; height: 44px; }
+/* §11 menu in the bottom row: the item's name, or Select Gas (§11.3 figure: every gas, the active one
+   inverted, ▸ on the one pointed, Next / Select). */
+.pt-menu { flex: 1; font-size: 34px; white-space: nowrap; align-self: center; }
+.pt-msel { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
+.pt-mlist { display: flex; justify-content: space-between; font-size: 34px; white-space: nowrap; }
+.pt-mlist span { padding: 0 2px; }
+.pt-mlist span.act { background: #fff; color: #000; }
+.pt-mlist span.act small { color: #000; }
+.pt-mlbl { display: flex; justify-content: space-between; font-size: 18px; }
+.pt-mlist b { margin-right: 3px; }

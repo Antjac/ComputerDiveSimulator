@@ -71,3 +71,53 @@
 
 .pd-btn.l.pressed { translate: 3px 0; }
 .pd-btn.r.pressed { translate: -3px 0; }
+
+/* Better gas available: the gas on a yellow background (Recreational manual §4.4 figure). */
+.pd-screen .pd-hlbg { background: #ffd400; color: #000; padding: 0 3px; }
+/* Menu in the bottom row (§10 / §11 figures). */
+.pd-menu { flex: 1; font-size: 46px; white-space: nowrap; }
+.pd-msel { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
+.pd-mgas { font-size: 42px; white-space: nowrap; }
+.pd-mgas u { text-decoration-color: #ffd400; }
+.pd-mlist { display: flex; justify-content: space-between; font-size: 34px; white-space: nowrap; }
+.pd-mlist span { padding: 0 2px; }
+.pd-mlist span.act { background: #fff; color: #000; }
+.pd-mlist span.act small { color: #000; }
+.pd-mlbl { display: flex; justify-content: space-between; font-size: 18px; }
+
+/* OC Tec screen (Technical manual §4.3): three rows, cyan titles above white figures. */
+.pd-screen.pdt { --pdt-cyan: #34b4ff; }
+.pdt-row { display: flex; align-items: flex-end; gap: 3px; padding: 0 4px; }
+.pdt-row.top { height: 80px; }
+.pdt-row.mid { height: 76px; }
+.pdt-row.bot { flex: 1; padding-bottom: 4px; }
+.pdt-row.bot.info { align-items: center; padding-bottom: 0; }
+.pdt-c { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.pdt-c b { font-weight: 400; font-size: 42px; line-height: 1; min-height: 1em; white-space: nowrap; }
+.pdt-c b.r, .pdt-c .r { text-align: right; }
+.pdt-c.dep { flex: 1.5; }
+.pdt-c.tim { flex: 1; }
+.pdt-c.w2 { flex: 2; }
+.pdt-c.ppo2 { flex: 1.2; text-align: center; }
+.pdt-c.ppo2 b { font-size: 46px; }
+.pdt-c.slot b { font-size: 32px; }
+.pdt-row.bot .pdt-c.r { flex: 0.8; }
+.pdt-c.gas { flex: 2.1; }
+.pdt-c b small { font-size: 0.45em; }
+.pdt-lbl { position: relative; z-index: 1; color: var(--pdt-cyan); font-size: 18px; line-height: 1.1; white-space: nowrap; }
+.pdt-tl { position: relative; align-self: flex-start; }
+.pdt-tl i { position: absolute; left: 0; bottom: -1px; height: 2px; background: var(--pdt-cyan); }
+.pdt-oc { font-size: 42px; line-height: 1; }
+.pdt-arrows { display: flex; flex-direction: column; gap: 1px; margin-bottom: 4px; }
+.pdt-arrows i { width: 12px; height: 7px; clip-path: polygon(50% 0, 100% 55%, 100% 100%, 50% 45%, 0 100%, 0 55%); background: transparent; }
+.pdt-arrows i.white { background: #d8d8d8; } .pdt-arrows i.yellow { background: #ffd400; } .pdt-arrows i.red { background: #ff2a1f; }
+.pdt-bat { flex: none; width: 12px; height: 34px; border: 2px solid var(--pdt-cyan); position: relative; margin-bottom: 4px; }
+.pdt-bat i { position: absolute; left: 1px; right: 1px; bottom: 1px; height: 85%; background: var(--pdt-cyan); }
+.pd-screen .pdt-hlred { display: inline-block; line-height: 0.9; background: #ff2a1f; color: #fff; padding: 0 3px; }
+.pdt .pd-hlbg { display: inline-block; line-height: 0.9; }
+.pdt .pd-err-msg { font-size: 28px; }
+.pdt .pd-menu { font-size: 40px; }
+.pdt .pd-mgas { font-size: 34px; }
+.pdt-row.bot .pd-cell .pd-val { font-size: 30px; }
+.pd-mlist b { margin-right: 3px; }
+.pdt-row.bot .pd-val small { margin-left: 2px; }
