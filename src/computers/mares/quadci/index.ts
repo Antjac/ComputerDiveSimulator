@@ -375,9 +375,12 @@ export class MaresQuadCi extends QuadCiRules {
     }
     if (v.inDeco && v.stopDepth > 0) {
       const red = v.ceilingViolation === 2 ? 'red' : '';
-      return `<div class="qc-c sm ${red}"><em>DECO</em><b>${depthInt(v.stopDepth)}<u>${du}</u></b></div>
-        <div class="qc-c sm"><em>STOP</em><b>${v.stopTime}:</b></div>
-        <div class="qc-c sm r"><em>TTS</em><b>${v.tts}:</b></div>`;
+      // Three cells side by side: smaller figures when they are long (a 3-digit TTS, feet).
+      const chars = String(depthInt(v.stopDepth)).length + String(v.stopTime).length + String(v.tts).length;
+      const sm = chars > 6 ? 'sm xs' : 'sm';
+      return `<div class="qc-c ${sm} ${red}"><em>DECO</em><b>${depthInt(v.stopDepth)}<u>${du}</u></b></div>
+        <div class="qc-c ${sm}"><em>STOP</em><b>${v.stopTime}:</b></div>
+        <div class="qc-c ${sm} r"><em>TTS</em><b>${v.tts}:</b></div>`;
     }
     const deep = this.deepStop(v, s);
     if (full && deep && deep.active) {

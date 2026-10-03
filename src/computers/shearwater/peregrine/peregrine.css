@@ -33,7 +33,7 @@
 .pt-arrows { display: flex; flex-direction: column; gap: 1px; margin: 6px 0 0 3px; }
 .pt-arrows i { width: 14px; height: 10px; clip-path: polygon(50% 0, 100% 55%, 100% 100%, 50% 45%, 0 100%, 0 55%); background: #2b2b2b; }
 .pt-arrows i.white { background: #e8e8e8; } .pt-arrows i.yellow { background: #ffd400; } .pt-arrows i.red { background: #ff2a1f; }
-.pt-lbl { color: var(--pt-cyan); font-size: 18px; letter-spacing: 0.5px; white-space: nowrap; }
+.pt-lbl { position: relative; z-index: 1; color: var(--pt-cyan); font-size: 18px; letter-spacing: 0.5px; white-space: nowrap; }
 .pt-lbl.r { text-align: right; }
 .pt-time { font-size: 50px; font-weight: 500; display: flex; align-items: flex-start; padding-left: 18px; }
 .pt-time sup { font-size: 24px; vertical-align: top; margin-top: 4px; }
@@ -50,8 +50,8 @@
 .pt-stop.done { font-size: 32px; margin-top: 12px; }
 .pt-mark { font-size: 26px; margin-right: 4px; vertical-align: 14px; }
 .pt-hl { display: inline-block; line-height: 1; background: #ffd400; color: #000; padding: 1px 3px 0; }
-.pt-hl-red { display: inline-block; line-height: 1; background: #ff2a1f; color: #000; padding: 0 2px; }
-.pt-hl-yellow { display: inline-block; line-height: 1; background: #ffd400; color: #000; padding: 0 2px; }
+.pt-hl-red { display: inline-block; line-height: 0.92; background: #ff2a1f; color: #000; padding: 0 2px; }
+.pt-hl-yellow { display: inline-block; line-height: 0.92; background: #ffd400; color: #000; padding: 0 2px; }
 .pt-ndlrow { flex: 1; display: flex; align-items: flex-end; gap: 4px; min-height: 0; }
 .pt-ndl { flex: 1; text-align: right; }
 .pt-big { font-size: 58px; font-weight: 500; }
@@ -70,7 +70,7 @@
 .pt-mini { font-size: 22px; line-height: 1.1; white-space: nowrap; }
 .pt-mini.r { text-align: right; } .pt-mini.c { font-size: 20px; text-align: center; } .pt-mini.l { text-align: left; font-size: 20px; }
 .pt-vunit { display: inline-block; font-size: 9px; line-height: 1; color: var(--pt-cyan); margin-left: 2px; vertical-align: 6px; text-align: center; }
-.pt-vunit.u { font-size: 11px; }
+.pt-vunit.u { font-size: 11px; line-height: 1.2; }
 .pt-pbar { display: inline-flex; gap: 1px; margin-left: 4px; padding: 2px; border: 1px solid #fff; border-right-width: 3px; vertical-align: 2px; }
 .pt-pbar i { width: 4px; height: 9px; background: transparent; }
 .pt-pbar i.on { background: #fff; }

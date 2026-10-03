@@ -260,7 +260,7 @@ export class ShearwaterPerdix extends PerdixRules {
     if (notice && v.inDive) {
       // §4.10 figures: "Warning" above the automatic notifications, "Alert" above the §4.9 custom alerts.
       const kind = notice === 'low-ndl' || notice === 'depth-alert' || notice === 'time-alert' ? 'Alert' : 'Warning';
-      bottom = `<div class="pd-err"><div class="pd-err-lbls"><span class="pd-lbl">${kind}</span><span class="pd-lbl">Confirm</span></div><div class="pd-err-msg">${NOTICE_TEXT[notice]}</div></div>`;
+      bottom = `<div class="pd-err"><div class="pd-err-lbls"><span class="pd-lbl">${kind}</span><span class="pd-lbl">Confirm</span></div><div class="pd-err-msg ${NOTICE_TEXT[notice].length > 12 ? 'long' : ''}">${NOTICE_TEXT[notice]}</div></div>`;
     }
 
     el.innerHTML = `
@@ -359,7 +359,7 @@ export class ShearwaterPerdix extends PerdixRules {
     const notice = v.inDive ? this.notices.top : undefined;
     if (notice) {
       const kind = notice === 'low-ndl' || notice === 'depth-alert' || notice === 'time-alert' ? 'Alert' : 'Warning';
-      bottom = `<div class="pd-err"><div class="pd-err-lbls"><span class="yellow">${kind}</span><span class="pd-blue">Confirm</span></div><div class="pd-err-msg">${NOTICE_TEXT[notice]}</div></div>`;
+      bottom = `<div class="pd-err"><div class="pd-err-lbls"><span class="yellow">${kind}</span><span class="pd-blue">Confirm</span></div><div class="pd-err-msg ${NOTICE_TEXT[notice].length > 12 ? 'long' : ''}">${NOTICE_TEXT[notice]}</div></div>`;
     } else if (this.menu.open) {
       bottom = this.menuRow(s);
     } else if (screen > 0) {

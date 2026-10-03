@@ -22,7 +22,7 @@
 .pd-left { border-right: 2px solid var(--pd-blue); padding: 4px 6px; display: flex; flex-direction: column; }
 .pd-depth { position: relative; font-size: 78px; font-weight: 500; letter-spacing: -1px; height: 88px; }
 .pd-depth small { font-size: 40px; }
-.pd-unit { color: var(--pd-blue); font-size: 22px; margin-left: 2px; }
+.pd-unit { position: relative; z-index: 1; color: var(--pd-blue); font-size: 22px; margin-left: 2px; }
 .pd-arrows { position: absolute; right: 0; top: 4px; display: flex; flex-direction: column; gap: 1px; }
 .pd-arrows i { width: 13px; height: 11px; clip-path: polygon(50% 0, 100% 55%, 100% 100%, 50% 45%, 0 100%, 0 55%); background: #262626; }
 .pd-arrows i.white { background: #d8d8d8; } .pd-arrows i.yellow { background: #ffd400; } .pd-arrows i.red { background: #ff2a1f; }
@@ -63,6 +63,8 @@
 .pd-err { flex: 1; display: flex; flex-direction: column; justify-content: center; }
 .pd-err-lbls { display: flex; justify-content: space-between; padding-right: 22%; }
 .pd-err-msg { color: #ffd400; font-size: 34px; line-height: 1.1; white-space: nowrap; }
+/* Long messages (MISSED DECO STOP, T1 CRITICAL PRES): smaller, so they fit whatever the font. */
+.pd-err-msg.long { font-size: 28px; }
 .pd-bottom.info .pd-cell.r { text-align: right; }
 .pd-tissues { flex: 1; }
 .pd-tbars { position: relative; height: 40px; display: flex; align-items: flex-end; gap: 3px; border-bottom: 1px solid #444; }
@@ -116,6 +118,7 @@
 .pd-screen .pdt-hlred { display: inline-block; line-height: 0.9; background: #ff2a1f; color: #fff; padding: 0 3px; }
 .pdt .pd-hlbg { display: inline-block; line-height: 0.9; }
 .pdt .pd-err-msg { font-size: 28px; }
+.pdt .pd-err-msg.long { font-size: 26px; }
 .pdt .pd-menu { font-size: 40px; }
 .pdt .pd-mgas { font-size: 34px; }
 .pdt-row.bot .pd-cell .pd-val { font-size: 30px; }

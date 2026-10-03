@@ -57,7 +57,9 @@
 .qc-c.red b { color: var(--qc-red); }
 .qc-sec { font-size: 15px; }
 .qc-right { flex: 1; display: flex; border-left: 2px solid #333; }
+.qc-c.sm { padding: 3px 3px; }
 .qc-c.sm b { font-size: 40px; }
+.qc-c.sm.xs b { font-size: 32px; }
 .qc-c.sm em { font-size: 12px; }
 /* FULL: dive time with small seconds, "NO / DECO" label. */
 .qc-c.dt { flex-direction: row; align-items: flex-end; justify-content: flex-start; }
@@ -89,7 +91,7 @@
 .qc-dive .qc-row.top:has(~ .qc-row.mid) { flex: 0 0 72px; }
 .qc-dive .qc-row.top:has(~ .qc-row.mid) .qc-depth { font-size: 62px; }
 .qc-row.top.sm { flex: 0 0 60px !important; }
-.qc-row.top.sm .qc-depth { font-size: 52px; }
+.qc-row.top.sm .qc-depth { font-size: 52px; flex: 0 0 auto; }
 .qc-row.top.sm .qc-f b { font-size: 34px; }
 .qc-row.low.sm .qc-f b, .qc-row.low.sm .qc-c b { font-size: 26px; }
 .qc-row.mid.sm .qc-c b { font-size: 34px; }
