@@ -162,6 +162,31 @@ export function buildAmbience() {
   return { dome, surface, rays, snowBase, snow, bubbles };
 }
 
+/**
+ * Sea surface seen from above (diver at the surface): a finely meshed square of water around the
+ * camera whose vertices and colours follow the swell each frame (Scene3D.updateOcean: darker troughs,
+ * lighter crests, a little foam), and a flat sea beyond it up to the horizon. Nearly opaque: the
+ * shallow scenery only shows faintly under it.
+ */
+export function buildOcean(): { near: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshPhongMaterial>; far: THREE.Mesh<THREE.RingGeometry, THREE.MeshPhongMaterial> } {
+  const geo = new THREE.PlaneGeometry(1, 1, 120, 120);
+  geo.rotateX(-Math.PI / 2);
+  geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count * 3), 3));
+  const near = new THREE.Mesh(
+    geo,
+    new THREE.MeshPhongMaterial({ vertexColors: true, specular: 0x5f8fa8, shininess: 120, flatShading: true, transparent: true, opacity: 0.95 }),
+  );
+  // Flat sea from the edge of the near square to the horizon (fog blends it into the sky).
+  const ring = new THREE.RingGeometry(34, 1500, 64, 1);
+  ring.rotateX(-Math.PI / 2);
+  const far = new THREE.Mesh(ring, new THREE.MeshPhongMaterial({ color: 0x0b4462, specular: 0x4f7f98, shininess: 60, transparent: true, opacity: 0.97 }));
+  for (const m of [near, far]) {
+    m.frustumCulled = false;
+    m.visible = false;
+  }
+  return { near, far };
+}
+
   /** Small dive boat (about 7 m), bow along +z; seen from below: red antifouling, keel, outboard. */
 export function buildBoat(boat: THREE.Group): void {
     const white = new THREE.MeshStandardMaterial({ color: 0xf2f4f6, roughness: 0.6 });

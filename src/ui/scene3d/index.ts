@@ -6,7 +6,7 @@ import { clamp, fbm, mulberry32, noise, ramp, wrapAngle } from './math';
 import { AREA, CLEARANCE, Environment, WORLD, WRECK_H, WRECK_HEADING, WRECK_L, WRECK_ROLL, WRECK_W, floorDepth, startOf, wallEdge, wreckTop } from './sites';
 import { SeaLife } from './life';
 import { SolidGrid } from './solids';
-import { buildAmbience, buildBoat, buildDiver, buildOverlays } from './models';
+import { buildAmbience, buildBoat, buildDiver, buildOcean, buildOverlays } from './models';
 import { CORALS, CoralKind, SPECIES, School, Species } from './species';
 
 export type { Environment } from './sites';
@@ -63,6 +63,12 @@ export class Scene3D {
   private backOff = 0;
 
   private surface!: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
+  /** Sea seen from above, and how far the camera has gone up to it (0 underwater, 1 above the water). */
+  private ocean = buildOcean();
+  private deep = new THREE.Color(0x06304a);
+  private crest = new THREE.Color(0x1f7096);
+  private foam = new THREE.Color(0xdff3fa);
+  private surfaceView = 0;
   private rays: THREE.Mesh<THREE.CylinderGeometry, THREE.MeshBasicMaterial>[] = [];
   private snow!: THREE.Points;
   private snowBase!: Float32Array;
@@ -103,7 +109,7 @@ export class Scene3D {
     this.dome = amb.dome;
     this.scene.add(this.dome);
     this.surface = amb.surface;
-    this.scene.add(this.surface);
+    this.scene.add(this.surface, this.ocean.near, this.ocean.far);
     this.rays = amb.rays;
     for (const ray of this.rays) this.scene.add(ray);
     this.snowBase = amb.snowBase;
@@ -193,7 +199,7 @@ export class Scene3D {
     const e = 1 - Math.pow(1 - this.boatPos, 3);
     // Arrives bow first and leaves the same way, ahead.
     this.boat.position.copy(this.boatDock).addScaledVector(this.boatDir, (this.boatWanted ? 45 : -45) * (1 - e));
-    this.boat.position.y = Math.sin(this.time * 1.1) * 0.06;
+    this.boat.position.y = this.waveHeight(this.boat.position.x, this.boat.position.z) * 0.7;
     this.boat.rotation.set(0, Math.atan2(-this.boatDir.x, -this.boatDir.z), Math.sin(this.time * 0.9) * 0.03);
     if (this.boatPos < 1) return;
     // Anchors for the speech bubble (top of the cabin, keel), in CSS px of the canvas; kept inside
@@ -332,7 +338,6 @@ export class Scene3D {
     geo.rotateX(-Math.PI / 2);
     const pos = geo.attributes.position as THREE.BufferAttribute;
     for (let i = 0; i < pos.count; i++) pos.setY(i, -this.floorAt(pos.getX(i), pos.getZ(i)));
-    geo.computeVertexNormals();
     const nrm = geo.attributes.normal as THREE.BufferAttribute;
 
     const colors = new Float32Array(pos.count * 3);
@@ -658,6 +663,10 @@ export class Scene3D {
     this.finPhase += dt * (3 + Math.abs(s.velocity) * 8);
     this.fins.forEach((f, i) => (f.rotation.x = Math.sin(this.finPhase + i * Math.PI) * 0.35));
 
+    // At the surface the camera rises above the water; the diver floats on the swell.
+    const wantAbove = s.depth < 0.8 ? 1 : 0;
+    this.surfaceView += (wantAbove - this.surfaceView) * Math.min(1, realDt * 1.6);
+    if (s.depth < 0.8) this.diver.position.y += this.waveHeight(pos.x, pos.z) * (1 - s.depth / 0.8);
     this.updateCamera(realDt, pos, fwd);
     this.updateLight(Math.max(0, -this.camera.position.y));
     this.updateAmbience();
@@ -761,6 +770,13 @@ export class Scene3D {
       clear.copy(p);
     }
     clear.y = Math.min(clear.y, -0.35);
+    // At the surface: behind the diver, about 2 m above the water, looking down at them (it never
+    // stays at the water line: the swell would cut the view in two).
+    if (this.surfaceView > 0.001) {
+      const above = pos.clone().add(new THREE.Vector3(-Math.sin(a) * 6.5, 0, -Math.cos(a) * 6.5));
+      above.y = 2.2;
+      clear.lerp(above, this.surfaceView * this.surfaceView * (3 - 2 * this.surfaceView));
+    }
     if (this.camPos.lengthSq() === 0) this.camPos.copy(clear);
     this.camPos.lerp(clear, Math.min(1, realDt * 4));
     // The smoothing may cut a corner: keep the camera itself out of the scenery.
@@ -772,6 +788,21 @@ export class Scene3D {
 
   /** Light fades and turns blue with depth (reds are absorbed first); the torch takes over. */
   private updateLight(depth: number): void {
+    if (this.camera.position.y > 0.05) {
+      // Above the water: sky, light haze, full sun.
+      this.fog.color.set(0xcfe6f2);
+      this.fog.density = 0.0045;
+      const u = this.dome.material.uniforms;
+      u.uTop.value.set(0x2a6cc0);
+      u.uHorizon.value.set(0xbcdcee);
+      u.uBottom.value.set(0x0e4660);
+      this.sun.intensity = 2.6;
+      this.sun.color.set(0xfff6e8);
+      this.hemi.intensity = 1.2;
+      this.hemi.color.set(0xcfeaff);
+      this.torch.intensity = 0;
+      return;
+    }
     const k = Math.min(1, depth / 55);
     const water = new THREE.Color(0x2f9fc4).lerp(new THREE.Color(0x021420), Math.pow(k, 0.75));
     this.fog.color.copy(water);
@@ -787,8 +818,53 @@ export class Scene3D {
     this.torch.intensity = 40 * ramp(12, 35, depth);
   }
 
+  /** Swell height (m) at a point: a few long crossing waves and a short chop. */
+  private waveHeight(x: number, z: number): number {
+    const t = this.time;
+    return Math.sin(x * 0.21 + z * 0.07 + t * 1.1) * 0.22
+      + Math.sin(-x * 0.31 + z * 0.62 + t * 1.4) * 0.11
+      + Math.sin(x * 1.3 + z * 0.9 + t * 2.4) * 0.05
+      + Math.sin(-x * 1.7 + z * 2.6 + t * 3.3) * 0.025;
+  }
+
+  /** The sea seen from above follows the camera; the swell moves its vertices and colours them. */
+  private updateOcean(): void {
+    const cam = this.camera.position;
+    const above = cam.y > 0.05;
+    const { near, far } = this.ocean;
+    near.visible = far.visible = above;
+    if (!above) return;
+    const size = 68; // m: 0.57 m between vertices, fine enough for the short chop
+    near.position.set(cam.x, 0, cam.z);
+    near.scale.set(size, 1, size);
+    far.position.set(cam.x, -0.05, cam.z);
+    const geo = near.geometry;
+    const op = geo.attributes.position as THREE.BufferAttribute;
+    const col = geo.attributes.color as THREE.BufferAttribute;
+    const c = new THREE.Color();
+    for (let i = 0; i < op.count; i++) {
+      const x = op.getX(i) * size + cam.x;
+      const z = op.getZ(i) * size + cam.z;
+      // The swell fades out towards the edge of the square, where the flat far sea takes over.
+      const edge = Math.min(1, Math.max(0, (34 - Math.hypot(x - cam.x, z - cam.z)) / 10));
+      const h = this.waveHeight(x, z) * edge;
+      op.setY(i, h);
+      const k = Math.min(1, Math.max(0, (h + 0.3) / 0.6));
+      c.copy(this.deep).lerp(this.crest, k);
+      if (h > 0.35) c.lerp(this.foam, Math.min(0.6, (h - 0.35) / 0.08));
+      col.setXYZ(i, c.r, c.g, c.b);
+    }
+    op.needsUpdate = true;
+    col.needsUpdate = true;
+  }
+
   private updateAmbience(): void {
     const cam = this.camera.position;
+    this.updateOcean();
+    // Underwater only: Snell's window, light rays and marine snow.
+    const under = cam.y <= 0.05;
+    this.surface.visible = under;
+    this.snow.visible = under;
 
     // Waves, on Snell's window above the camera.
     const sp = this.surface.geometry.attributes.position as THREE.BufferAttribute;
@@ -809,7 +885,7 @@ export class Scene3D {
       r.position.set(cam.x + u.dx, 0, cam.z + u.dz);
       r.rotation.set(0.12 + Math.sin(this.time * 0.2 + u.phase) * 0.04, 0, 0.1 + Math.cos(this.time * 0.17 + u.phase) * 0.05);
       r.material.opacity = (0.035 + 0.02 * Math.sin(this.time * 0.6 + u.phase)) * fade;
-      r.visible = fade > 0.02;
+      r.visible = under && fade > 0.02;
     }
 
     // Snow drifting slowly, wrapped in a 30 m cube around the camera.
