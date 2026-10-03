@@ -11,6 +11,9 @@ const HOLD_MS = 700;
 let pressed: { id: string; held: boolean; timer: number } | null = null;
 let released: { id: string; until: number } | null = null;
 let hoverBtn: string | null = null;
+// Tooltips only with a real mouse: phones and tablets (some report a tap as a mouse pointer) never get one,
+// it would cover the computer's buttons.
+const fineHover = window.matchMedia('(hover: hover) and (pointer: fine)');
 
 const isActive = (h: ButtonHelp | undefined) => !!h && (!!h.press?.simulated || !!h.hold?.simulated);
 
@@ -31,7 +34,7 @@ function tipHtml(id: string): string {
 
 function updateTip(): void {
   const tip = $('btn-tip');
-  const id = hoverBtn; // mouse hover only: on a phone the tooltip would cover the whole computer
+  const id = fineHover.matches ? hoverBtn : null; // mouse hover only: on a phone the tooltip would cover the computer
   const btn = id ? $('device').querySelector<HTMLElement>(`[data-btn="${id}"]`) : null;
   if (!id || !btn) {
     tip.hidden = true;
@@ -90,6 +93,7 @@ export function fitDevice(): void {
 export function setupDevice(): void {
   $('device').addEventListener('pointerdown', (e) => {
     const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-btn]');
+    if (e.pointerType !== 'mouse') hoverBtn = null;
     if (!btn) return;
     e.preventDefault();
     const id = btn.dataset.btn!;
