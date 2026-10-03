@@ -34,7 +34,16 @@ export function unlockAudio(): void {
     master.gain.value = 0.22;
     master.connect(ctx.destination);
   }
-  if (ctx.state === 'suspended') void ctx.resume();
+  wakeAudio();
+}
+
+/**
+ * Resumes the audio output when the browser paused it (tab in the background, phone locked, a call,
+ * audio device changed: Safari reports "interrupted"). Allowed without a gesture once the page has
+ * had one; otherwise the next click or key press does it (see setupSound).
+ */
+export function wakeAudio(): void {
+  if (ctx && ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().catch(() => {});
 }
 
 /**
@@ -121,7 +130,12 @@ function buzz(t: number, ms: number): void {
  * played (audio not unlocked, or another sound still playing).
  */
 export function playAlert(kind: SoundKind, level: SoundLevel, seconds?: number, onBuzz?: (ms: number) => void): boolean {
-  if (!ctx || !master || ctx.state !== 'running') return false;
+  if (!ctx || !master) return false;
+  if (ctx.state !== 'running') {
+    // Paused by the browser: wake it up; the alert is retried shortly (see alertSounds.ts).
+    wakeAudio();
+    return false;
+  }
   const now = ctx.currentTime;
   if (now < busyUntil) return false;
   const pattern = stretch(kind === 'beep' ? BEEPS[level] : BUZZES[level], seconds);

@@ -4,7 +4,7 @@
 // on (browsers only allow audio after a click); the choice is saved with the preferences.
 import type { AlertCue, ComputerView } from '../computers/base';
 import { t } from '../i18n';
-import { playAlert, stopAllSounds, unlockAudio } from '../ui/sound';
+import { playAlert, stopAllSounds, unlockAudio, wakeAudio } from '../ui/sound';
 import { savePrefs } from './prefs';
 import { $, app, session } from './state';
 
@@ -92,12 +92,17 @@ export function setupSound(): void {
     renderSoundButton();
     savePrefs();
   });
-  // The saved choice needs a gesture before any sound: the first click anywhere unlocks the audio.
+  // The saved choice needs a gesture before any sound, and the browser may pause the audio later on
+  // (tab in the background, phone locked, audio device changed): every click or key press, and the
+  // page coming back to the foreground, wake it up again.
   const unlock = () => {
     if (app.sound) unlockAudio();
-    window.removeEventListener('pointerdown', unlock);
   };
-  window.addEventListener('pointerdown', unlock);
+  window.addEventListener('pointerdown', unlock, { capture: true, passive: true });
+  window.addEventListener('keydown', unlock, { capture: true });
+  document.addEventListener('visibilitychange', () => {
+    if (app.sound && document.visibilityState === 'visible') wakeAudio();
+  });
 }
 
 /** Also re-labels the button when the language changes. */
