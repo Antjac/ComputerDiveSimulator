@@ -21,8 +21,13 @@ npm run exercises  # joue chaque exercice de l'onglet Exercices sur chaque ordin
 ## Architecture en bref
 
 - `src/engine/buhlmann.ts` : ZHL-16C + GF (méthode d'Erik Baker), `planAscent`, `ceilingDepth`, `updateAnchor`, `ndl`.
-- `src/engine/session.ts` : état **physique** du plongeur (profondeur, tissus, gaz, bloc). Les
-  ordinateurs le lisent, ne le modifient jamais. Les tissus sont **partagés** par tous les modèles.
+- `src/engine/session.ts` : état **physique** du plongeur (profondeur, tissus, gaz, blocs). Les
+  ordinateurs le lisent, ne le modifient jamais, à une exception près : le changement de gaz fait
+  avec les boutons de l'ordinateur affiché (`s.switchGas`), qui vaut pour tous les ordinateurs
+  comparés. Les tissus sont **partagés** par tous les modèles.
+- Multigaz : gaz du bloc principal + gaz de déco en blocs relais (`decoGases`, `breathing`) ;
+  chaque modèle déclare `maxGases`, `decoPpo2`/`decoMod`, `planGases` (gaz comptés dans le plan) ;
+  invites de changement communes dans `common/gasSwitch.ts` (et `mares/common.ts`).
 - `src/computers/base/` : classe `DiveComputer` (`computer.ts` : paliers, palier de sécurité,
   violations, verrouillage, `compute()` → `ComputerView`), types, formats, calculs sur les tissus.
 - `src/computers/common/` : utilitaires partagés (prédictions GF/TTS, jours de plongée, acquittement

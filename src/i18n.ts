@@ -137,6 +137,7 @@ const dict = {
   tankCol: { fr: 'Bloc', en: 'Tank' },
   LOW_GAS: { fr: 'Réserve atteinte', en: 'Reserve reached' },
   OUT_OF_GAS: { fr: 'Bloc vide !', en: 'Out of gas!' },
+  STAGE_EMPTY: { fr: 'Bloc relais vide : retour au bloc principal', en: 'Stage tank empty: back on the main tank' },
   deviceHint: {
     fr: 'Appuyez sur les boutons de l’ordinateur, maintenez-les pour un appui long. À la souris, le survol d’un bouton affiche sa fonction.',
     en: 'Press the computer’s buttons, keep them pressed for a long press. With a mouse, hovering over a button shows what it does.',

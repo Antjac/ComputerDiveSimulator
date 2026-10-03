@@ -382,7 +382,16 @@ export class DiveSession {
       this.gasUsed += liters;
       if (stage) stage.pressure = Math.max(0, stage.pressure - liters / stage.tank.volume);
       else this.tankPressure = Math.max(0, this.tankPressure - liters / this.tank.volume);
-      // Out of gas in the water (the tank breathed is empty): always stops the simulation.
+      // An empty stage tank: the diver goes back to the main tank (or another tank still holding gas),
+      // as taught; the computers see the gas breathed change.
+      if (stage && this.outOfGas) {
+        const other = [0, ...this.decoGases.map((_, i) => i + 1)].find((i) => this.gasPressure(i) > 0);
+        if (other !== undefined) {
+          this.switchGas(other);
+          this.diveAlarms.add('STAGE_EMPTY');
+        }
+      }
+      // Out of gas in the water (no tank left with gas): always stops the simulation.
       if (this.outOfGas) this.raise({ reasons: ['OUT_OF_AIR'], clock: this.clock, depth: this.depth });
     }
     this.historyTimer += dt;

@@ -44,6 +44,8 @@ export const STAGES: { id: string; volume: number; fill: number; name?: string }
 /** Puts the chosen deco gases on the diver, in full stage tanks (not during a dive). */
 export function applyDecoGases(): void {
   if (session.inDive) return;
+  // Rising oxygen content, as several models require it (Mares: G1 < G2 < G3, e.g. Quad Ci §13).
+  app.decoO2 = [...app.decoO2].sort((a, b) => a - b);
   const k = STAGES.find((x) => x.id === app.stageId) ?? STAGES[0];
   session.decoGases = app.decoO2.slice(0, MAX_DECO_GASES).map((o2) => ({ gas: { o2: o2 / 100, he: 0 }, tank: { volume: k.volume, fill: k.fill }, pressure: k.fill }));
   session.breathing = 0;
