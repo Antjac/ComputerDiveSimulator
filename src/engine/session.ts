@@ -77,6 +77,8 @@ export interface DiveLogEntry {
   gas: Gas;
   /** Decompression gases carried during the dive. */
   decoGases?: Gas[];
+  /** Gases breathed during the dive, main tank first. */
+  gasesUsed?: Gas[];
   minTemp: number;
   surfaceIntervalBefore: number | null; // s
   profile: ProfileSample[];
@@ -126,8 +128,16 @@ export class DiveSession {
 
   /** Breathes from gas `i` (0 = main tank, as in allGases). */
   switchGas(i: number): void {
-    if (i >= 0 && i <= this.decoGases.length) this.breathing = i;
+    if (i < 0 || i > this.decoGases.length || i === this.breathing) return;
+    this.breathing = i;
+    this.usedGases.add(i);
+    // The breathing rate measured on the main tank must not include the time spent on another tank
+    // (its pressure stays flat meanwhile).
+    this.pressureHistory = [];
   }
+
+  /** Gases breathed during the dive in progress (indexes as in allGases). */
+  private usedGases = new Set<number>([0]);
 
   /** Pressure (bar) of the tank of gas `i` (0 = main tank). */
   gasPressure(i: number): number {
@@ -436,6 +446,7 @@ export class DiveSession {
     this.sampleTimer = 0;
     this.profile = [{ t: 0, depth: 0, ceiling: 0 }];
     this.track = [];
+    this.usedGases = new Set([this.breathing]);
     this.rapid = null;
     this.diveAlarms.clear();
     this.listeners.forEach((l) => l('start'));
@@ -452,6 +463,7 @@ export class DiveSession {
       avgDepth: this.depthIntegral / Math.max(1, duration),
       gas: { ...this.backGas },
       decoGases: this.decoGases.map((d) => ({ ...d.gas })),
+      gasesUsed: this.allGases.filter((_, i) => this.usedGases.has(i)).map((g) => ({ ...g })),
       minTemp: this.minTemp,
       surfaceIntervalBefore: this.lastDiveEnd === null ? null : this.diveStart - this.lastDiveEnd,
       profile: this.profile.filter((p) => p.t <= duration + 5),

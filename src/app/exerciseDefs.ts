@@ -41,6 +41,8 @@ export interface Exercise {
   id: string;
   title: Bi;
   goal: Bi;
+  /** Why the exercise cannot be done on this computer (with its current settings), or null. */
+  applies?(c: DiveComputer): Bi | null;
   /** Prepares the starting situation; returns values for the situation text. */
   setup(x: SetupTools): Record<string, string>;
   /** The starting situation, with {placeholders} from setup(). */
@@ -338,6 +340,68 @@ export const EXERCISES: Exercise[] = [
       {
         fr: 'Certains ordinateurs ajoutent une pénalité propre aux plongées successives. L’écart exact dépend de l’algorithme, seulement approché ici pour les modèles propriétaires (≈) : comparez les réactions des ordinateurs, pas les minutes.',
         en: 'Some computers add a penalty of their own for repetitive dives. The exact difference depends on the algorithm, only approximated here for the proprietary models (≈): compare how the computers react, not the minutes.',
+      },
+    ],
+  },
+  {
+    id: 'gasswitch',
+    title: { fr: 'Passer sur le gaz de déco', en: 'Switch to the deco gas' },
+    goal: {
+      fr: 'Voir comment l’ordinateur propose le changement de gaz pendant la remontée, comment on le confirme avec ses boutons, et ce que devient le temps de remontée.',
+      en: 'See how the computer offers the gas switch during the ascent, how it is confirmed with its buttons, and what happens to the ascent time.',
+    },
+    applies: (c) => (c.maxGases >= 2 ? null : {
+      fr: `Le ${c.name} ne gère qu’un gaz dans le mode simulé, ou son option multigaz est désactivée dans ses réglages.`,
+      en: `The ${c.name} holds a single gas in the simulated mode, or its multi-gas option is off in its settings.`,
+    }),
+    setup: (x) => {
+      x.s.decoGases = [{ gas: { o2: 0.5, he: 0 }, tank: { volume: 7, fill: 200 }, pressure: 200 }];
+      x.go(40, 20 * 60);
+      x.go(30, 60);
+      return { mod: depthLabel(x.c.decoMod(0.5), 0) };
+    },
+    situation: {
+      fr: 'Vous plongez à l’air avec un bloc relais d’EAN50, programmé dans votre ordinateur (MOD {mod}). Après 20 min à 40 m, vous remontez : vous êtes à 30 m.',
+      en: 'You are diving air with an EAN50 stage tank, programmed in your computer (MOD {mod}). After 20 min at 40 m, you are ascending: you are at 30 m.',
+    },
+    task: {
+      fr: 'Remontez (▲). Quand votre ordinateur le propose, ou par son menu, passez sur l’EAN50 avec ses boutons (survolez-les pour voir leur rôle), pas plus profond que sa MOD, puis restez 1 min sur ce gaz.',
+      en: 'Ascend (▲). When your computer offers it, or through its menu, switch to EAN50 with its buttons (hover over them to see what they do), no deeper than its MOD, then stay 1 min on this gas.',
+    },
+    observe: [
+      { fr: 'À quelle profondeur et sous quelle forme le changement est proposé, et combien de temps l’invite reste affichée.', en: 'At which depth and in which form the switch is offered, and how long the prompt stays on screen.' },
+      { fr: 'Le temps de remontée juste avant et juste après le changement.', en: 'The ascent time just before and just after the switch.' },
+    ],
+    done: (x) => {
+      // Real gas breathed (the computer's view may lag behind on a model that does not know it).
+      if (x.s.breathing !== 1) {
+        x.mem.ttsBefore = x.v.tts;
+        return false;
+      }
+      if (x.mem.switchDepth === undefined) x.mem.switchDepth = x.v.depth;
+      x.mem.on = (Number(x.mem.on) || 0) + x.dt;
+      if (Number(x.mem.on) < 30) x.mem.ttsAfter = x.v.tts;
+      return Number(x.mem.on) >= 60;
+    },
+    fail: (x) => (x.s.breathing === 1 && x.v.depth > x.c.decoMod(0.5) + 1
+      ? { fr: 'EAN50 respiré plus profond que sa MOD : risque de crise hyperoxique.', en: 'EAN50 breathed deeper than its MOD: risk of oxygen toxicity seizure.' }
+      : null),
+    rules: (c, _s, _v, r) => [
+      {
+        fr: `Votre ${c.name} gère ${c.maxGases} gaz dans ce mode ; il fixe la profondeur de changement de l’EAN50 à sa MOD, ${r.vars.mod} (ppO₂ ${(depthToPressure(c.decoMod(0.5)) * 0.5).toFixed(1)} bar).`,
+        en: `Your ${c.name} holds ${c.maxGases} gases in this mode; it sets the EAN50 switch depth at its MOD, ${r.vars.mod} (ppO₂ ${(depthToPressure(c.decoMod(0.5)) * 0.5).toFixed(1)} bar).`,
+      },
+      ...(typeof r.mem.ttsBefore === 'number' && typeof r.mem.ttsAfter === 'number' ? [{
+        fr: `Temps de remontée : ${r.mem.ttsBefore} min juste avant le changement, ${r.mem.ttsAfter} min juste après${r.mem.ttsAfter < r.mem.ttsBefore - 1
+          ? ' : il ne comptait que le gaz respiré, et compte l’EAN50 une fois le changement fait.'
+          : ' : il comptait déjà l’EAN50 dans son calcul, en supposant le changement fait à sa MOD.'}`,
+        en: `Ascent time: ${r.mem.ttsBefore} min just before the switch, ${r.mem.ttsAfter} min just after${r.mem.ttsAfter < r.mem.ttsBefore - 1
+          ? ': it only counted the gas breathed, and counts EAN50 once the switch is made.'
+          : ': it already counted EAN50, assuming the switch made at its MOD.'}`,
+      }] : []),
+      {
+        fr: 'Le simulateur suppose le changement de gaz fait sur tous les ordinateurs portés ; un ordinateur qui ne connaît pas le gaz garde le dernier gaz programmé.',
+        en: 'The simulator assumes the gas switch is made on every computer worn; a computer that does not know the gas keeps the last gas programmed.',
       },
     ],
   },

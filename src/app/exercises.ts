@@ -229,11 +229,14 @@ function listHtml(): string {
   const byId = new Map(computers.map((c) => [c.id, c.name]));
   const items = EXERCISES.map((ex, i) => {
     const passed = (done[ex.id] ?? []).map((id) => byId.get(id)).filter(Boolean);
-    return `<li class="ex-item ${passed.length ? 'passed' : ''}">
+    // Not doable on the computer shown (e.g. a gas switch on a single-gas model): the reason instead.
+    const why = ex.applies?.(app.active) ?? null;
+    return `<li class="ex-item ${passed.length ? 'passed' : ''} ${why ? 'na' : ''}">
       <div class="ex-head"><b>${i + 1}. ${esc(tr(ex.title))}</b>${passed.length ? `<span class="badge small exact">✓ ${t('exPassed')}</span>` : ''}</div>
       <p>${esc(tr(ex.goal))}</p>
       ${passed.length ? `<p class="muted small">${t('exDoneWith')} ${esc(passed.join(', '))}</p>` : ''}
-      <button class="btn" data-ex="start" data-id="${ex.id}">${t('exStart')}</button>
+      ${why ? `<p class="muted small">${esc(tr(why))}</p>` : ''}
+      <button class="btn" data-ex="start" data-id="${ex.id}" ${why ? 'disabled' : ''}>${t('exStart')}</button>
     </li>`;
   }).join('');
   return `<p class="ex-intro">${t('exIntro')}</p><ol class="ex-list">${items}</ol><p class="muted small">${t('exResetNote')}</p>`;
@@ -257,7 +260,7 @@ function exerciseHtml(ex: Exercise, v: ComputerView): string {
   // Debrief.
   const signals = [...run.seen.entries()].sort((a, b) => a[1] - b[1])
     .map(([k, tt]) => `<li>${esc(k === 'MOD' ? t('exMod') : isI18nKey(k) ? t(k) : k)} <span class="muted">— ${mmss(tt)}</span></li>`).join('');
-  const others = computers.filter((x) => x !== c)
+  const others = computers.filter((x) => x !== c && !ex.applies?.(x))
     .map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
   return `${head}
     <div class="ex-result ${run.phase}">${run.phase === 'success' ? `✓ ${t('exSuccess')}` : `✗ ${t('exFailed')}`}${run.why ? ` — ${esc(units(tr(run.why)))}` : ''}</div>

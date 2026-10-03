@@ -22,7 +22,7 @@ export function renderLog(): void {
   const rows = session.log
     .map((d, i) => `<tr data-log="${i}" class="${i === app.selectedLog ? 'active' : ''}">
       <td>${d.number}</td><td class="num">${Math.round(d.duration / 60)} min</td><td class="num">${depthLabel(d.maxDepth)}</td>
-      <td class="num">${depthLabel(d.avgDepth)}</td><td>${gasLabel(d.gas)}</td><td class="num">${tempVal(d.minTemp).toFixed(0)} ${tempUnit()}</td>
+      <td class="num">${depthLabel(d.avgDepth)}</td><td>${(d.gasesUsed ?? [d.gas]).map((g) => (g.o2 >= 0.995 ? 'O₂' : gasLabel(g))).join(' + ')}</td><td class="num">${tempVal(d.minTemp).toFixed(0)} ${tempUnit()}</td>
       <td class="num">${d.surfaceIntervalBefore === null ? '—' : hmm(d.surfaceIntervalBefore / 60)}</td><td>${t(diveType(d.surfaceIntervalBefore))}</td>
       <td class="num">${pressText(d.tankStart)} → ${pressText(d.tankEnd)} ${pressUnit()}</td><td class="num">${d.cnsEnd.toFixed(0)} %</td>
       <td>${d.alarms.length ? d.alarms.map((a) => (isI18nKey(a) ? t(a) : a)).join(', ') : t('none')}</td></tr>`)

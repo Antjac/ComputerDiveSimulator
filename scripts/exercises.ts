@@ -17,6 +17,12 @@ for (const ex of EXERCISES) {
     s.siteDepth = 50; s.rmv = 14; s.rescueAlert = false; s.tank = { ...s.tank, volume: 15, fill: 232 }; s.refillTank();
     const cs = createComputers();
     const c = cs.find((x) => x.id === proto.id)!;
+    // An option that brings the gases in (PMG, Multiple gases) is turned on for the exercises needing it.
+    if (ex.applies?.(c)) for (const k of ['pmg', 'multigas']) if (k in c.settings) c.settings[k] = 'on';
+    if (ex.applies?.(c)) {
+      line.push(`${c.name}: n/a`);
+      continue;
+    }
     s.on((e) => cs.forEach((k) => (e === 'start' ? k.onDiveStart(s) : k.onDiveEnd(s))));
     const advance = (sec: number, step = 1) => { for (let t = 0; t < sec; t += step) { s.step(step); cs.forEach((k) => k.tick(s, step)); } };
     const reach = (d: number) => { s.setTarget(d); for (let i = 0; i < 60 && Math.abs(s.depth - d) > 0.2; i++) advance(10); };
@@ -61,6 +67,12 @@ for (const ex of EXERCISES) {
           break;
         case 'repetitive':
           s.setTarget(20);
+          break;
+        case 'gasswitch':
+          // The robot confirms the switch itself once shallower than the gas MOD (the buttons differ on
+          // each model; they are tested by hand).
+          if (phase === 0) { s.setTarget(Math.max(3, c.decoMod(0.5) - 1)); if (s.depth <= c.decoMod(0.5) - 0.5) { s.switchGas(1); phase = 1; } }
+          else s.setRate(0);
           break;
         case 'mod':
           if (phase === 0) { s.setRate(6); if (s.depth > v.mod + 0.5) phase = 1; }

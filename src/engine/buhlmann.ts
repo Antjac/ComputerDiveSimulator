@@ -210,6 +210,15 @@ function roundUpToStop(depth: number, step: number): number {
 }
 
 /**
+ * Stop depth for a ceiling: the stop grid depth at or below it, or the last stop when the ceiling is
+ * shallower (the last stop may be off the grid, e.g. 4.5 m on the Mares Quad Ci); 0 without ceiling.
+ */
+export function stopDepthFor(ceil: number, p: DecoParams): number {
+  if (ceil <= 0.001) return 0;
+  return ceil <= p.lastStop + 1e-6 ? p.lastStop : roundUpToStop(ceil, p.stopStep);
+}
+
+/**
  * Continuous ceiling depth, using the slope defined by the dive's `anchor`, first deepened to the
  * current GF low ceiling like Subsurface does before each calculation (0: GF high, outside a dive).
  */
@@ -277,13 +286,12 @@ export function planAscent(tissues: Tissues, depth: number, gas: Gas, p: DecoPar
   const nextStopAbove = (from: number) => {
     const grid = roundUpToStop(from, p.stopStep);
     let next = grid >= from - 1e-6 ? grid - p.stopStep : grid;
-    if (next < p.lastStop) next = 0;
+    if (next < p.lastStop - 1e-6) next = from > p.lastStop + 1e-6 ? p.lastStop : 0;
     return Math.max(0, next);
   };
 
   // Go straight up to the first stop given the current ceiling.
-  let first = roundUpToStop(ceilingDepth(t, a, p), p.stopStep);
-  if (first > 0 && first < p.lastStop) first = p.lastStop;
+  const first = stopDepthFor(ceilingDepth(t, a, p), p);
   if (first < d) ascend(first);
   // Diver already above that stop (missed stop, back at the surface): the plan sends them back down
   // to it rather than announcing a stop at their own, too shallow, depth.
@@ -302,7 +310,8 @@ export function planAscent(tissues: Tissues, depth: number, gas: Gas, p: DecoPar
     time += resolution;
     a = updateAnchor(a, t, p);
     // Report stops on the stop grid, even when the diver waits between two grid depths.
-    const stopDepth = Math.max(p.lastStop, roundUpToStop(Math.round(d * 10) / 10, p.stopStep));
+    const dd = Math.round(d * 10) / 10;
+    const stopDepth = Math.abs(dd - p.lastStop) < 0.05 ? p.lastStop : Math.max(p.lastStop, roundUpToStop(dd, p.stopStep));
     const last = stops[stops.length - 1];
     if (last && last.depth === stopDepth) last.minutes += resolution;
     else stops.push({ depth: stopDepth, minutes: resolution });

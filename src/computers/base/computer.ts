@@ -1,4 +1,4 @@
-import { DecoParams, Gas, PlanGas, SURFACE_PRESSURE, ceilingDepth, gasLabel, ndl, planAscent, pressureToDepth, timeToTolerate, updateAnchor } from '../../engine/buhlmann';
+import { DecoParams, Gas, PlanGas, SURFACE_PRESSURE, ceilingDepth, stopDepthFor, gasLabel, ndl, planAscent, pressureToDepth, timeToTolerate, updateAnchor } from '../../engine/buhlmann';
 import { sacBarPerMin } from '../../engine/gas';
 import { DiveSession } from '../../engine/session';
 import type { Lang } from '../../i18n';
@@ -6,11 +6,53 @@ import { depthInt, depthUnit } from '../../units';
 import type { AlarmCode, AlertCue, ButtonHelp, ComputerView, SafetyState, SafetyStopDef, SettingDef } from './types';
 import { desaturationTime } from './tissues';
 
+/** Key of the real session behind a computer's view of it (see DiveComputer.sees). */
+const REAL = Symbol('real session');
+
+/** Methods given the computer's view of the session (see DiveComputer.sees) whoever calls them. */
+const SEEING = ['tick', 'compute', 'render', 'press', 'hold', 'onDiveStart', 'onDiveEnd'] as const;
+
 /**
  * A dive computer model. All models share the diver's tissue state (Bühlmann ZHL-16C), then apply
  * their own parameters, limits, extras and display.
  */
 export abstract class DiveComputer {
+  constructor() {
+    for (const k of SEEING) {
+      const f = this[k] as (...args: unknown[]) => unknown;
+      (this as Record<string, unknown>)[k] = (...args: unknown[]) =>
+        f.apply(this, args.map((a) => (a instanceof DiveSession ? this.sees(a) : a)));
+    }
+  }
+
+  /** Index (in allGases) of the gas the computer computes with: see sees(). */
+  private believed = 0;
+
+  /**
+   * The session as this computer sees it. The diver tells the computer which gas is breathed; a gas
+   * it does not hold (a single-gas model, or beyond its number of gases) cannot be selected on it, so
+   * the computer keeps the last gas it knew: its gas, ppO2, MOD, NDL and plan use that gas. The
+   * tissues stay those of the diver (shared by every model), a limit of the simulator.
+   */
+  sees(s: DiveSession): DiveSession {
+    const real = ((s as unknown as Record<symbol, DiveSession>)[REAL] ?? s);
+    if (real.breathing < this.knownGases(real).length) this.believed = real.breathing;
+    return this.breathingGas(real, this.believed);
+  }
+
+  /** The session as if gas `i` (index in allGases) were breathed: gas, ppO2 and MOD of that gas. */
+  protected breathingGas(s: DiveSession, i: number): DiveSession {
+    const real = ((s as unknown as Record<symbol, DiveSession>)[REAL] ?? s);
+    if (i === real.breathing) return real;
+    const view = Object.create(real) as DiveSession;
+    Object.defineProperties(view, {
+      [REAL]: { value: real },
+      breathing: { value: i, writable: true },
+      switchGas: { value: (g: number) => real.switchGas(g) },
+    });
+    return view;
+  }
+
   abstract readonly id: string;
   abstract readonly name: string;
   abstract readonly algorithm: string;
@@ -278,7 +320,7 @@ export abstract class DiveComputer {
   /** Depth the diver must stay below: the stop the ceiling rounds up to, or the ceiling itself. */
   protected violationDepth(ceil: number, p: DecoParams): number {
     if (this.violationRef === 'ceiling' || ceil <= 0) return ceil;
-    return Math.max(p.lastStop, Math.ceil(ceil / p.stopStep - 1e-6) * p.stopStep);
+    return stopDepthFor(ceil, p);
   }
 
   private pausedDeco: Pick<ComputerView, 'ceiling' | 'stopTimeSec' | 'stopTime' | 'tts'> | null = null;

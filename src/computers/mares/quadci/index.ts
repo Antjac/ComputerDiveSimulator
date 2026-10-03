@@ -1,4 +1,4 @@
-import { WATER_VAPOUR, depthToPressure } from '../../../engine/buhlmann';
+import { WATER_VAPOUR, depthToPressure, ndl, planAscent } from '../../../engine/buhlmann';
 import { DIVE_END_TIMEOUT, type DiveSession } from '../../../engine/session';
 import type { Lang } from '../../../i18n';
 import { depthInt, depthText, depthUnit, imperial, pressText, pressUnit, tempUnit, tempVal } from '../../../units';
@@ -30,6 +30,8 @@ export class MaresQuadCi extends QuadCiRules {
   private acks = new Acks();
   /** §13.2: gas summary table (BR-LP), with the gas under the cursor; null when closed. */
   private gasTable: number | null = null;
+  /** §11.6: MAIN GF and ALT GF calculations side by side (BR-LP on MAIN GF), opened at (real ms); 0: closed. */
+  private altView = 0;
 
   onDiveStart(s: DiveSession): void {
     super.onDiveStart(s);
@@ -37,6 +39,7 @@ export class MaresQuadCi extends QuadCiRules {
     this.acks.clear();
     this.ezTop = this.ezBottom = null;
     this.gasTable = null;
+    this.altView = 0;
     this.appliedDisplay = this.settings.display;
     this.screen = SCREENS.indexOf(this.appliedDisplay === 'full' ? 'full' : 'ez');
   }
@@ -56,6 +59,11 @@ export class MaresQuadCi extends QuadCiRules {
       if (button !== 'bl') return true;
       const pages: SurfacePage[] = ['home', 'predive', ...(this.hasDesat(s) ? ['postdive' as const] : [])];
       this.surfacePage = pages[(pages.indexOf(this.surfacePage) + 1) % pages.length];
+      return true;
+    }
+    // §11.6: with both calculations shown, TR activates the ALT GF; the other buttons go back to normal.
+    if (this.altShown()) {
+      this.altButton(button);
       return true;
     }
     // §13.2: SWITCH TO G2: "With TR-SP or BR-SP you perform the switch [...] with TL-SP or BL-SP you stay
@@ -106,7 +114,33 @@ export class MaresQuadCi extends QuadCiRules {
     return { i, until: now + 2000 };
   }
 
+  /** §11.6: "The two decompression calculations will remain on the display for 10 seconds". */
+  private altShown(): boolean {
+    if (this.altView && performance.now() - this.altView > 10_000) this.altView = 0;
+    return this.altView !== 0;
+  }
+
+  /**
+   * §11.6: "press or press and hold either left button or the bottom right button (labelled MAIN), in
+   * which case you immediately revert to the normal display"; "press or press and hold the top right
+   * button (labelled ALT) in which case the alternate gradient factors are activated".
+   */
+  private altButton(button: string): void {
+    if (button === 'tr') this.activateAlt();
+    this.altView = 0;
+  }
+
+  /** The bottom-right field of FULL shows MAIN GF. */
+  private mainGfShown(s: DiveSession): boolean {
+    const fields = this.brFields(s);
+    return SCREENS[this.screen] === 'full' && fields[this.brField % fields.length] === 'gf' && !this.altActive;
+  }
+
   hold(button: string, s: DiveSession): boolean {
+    if (this.altShown()) {
+      this.altButton(button);
+      return true;
+    }
     // §13.2: "You can always perform a manual switch with BR-LP. This will make the gas summary table
     // appear [...] then with TR-LP or BR-LP you activate it."
     if (s.inDive && this.gasTable !== null && (button === 'tr' || button === 'br')) {
@@ -118,6 +152,12 @@ export class MaresQuadCi extends QuadCiRules {
         this.prompt.offer = null;
         this.gasTable = null;
       }
+      return true;
+    }
+    // §13.2 NOTE: BR-LP starts the gas switch "while the bottom right corner shows any field other than
+    // MAIN GF. When MAIN GF is on the screen, BR-LP initiates the ALT GF visualization (chapter 11.6)."
+    if (button === 'br' && s.inDive && !this.locked && this.mainGfShown(s)) {
+      this.altView = performance.now();
       return true;
     }
     if (button === 'br' && s.inDive && this.knownGases(s).length > 1 && !this.locked) {
@@ -159,7 +199,10 @@ export class MaresQuadCi extends QuadCiRules {
           simulated: true,
           note: { fr: 'sans les batteries', en: 'without the batteries' },
         },
-        hold: { real: { fr: 'Table de changement de gaz (multigaz) ; dans la table, active le gaz choisi', en: 'Gas switch table (multigas); in the table, activates the gas chosen' }, simulated: true },
+        hold: {
+          real: { fr: 'Avec MAIN GF affiché : calculs MAIN GF et ALT GF côte à côte (TR : active ALT GF). Sinon : table de changement de gaz (multigaz) ; dans la table, active le gaz choisi', en: 'With MAIN GF shown: MAIN GF and ALT GF calculations side by side (TR: activates ALT GF). Otherwise: gas switch table (multigas); in the table, activates the gas chosen' },
+          simulated: true,
+        },
       },
     };
   }
@@ -230,6 +273,10 @@ export class MaresQuadCi extends QuadCiRules {
       a = { text: 'DECO STOP!', cls: 'red', full: true };
     } else if (this.violation === 'deco') {
       a = { text: 'DECO VIOLATION!', cls: 'red' };
+    } else if (this.altBySystem && ack('altgf')) {
+      // §10.3.4.2: "The message MAIN GF > ALT GF is displayed until you press any button" (colour not
+      // given: yellow like the warnings, assumed).
+      a = { text: 'MAIN GF > ALT GF', cls: 'yellow' };
     } else if (v.depth > v.mod && ack('mod')) {
       a = { text: 'MOD EXCEEDED!', cls: 'red', full: true };
     } else if (this.settings.wMaxDepth !== 'off' && v.depth >= Number(this.settings.wMaxDepth) && ack('maxdepth')) {
@@ -286,8 +333,10 @@ export class MaresQuadCi extends QuadCiRules {
     const du = depthUnit();
     const rows = this.knownGases(s).map((g, i) => {
       const mod = i === 0 ? this.modDepth(g.o2) : this.decoMod(g.o2);
-      // Only the main tank has a transmitter here: --- when it is off (§13.2 NOTE), NP for the others.
-      const p = i === 0 && this.transmitter && s.transmitterOn ? `${pressText(s.tankPressure)}<u>${pressUnit().toUpperCase()}</u>` : i === 0 ? '---' : 'NP';
+      // §13.2 NOTE: "tank pressure for a paired and active transmitter, -- for a paired but not active (or
+      // out of reach) transmitter, OFF for a paired but DISABLED transmitter and NP (NOT PAIRED) for a gas
+      // without a paired transmitter". Only the main tank has one here: OFF when it is turned off.
+      const p = i === 0 && this.transmitter && s.transmitterOn ? `${pressText(s.tankPressure)}<u>${pressUnit().toUpperCase()}</u>` : i === 0 ? 'OFF' : 'NP';
       return `<div class="qc-gt ${this.gasTable === i ? 'sel' : ''} ${s.breathing === i ? 'cur' : ''}"><span>G${i + 1}</span><span>${Math.round(g.o2 * 100)}<u>%</u></span><span><u>MOD</u> ${depthText(mod)}<u>${du}</u></span><span>${p}</span></div>`;
     }).join('');
     return `<div class="qc-row top sm"><div class="qc-depth">${depthText(v.depth)}<u>${du}</u></div></div><div class="qc-gtab">${rows}</div>`;
@@ -345,6 +394,24 @@ export class MaresQuadCi extends QuadCiRules {
       : `<div class="qc-c r"><em>NO DECO</em><b>${Math.min(99, v.ndl)}:</b></div>`;
   }
 
+  /**
+   * §11.6: "the center row will show both decompression calculations, that for MAIN GF on top and that
+   * for ALT GF underneath it"; the right buttons are labelled ALT (top) and MAIN (bottom). Layout of the
+   * rows not shown by a figure: deduced.
+   */
+  private altCells(v: ComputerView, s: DiveSession): string {
+    const du = depthUnit();
+    const ap = { ...this.altParams(s), gases: this.planGases(s) };
+    const alt = planAscent(s.tissues, v.depth, s.gas, ap, this.anchor, 1 / 6);
+    const altNdl = alt.stops.length ? 0 : ndl(s.tissues, v.depth, s.gas, ap.gfHigh);
+    const line = (lbl: string, stops: { depth: number; minutes: number }[], tts: number, n: number) => {
+      const st = stops[0];
+      const txt = st ? `${depthInt(st.depth)}<u>${du}</u> ${Math.ceil(st.minutes)}: <u>TTS</u> ${tts}:` : `<u>NO DECO</u> ${Math.min(99, n)}:`;
+      return `<div><em class="cy">${lbl}</em><b>${txt}</b></div>`;
+    };
+    return `<div class="qc-altcmp">${line('MAIN', v.plan.stops, v.tts, v.ndl)}${line('ALT', alt.stops, alt.tts, altNdl)}</div>`;
+  }
+
   private dtime(v: ComputerView, full: boolean): string {
     const min = Math.floor(v.diveTime / 60);
     const sec = String(Math.floor(v.diveTime % 60)).padStart(2, '0');
@@ -388,7 +455,7 @@ export class MaresQuadCi extends QuadCiRules {
     if (v.depth > v.mod) tr = `<div class="qc-f red"><em>MOD</em><b>${depthText(v.mod)}<u>${du}</u></b></div>`;
     else if (deep && TR_FIELDS[this.trField] === 'temp') tr = `<div class="qc-f"><em class="cy">DEEP</em><b>${depthText(deep.depth)}<u>${du}</u></b></div>`;
     const slow = alarm && alarm.text === 'SLOW!';
-    const mid = slow ? '<div class="qc-alarm red">SLOW!</div>' : this.stopCells(v, s, true);
+    const mid = slow ? '<div class="qc-alarm red">SLOW!</div>' : this.altShown() ? this.altCells(v, s) : this.stopCells(v, s, true);
     let bottomRight = this.brCell(v, s);
     if (slow) bottomRight = `<div class="qc-alarm red sm">SPEED<small>${alarm!.sub!.replace('SPEED ', '')} <u>${du}/min</u></small></div>`;
     else if (alarm) bottomRight = alarmBlock;
@@ -466,7 +533,8 @@ export class MaresQuadCi extends QuadCiRules {
     const f = (lbl: string, val: string, unit = '', cls = '') => `<div class="qc-f ${cls}"><em class="cy">${lbl}</em><b>${val}${unit ? `<u>${unit}</u>` : ''}</b></div>`;
     const fields = this.brFields(s);
     switch (fields[this.brField % fields.length]) {
-      case 'gf': return f('MAIN GF', `${v.gfLow}/${v.gfHigh}`);
+      // §11.6: once activated, "ALT GF and its values replace MAIN GF and its values".
+      case 'gf': return f(this.altActive ? 'ALT GF' : 'MAIN GF', `${v.gfLow}/${v.gfHigh}`);
       case 'gfnow': return f('GF NOW/@SURF', `${Math.round(v.gf99)}/${this.surfGfText(v)}`);
       case 'gfrate': {
         const r = this.gfRate(v, s);
@@ -533,6 +601,12 @@ export class MaresQuadCi extends QuadCiRules {
       <div class="qc-msg">LOCKED BY PREVIOUS DIVE</div>`;
   }
 
+  /** §2.2.2: the ALT GF setting (never lower than the MAIN GF). */
+  private altGfText(s: DiveSession): string {
+    const p = this.altParams(s);
+    return `${Math.round(p.gfLow * 100)}/${Math.round(p.gfHigh * 100)}`;
+  }
+
   /** HOME, PRE-DIVE and POST DIVE displays. */
   private surfaceScreen(v: ComputerView, s: DiveSession): string {
     const du = depthUnit();
@@ -565,7 +639,7 @@ export class MaresQuadCi extends QuadCiRules {
       <div class="qc-row pd"><div class="qc-f"><em class="cy">${dateText}</em></div><div class="qc-f"><em class="cy">${this.knownGases(s).length > 1 ? 'MULTIGAS' : 'SINGLE GAS'}</em></div></div>
       <div class="qc-row mid"><div class="qc-c"><b class="huge">${time}</b></div><div class="qc-f mode"><b>${mode}</b></div></div>
       <div class="qc-bar green"></div>
-      <div class="qc-row low sm"><div class="qc-f"><em class="cy">MAIN GF</em><b>${v.gfLow}/${v.gfHigh}</b></div><div class="qc-f"><em class="cy">ALT GF</em><b>${v.gfLow}/${v.gfHigh}</b></div></div>${lock}`;
+      <div class="qc-row low sm"><div class="qc-f"><em class="cy">MAIN GF</em><b>${v.gfLow}/${v.gfHigh}</b></div><div class="qc-f"><em class="cy">ALT GF</em><b>${this.altGfText(s)}</b></div></div>${lock}`;
   }
 }
 

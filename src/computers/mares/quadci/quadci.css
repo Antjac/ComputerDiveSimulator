@@ -132,3 +132,9 @@
 .qc-gt u { font-size: 11px; text-decoration: none; color: var(--qc-cyan); }
 .qc-gt.sel { border-color: var(--qc-cyan); }
 .qc-gt.cur span:first-child { color: var(--qc-green); }
+/* §11.6: MAIN GF and ALT GF calculations, one above the other in the middle row (layout deduced). */
+.qc-altcmp { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 0 6px; }
+.qc-altcmp div { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.qc-altcmp em { font-style: normal; font-size: 13px; width: 38px; }
+.qc-altcmp b { font-size: 20px; }
+.qc-altcmp b u { font-size: 11px; text-decoration: none; color: var(--qc-cyan); }

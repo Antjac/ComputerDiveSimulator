@@ -1,4 +1,4 @@
-import { ceilingDepth, depthToPressure, pressureToDepth, type DecoParams } from '../../../engine/buhlmann';
+import { ceilingDepth, depthToPressure, pressureToDepth, stopDepthFor, type DecoParams } from '../../../engine/buhlmann';
 import { type DiveSession } from '../../../engine/session';
 import { type AlertCue, ComputerView, DiveComputer, SettingDef, desaturationTime } from '../../base';
 import { GasPrompt } from '../../common/gasSwitch';
@@ -24,8 +24,8 @@ export abstract class QuadCiRules extends DiveComputer {
   readonly transmitter = 'LED Tank Module';
   readonly gasTimeName = 'TTR';
   readonly notes = {
-    fr: 'Bühlmann ZH-L16C non modifié avec gradient factors : reproduit (R1, R2, T1, T2 interpolés, le manuel ne donnant que R0 85/85, R3 50/60, T0 30/85 et T3 25/40). Conservatisme multi-jours (−2 par jour, max −6) et, en option, en successives (−8 à la sortie, +1 par 15 min). Vitesse maximale selon la profondeur (5 / 10 / 15 / 20 m/min) ; plus de 120 % sur plus de 20 m ou palier manqué = verrouillage 48 h. TTR = temps jusqu’à la réserve. BL : écrans E-Z / FULL / profil / tissus / paliers ; TR / BR : champs du FULL ; TR long : rétroéclairage ; TL : chronomètre. Multigaz (§13) : jusqu’à 3 gaz G1 à G3 (gaz du bloc principal puis gaz de déco de la page), invite SWITCH TO G2 au MOD du gaz pendant la remontée (TR ou BR : GAS SWITCH OK ; TL ou BL ou 30 s : GAS NOT SWITCHED, puis EXCLUDING G2 si PREDICTIVE), tableau des gaz par BR long ; PREDICTIVE (calcul avec tous les gaz, par défaut) et SWITCH BELOW MOD réglables ; ppO2max des gaz de déco 1,6 bar supposé. Boussole, menu sous l’eau et deep stops non simulés. Émetteur : HALF TANK (100 bar par défaut, désactivable) et TANK RESERVE (50 bar par défaut), jusqu’à l’appui sur un bouton. Avertissements du §3.2 : MAX DEPTH REACHED, TURN AROUND / TIME LIMIT (désactivés par défaut), GF @SURF clignotant (désactivé par défaut), NO DECO 2 min et entrée en déco (activés supposé ; textes non donnés : « NO DECO 2 MIN » et « ENTERING DECO » déduits).',
-    en: 'Unmodified Bühlmann ZH-L16C with gradient factors: reproduced (R1, R2, T1, T2 interpolated, the manual only giving R0 85/85, R3 50/60, T0 30/85 and T3 25/40). Multiday conservatism (−2 per day, max −6) and, optionally, repetitive-dive conservatism (−8 on surfacing, +1 per 15 min). Depth-dependent maximum ascent rate (5 / 10 / 15 / 20 m/min); more than 120 % over more than 20 m or a missed stop = 48 h lock. TTR = time to reserve. BL: E-Z / FULL / profile / tissue / stops screens; TR / BR: FULL fields; TR hold: backlight; TL: stopwatch. Multigas (§13): up to 3 gases G1 to G3 (the main tank gas, then the deco gases set on the page), SWITCH TO G2 prompt at the gas MOD during the ascent (TR or BR: GAS SWITCH OK; TL or BL or 30 s: GAS NOT SWITCHED, then EXCLUDING G2 with PREDICTIVE), gas table with a BR hold; PREDICTIVE (all gases in the calculation, by default) and SWITCH BELOW MOD settable; ppO2max of the deco gases 1.6 bar assumed. Compass, underwater menu and deep stops are not simulated. Transmitter: HALF TANK (100 bar by default, can be turned off) and TANK RESERVE (50 bar by default), until a button is pressed. §3.2 warnings: MAX DEPTH REACHED, TURN AROUND / TIME LIMIT (off by default), blinking GF @SURF (off by default), NO DECO 2 min and entering deco (on assumed; texts not given: "NO DECO 2 MIN" and "ENTERING DECO" deduced).',
+    fr: 'Bühlmann ZH-L16C non modifié avec gradient factors : reproduit (R1, R2, T1, T2 interpolés, le manuel ne donnant que R0 85/85, R3 50/60, T0 30/85 et T3 25/40). Conservatisme multi-jours (−2 par jour, max −6) et, en option, en successives (−8 à la sortie, +1 par 15 min). Vitesse maximale selon la profondeur (5 / 10 / 15 / 20 m/min) ; plus de 120 % sur plus de 20 m = verrouillage 48 h ; palier manqué (§10.3.4.2) : passage aux GF alternatifs (ALT GF, R0 par défaut, jamais plus bas que les MAIN GF) avec MAIN GF > ALT GF, puis DECO VIOLATION! et verrouillage 48 h si la profondeur ne convient pas ou si le palier ALT GF est manqué à son tour ; BR long avec MAIN GF affiché : calculs MAIN et ALT côte à côte 10 s, TR active ALT GF (§11.6) ; dernier palier DECO STOP 3 / 4,5 / 6 m (§2.5 : avec PREDICTIVE, un gaz d’au moins 36 % et le changement fait, sinon 3 m ; 3 m par défaut supposé). TTR = temps jusqu’à la réserve. BL : écrans E-Z / FULL / profil / tissus / paliers ; TR / BR : champs du FULL ; TR long : rétroéclairage ; TL : chronomètre. Multigaz (§13) : jusqu’à 3 gaz G1 à G3 (gaz du bloc principal puis gaz de déco de la page), invite SWITCH TO G2 au MOD du gaz pendant la remontée (TR ou BR : GAS SWITCH OK ; TL ou BL ou 30 s : GAS NOT SWITCHED, puis EXCLUDING G2 si PREDICTIVE), tableau des gaz par BR long ; PREDICTIVE (calcul avec tous les gaz, par défaut) et SWITCH BELOW MOD réglables ; ppO2max des gaz de déco 1,6 bar supposé, 1,6 à 1,8 bar pour les gaz à 80 % d’O2 ou plus (§13.1). Boussole, menu sous l’eau et deep stops non simulés. Émetteur : HALF TANK (100 bar par défaut, désactivable) et TANK RESERVE (50 bar par défaut), jusqu’à l’appui sur un bouton. Avertissements du §3.2 : MAX DEPTH REACHED, TURN AROUND / TIME LIMIT (désactivés par défaut), GF @SURF clignotant (désactivé par défaut), NO DECO 2 min et entrée en déco (activés supposé ; textes non donnés : « NO DECO 2 MIN » et « ENTERING DECO » déduits).',
+    en: 'Unmodified Bühlmann ZH-L16C with gradient factors: reproduced (R1, R2, T1, T2 interpolated, the manual only giving R0 85/85, R3 50/60, T0 30/85 and T3 25/40). Multiday conservatism (−2 per day, max −6) and, optionally, repetitive-dive conservatism (−8 on surfacing, +1 per 15 min). Depth-dependent maximum ascent rate (5 / 10 / 15 / 20 m/min); more than 120 % over more than 20 m = 48 h lock; missed stop (§10.3.4.2): switch to the alternate GF (ALT GF, R0 by default, never below the MAIN GF) with MAIN GF > ALT GF, then DECO VIOLATION! and a 48 h lock if the depth does not suit them or the ALT GF stop is missed in turn; BR hold with MAIN GF shown: MAIN and ALT calculations side by side for 10 s, TR activates ALT GF (§11.6); shallowest stop DECO STOP 3 / 4.5 / 6 m (§2.5: with PREDICTIVE, a gas of at least 36 % and the switch made, else 3 m; 3 m by default assumed). TTR = time to reserve. BL: E-Z / FULL / profile / tissue / stops screens; TR / BR: FULL fields; TR hold: backlight; TL: stopwatch. Multigas (§13): up to 3 gases G1 to G3 (the main tank gas, then the deco gases set on the page), SWITCH TO G2 prompt at the gas MOD during the ascent (TR or BR: GAS SWITCH OK; TL or BL or 30 s: GAS NOT SWITCHED, then EXCLUDING G2 with PREDICTIVE), gas table with a BR hold; PREDICTIVE (all gases in the calculation, by default) and SWITCH BELOW MOD settable; ppO2max of the deco gases 1.6 bar assumed, 1.6 to 1.8 bar for gases of 80 % O2 or more (§13.1). Compass, underwater menu and deep stops are not simulated. Transmitter: HALF TANK (100 bar by default, can be turned off) and TANK RESERVE (50 bar by default), until a button is pressed. §3.2 warnings: MAX DEPTH REACHED, TURN AROUND / TIME LIMIT (off by default), blinking GF @SURF (off by default), NO DECO 2 min and entering deco (on assumed; texts not given: "NO DECO 2 MIN" and "ENTERING DECO" deduced).',
   };
   readonly settingDefs: SettingDef[] = [
     {
@@ -33,6 +33,30 @@ export abstract class QuadCiRules extends DiveComputer {
       label: { fr: 'Gradient factors', en: 'Gradient factors' },
       options: Object.entries(PRESETS).map(([k, [lo, hi]]) => ({ value: k, label: `${k} (${lo}/${hi})` })),
       default: 'R0',
+    },
+    {
+      // §2.2.2 ALTERNATE GF: "an alternate set of gradient factors, to use when you need to cut your
+      // decompression short in case of an emergency. The set of alternate gradient factors cannot be more
+      // conservative (i.e. lower) than the main set of GF values. The default value is R0 (85/85)."
+      key: 'altGf',
+      label: { fr: 'GF alternatifs (ALT GF)', en: 'Alternate GF (ALT GF)' },
+      options: Object.entries(PRESETS).map(([k, [lo, hi]]) => ({ value: k, label: `${k} (${lo}/${hi})` })),
+      default: 'R0',
+      group: 'deco',
+    },
+    {
+      // §2.5 DECO STOP: "the depth of the shallowest stop among 3m/10ft, 4.5m/15ft and 6m/20ft"; active only
+      // with PREDICTIVE ON, a gas of at least 36 % O2 and the gas switch carried out when prompted, else
+      // 3 m. Default not given: 3 m assumed.
+      key: 'decoStop',
+      label: { fr: 'Dernier palier (DECO STOP)', en: 'Shallowest stop (DECO STOP)' },
+      options: [
+        { value: '3', label: { fr: '3 m / 10 ft', en: '3 m / 10 ft' } },
+        { value: '4.5', label: { fr: '4,5 m / 15 ft', en: '4.5 m / 15 ft' } },
+        { value: '6', label: { fr: '6 m / 20 ft', en: '6 m / 20 ft' } },
+      ],
+      default: '3',
+      group: 'deco',
     },
     {
       key: 'display',
@@ -63,11 +87,21 @@ export abstract class QuadCiRules extends DiveComputer {
     // Manual: ppO2max 1.4 bar from the factory, adjustable up to 1.6 bar (from 1.2, step 0.1: assumed as on the other Mares).
     ppo2Setting(1.2, 1.6, 1.4, 'ppO2max'),
     {
-      // §13.1: each gas has its own ppO2max; for 80 % O2 or more it is set to 1.6 bar automatically and
-      // can be set from 1.6 to 1.8 bar. Value of G2 / G3 not given: 1.6 bar assumed (1.2 to 1.6 offered).
+      // §13.1: each gas has its own ppO2max (§10.3.2: "from 1.2 to 1.6bar"). Value of G2 / G3 not given:
+      // 1.6 bar assumed.
       key: 'ppo2Deco',
       label: { fr: 'ppO2max G2 / G3', en: 'ppO2max G2 / G3' },
       options: [1.2, 1.3, 1.4, 1.5, 1.6].map((v) => ({ value: v.toFixed(2), label: `${v.toFixed(1)} bar` })),
+      default: '1.60',
+      group: 'deco',
+    },
+    {
+      // §13.1 NOTE: "When setting an oxygen concentration of 80% or higher, Quad Ci automatically sets the
+      // ppO2max to 1.6 bar"; "For gases with oxygen concentration 80% or higher, the ppO2 can be set
+      // between 1.6 bar and 1.8 bar."
+      key: 'ppo2Rich',
+      label: { fr: 'ppO2max des gaz ≥ 80 % O2', en: 'ppO2max of gases ≥ 80% O2' },
+      options: [1.6, 1.7, 1.8].map((v) => ({ value: v.toFixed(2), label: `${v.toFixed(1)} bar` })),
       default: '1.60',
       group: 'deco',
     },
@@ -112,6 +146,8 @@ export abstract class QuadCiRules extends DiveComputer {
     },
   ];
 
+  /** ALT GF switched on after a missed stop: MAIN GF > ALT GF shown until a button is pressed. */
+  protected altBySystem = false;
   protected fast = new FastAscentZhl();
   protected missed = new MissedStop('zhl');
   protected violation: 'deco' | 'ascent' | null = null;
@@ -138,9 +174,9 @@ export abstract class QuadCiRules extends DiveComputer {
     return Number(this.settings.ppo2Deco) || 1.6;
   }
 
-  /** §13.1: "When setting an oxygen concentration of 80% or higher, Quad Ci automatically sets the ppO2max to 1.6 bar." */
+  /** §13.1: gases of 80 % O2 or more have their own ppO2max, 1.6 to 1.8 bar (1.6 by default). */
   decoMod(o2: number): number {
-    const ppo2 = o2 >= 0.8 ? Math.max(1.6, this.decoPpo2()) : this.decoPpo2();
+    const ppo2 = o2 >= 0.8 - 1e-9 ? Number(this.settings.ppo2Rich) || 1.6 : this.decoPpo2();
     return Math.max(0, pressureToDepth(ppo2 / o2));
   }
 
@@ -175,8 +211,39 @@ export abstract class QuadCiRules extends DiveComputer {
     return { gfLow: lo / 100, gfHigh: hi / 100, lastStop: 3, stopStep: 3, ascentRate: 10 };
   }
 
+  /** ALT GF in use: switched by hand (§11.6) or after a missed stop (§10.3.4.2). */
+  protected altActive = false;
+
+  /**
+   * §2.2.2: the alternate gradient factors, never lower than the main ones (each value taken at least
+   * at the main one). The personalization, repetitive and multiday reductions only apply to the MAIN GF
+   * (glossary, GF SET): not applied to them (assumed).
+   */
+  altParams(s: DiveSession): DecoParams {
+    const main = this.mainParams(s);
+    const [lo, hi] = PRESETS[this.settings.altGf] ?? PRESETS.R0;
+    return { ...main, gfLow: Math.max(main.gfLow, lo / 100), gfHigh: Math.max(main.gfHigh, hi / 100) };
+  }
+
   algoParams(s: DiveSession): DecoParams {
-    const p = this.baseParams();
+    return this.altActive ? this.altParams(s) : this.mainParams(s);
+  }
+
+  /**
+   * §2.5 DECO STOP: the shallowest stop chosen applies when "predictive multigas is ON", "at least one
+   * gas is set to an oxygen percentage of at least 36%" and "when prompted to do so, the gas switch is
+   * carried out"; "If these conditions are not met, Quad Ci will recalculate the decompression with a
+   * 3 m / 10 ft shallowest stop."
+   */
+  protected lastStop(s: DiveSession): number {
+    const chosen = Number(this.settings.decoStop) || 3;
+    const ok = this.settings.predictive !== 'off' && this.knownGases(s).some((g) => g.o2 >= 0.36 - 1e-9) && this.prompt.declined.size === 0;
+    return ok ? chosen : 3;
+  }
+
+  /** MAIN GF with the personalization, repetitive and multiday reductions. */
+  mainParams(s: DiveSession): DecoParams {
+    const p = { ...this.baseParams(), lastStop: this.lastStop(s) };
     let drop = Math.min(6, 2 * (divingDays(s) - 1));
     if (this.settings.repetitive === 'on' && s.lastDiveEnd !== null) {
       const si = ((s.inDive ? s.diveStart : s.clock) - s.lastDiveEnd) / 60;
@@ -206,6 +273,12 @@ export abstract class QuadCiRules extends DiveComputer {
     this.deep.reset();
     this.prompt.reset();
     this.gasMsgs.clear();
+    this.altActive = false;
+  }
+
+  /** §11.6: the diver activates the alternate gradient factors. */
+  activateAlt(): void {
+    this.altActive = true;
   }
 
   onDiveEnd(s: DiveSession): void {
@@ -227,8 +300,23 @@ export abstract class QuadCiRules extends DiveComputer {
     const ceil = ceilingDepth(s.tissues, this.anchor, p);
     if (ceil > 0) {
       this.hadDeco = true;
-      const stop = Math.max(p.lastStop, Math.ceil(ceil / p.stopStep - 1e-6) * p.stopStep);
-      if (this.missed.update(stop - s.depth, dt)) this.violation = 'deco';
+      const stop = stopDepthFor(ceil, p);
+      if (this.missed.update(stop - s.depth, dt)) {
+        // §10.3.4.2: "Quad Ci will automatically switch to the alternate gradient factors, display the
+        // messagge MAIN GF > ALT GF, and, if compatible with the current depth, keep you out of a dive
+        // violation" ("If the alternate gradient factors are not compatible with the current depth, Quad
+        // Ci considers this a dive violation"). Compatible: no deeper than 0.3 m above the ALT GF stop
+        // (the DECO STOP! margin, assumed); missing the ALT GF stop in turn is a violation.
+        if (this.altActive) this.violation = 'deco';
+        else {
+          this.altActive = true;
+          this.altBySystem = true;
+          this.missed.reset();
+          const ap = this.decoParams(s);
+          const altStop = stopDepthFor(ceilingDepth(s.tissues, this.anchor, ap), ap);
+          if (altStop > 0 && s.depth < altStop - 0.3) this.violation = 'deco';
+        }
+      }
     } else {
       this.missed.reset();
     }

@@ -5,6 +5,13 @@
 import type { DiveSession } from '../../engine/session';
 
 export class GasPrompt {
+  /**
+   * `sticky`: a declined gas stays out of the calculation for the rest of the dive, without a new offer,
+   * until the diver switches to it by hand (Scubapro: "you will finish the dive without using the
+   * excluded gas", G2 §3.4.2, Luna §3.19.3); otherwise going back below its MOD includes it again (Mares).
+   */
+  constructor(private readonly sticky = false) {}
+
   /** Gas offered now (index in DiveSession.allGases), or null. */
   offer: number | null = null;
   /** Gases declined (or whose offer expired) since the diver was last deeper than their MOD. */
@@ -26,7 +33,10 @@ export class GasPrompt {
    */
   update(s: DiveSession, mods: number[], timeout: number | null): { expired: number | null; included: number[] } {
     const included: number[] = [];
+    // A gas switched to by hand is in use again.
+    this.declined.delete(s.breathing);
     for (let i = 1; i < mods.length; i++) {
+      if (this.sticky && this.declined.has(i)) continue;
       if (s.depth > mods[i] + 0.3) {
         this.armed.add(i);
         if (this.declined.delete(i)) included.push(i);

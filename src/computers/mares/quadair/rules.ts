@@ -27,8 +27,8 @@ export abstract class QuadAirRules extends DiveComputer {
   readonly transmitter = 'Tank module';
   readonly gasTimeName = 'TTR';
   readonly notes = {
-    fr: 'Le RGBM Mares-Wienke (10 tissus) est propriétaire : approximation identique à celle du Puck Pro (Bühlmann + P0/P1/P2, pénalité en successives). Conforme au manuel : SLOW dès 10 m/min ; remontée incontrôlée (> 12 m/min au-delà de 12 m, sur les 2/3 de la profondeur) ou palier manqué (> 1 m pendant > 3 min) = profondimètre seul pendant 24 h ; ▼ et clignotement à plus de 0,3 m au-dessus du palier, désaturation arrêtée ; RUNAWAY DECO ; TTR, réserve (au moins 50 bar) et demi-bloc (100 bar) avec le module de bloc. Boutons du haut : champ en haut à droite ; du bas : champ en bas à droite ; appui long en haut : rétroéclairage. Après la plongée : deux pages alternées (4 s). Multigaz (§3.5) : jusqu’à 3 gaz G1 à G3 (bloc principal puis gaz de déco de la page) ; au MOD d’un gaz plus riche pendant la remontée, bip et O2 % de G1 clignotant avec SWITCH pendant 20 s ; bouton du bas : gaz suivant (O2 % et MOD clignotants), appui long : confirmation ; le temps de remontée ne compte que le gaz respiré (mis à jour après le changement) ; ppO2max des gaz de déco 1,6 bar supposé. Non simulés : deep stops (le manuel ne donne pas leur calcul), altitude, menus de surface, planificateur, carnet.',
-    en: 'Mares RGBM-Wienke (10 tissues) is proprietary: same approximation as the Puck Pro (Bühlmann + P0/P1/P2, repetitive-dive penalty). As per the manual: SLOW from 10 m/min; uncontrolled ascent (> 12 m/min deeper than 12 m, over 2/3 of the depth) or missed stop (> 1 m for > 3 min) = bottom timer only for 24 h; ▼ and blinking more than 0.3 m above the stop, desaturation halted; RUNAWAY DECO; TTR, reserve (at least 50 bar) and half tank (100 bar) with the tank module. Upper buttons: top-right field; lower buttons: bottom-right field; upper hold: backlight. After the dive: two alternating pages (4 s). Multigas (§3.5): up to 3 gases G1 to G3 (the main tank, then the deco gases set on the page); at the MOD of a richer gas during the ascent, a beep and the O2 % of G1 blinking with SWITCH for 20 s; lower button: next gas (O2 % and MOD blinking), hold: confirm; the ascent time only counts the gas breathed (updated after the switch); ppO2max of the deco gases 1.6 bar assumed. Not simulated: deep stops (the manual does not give how they are computed), altitude, surface menus, planner, logbook.',
+    fr: 'Le RGBM Mares-Wienke (10 tissus) est propriétaire : approximation identique à celle du Puck Pro (Bühlmann + P0/P1/P2, pénalité en successives). Conforme au manuel : SLOW dès 10 m/min ; remontée incontrôlée (> 12 m/min au-delà de 12 m, sur les 2/3 de la profondeur) ou palier manqué (> 1 m pendant > 3 min) = profondimètre seul pendant 24 h ; ▼ et clignotement à plus de 0,3 m au-dessus du palier, désaturation arrêtée ; RUNAWAY DECO ; TTR, réserve (au moins 50 bar) et demi-bloc (100 bar) avec le module de bloc. Boutons du haut : champ en haut à droite ; du bas : champ en bas à droite ; appui long en haut : rétroéclairage. Après la plongée : deux pages alternées (4 s). Multigaz (§3.5) : jusqu’à 3 gaz G1 à G3 (bloc principal puis gaz de déco de la page) ; au MOD d’un gaz plus riche pendant la remontée, bip et O2 % de G1 clignotant avec SWITCH pendant 20 s ; bouton du bas : gaz suivant (O2 % et MOD clignotants), appui long : confirmation ; le temps de remontée ne compte que le gaz respiré (mis à jour 20 s après le changement, §3.5.2 : « within 20 seconds ») ; ppO2max des gaz de déco 1,6 bar supposé. Non simulés : deep stops (le manuel ne donne pas leur calcul), altitude, menus de surface, planificateur, carnet.',
+    en: 'Mares RGBM-Wienke (10 tissues) is proprietary: same approximation as the Puck Pro (Bühlmann + P0/P1/P2, repetitive-dive penalty). As per the manual: SLOW from 10 m/min; uncontrolled ascent (> 12 m/min deeper than 12 m, over 2/3 of the depth) or missed stop (> 1 m for > 3 min) = bottom timer only for 24 h; ▼ and blinking more than 0.3 m above the stop, desaturation halted; RUNAWAY DECO; TTR, reserve (at least 50 bar) and half tank (100 bar) with the tank module. Upper buttons: top-right field; lower buttons: bottom-right field; upper hold: backlight. After the dive: two alternating pages (4 s). Multigas (§3.5): up to 3 gases G1 to G3 (the main tank, then the deco gases set on the page); at the MOD of a richer gas during the ascent, a beep and the O2 % of G1 blinking with SWITCH for 20 s; lower button: next gas (O2 % and MOD blinking), hold: confirm; the ascent time only counts the gas breathed (updated 20 s after the switch, §3.5.2: "within 20 seconds"); ppO2max of the deco gases 1.6 bar assumed. Not simulated: deep stops (the manual does not give how they are computed), altitude, surface menus, planner, logbook.',
   };
   readonly settingDefs: SettingDef[] = [
     {
@@ -176,7 +176,11 @@ export abstract class QuadAirRules extends DiveComputer {
     this.ascentFrom = 0;
     this.prompt.reset();
     this.seq.cancel();
+    this.switched = null;
+    this.lastBreathing = s.breathing;
   }
+
+  private lastBreathing = 0;
 
   onDiveEnd(s: DiveSession): void {
     this.longNoFly = this.hadDeco || this.repetitive;
@@ -187,7 +191,25 @@ export abstract class QuadAirRules extends DiveComputer {
     }
   }
 
+  /** Gas breathed before the last switch, and when it happened (session clock), for the 20 s below. */
+  private switched: { from: number; to: number; at: number } | null = null;
+
+  /**
+   * §3.5.2: after a confirmed switch, "within 20 seconds the ascent time is updated to reflect the higher
+   * oxygen concentration in the breathing gas" (the full 20 s assumed): until then the decompression
+   * data are those of the previous gas.
+   */
+  compute(s: DiveSession): ComputerView {
+    const v = super.compute(s);
+    const sw = this.switched;
+    if (!sw || !s.inDive || sw.to !== s.breathing || s.clock - sw.at >= 20) return v;
+    const old = super.compute(this.breathingGas(s, sw.from));
+    return { ...v, ndl: old.ndl, inDeco: old.inDeco, plan: old.plan, stopDepth: old.stopDepth, stopTime: old.stopTime, stopTimeSec: old.stopTimeSec, atStop: old.atStop, tts: old.tts };
+  }
+
   tick(s: DiveSession, dt: number): void {
+    if (this.lastBreathing !== s.breathing) this.switched = s.inDive ? { from: this.lastBreathing, to: s.breathing, at: s.clock } : null;
+    this.lastBreathing = s.breathing;
     super.tick(s, dt);
     if (!s.inDive) return;
     if (s.ascentRate <= 0.3) this.ascentFrom = s.depth;
