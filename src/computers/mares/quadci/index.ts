@@ -28,12 +28,15 @@ export class MaresQuadCi extends QuadCiRules {
   private ezTop: { i: number; until: number } | null = null;
   private ezBottom: { i: number; until: number } | null = null;
   private acks = new Acks();
+  /** §13.2: gas summary table (BR-LP), with the gas under the cursor; null when closed. */
+  private gasTable: number | null = null;
 
   onDiveStart(s: DiveSession): void {
     super.onDiveStart(s);
     this.stopwatchFrom = 0;
     this.acks.clear();
     this.ezTop = this.ezBottom = null;
+    this.gasTable = null;
     this.appliedDisplay = this.settings.display;
     this.screen = SCREENS.indexOf(this.appliedDisplay === 'full' ? 'full' : 'ez');
   }
@@ -53,6 +56,28 @@ export class MaresQuadCi extends QuadCiRules {
       if (button !== 'bl') return true;
       const pages: SurfacePage[] = ['home', 'predive', ...(this.hasDesat(s) ? ['postdive' as const] : [])];
       this.surfacePage = pages[(pages.indexOf(this.surfacePage) + 1) % pages.length];
+      return true;
+    }
+    // §13.2: SWITCH TO G2: "With TR-SP or BR-SP you perform the switch [...] with TL-SP or BL-SP you stay
+    // on the current gas".
+    if (this.prompt.offer !== null) {
+      const g = this.prompt.offer;
+      if (button === 'tr' || button === 'br') {
+        this.prompt.accept(s);
+        this.say('GAS SWITCH OK');
+      } else {
+        this.prompt.decline();
+        this.notSwitched(g);
+      }
+      return true;
+    }
+    // Gas table: "Scroll through the available gases with TR-SP and BR-SP [...] With BL-SP you can exit
+    // without making changes."
+    if (this.gasTable !== null) {
+      const n = this.knownGases(s).length;
+      if (button === 'tr') this.gasTable = (this.gasTable + n - 1) % n;
+      else if (button === 'br') this.gasTable = (this.gasTable + 1) % n;
+      else if (button === 'bl') this.gasTable = null;
       return true;
     }
     const screen = SCREENS[this.screen];
@@ -81,7 +106,24 @@ export class MaresQuadCi extends QuadCiRules {
     return { i, until: now + 2000 };
   }
 
-  hold(button: string): boolean {
+  hold(button: string, s: DiveSession): boolean {
+    // §13.2: "You can always perform a manual switch with BR-LP. This will make the gas summary table
+    // appear [...] then with TR-LP or BR-LP you activate it."
+    if (s.inDive && this.gasTable !== null && (button === 'tr' || button === 'br')) {
+      const i = this.gasTable;
+      // §2.4.2 SWITCH BELOW MOD OFF: no switch deeper than the gas MOD.
+      const mod = i === 0 ? this.modDepth(s.allGases[0].o2) : this.decoMod(s.allGases[i].o2);
+      if (this.settings.belowMod !== 'off' || s.depth <= mod) {
+        s.switchGas(i);
+        this.prompt.offer = null;
+        this.gasTable = null;
+      }
+      return true;
+    }
+    if (button === 'br' && s.inDive && this.knownGases(s).length > 1 && !this.locked) {
+      this.gasTable = s.breathing;
+      return true;
+    }
     if (button !== 'tr') return false;
     this.backlightUntil = performance.now() + 6000;
     return true;
@@ -117,7 +159,7 @@ export class MaresQuadCi extends QuadCiRules {
           simulated: true,
           note: { fr: 'sans les batteries', en: 'without the batteries' },
         },
-        hold: { real: { fr: 'Table de changement de gaz (multigaz)', en: 'Gas switch table (multigas)' }, simulated: false },
+        hold: { real: { fr: 'Table de changement de gaz (multigaz) ; dans la table, active le gaz choisi', en: 'Gas switch table (multigas); in the table, activates the gas chosen' }, simulated: true },
       },
     };
   }
@@ -156,7 +198,8 @@ export class MaresQuadCi extends QuadCiRules {
       const alarm = this.alarm(v, s);
       if (alarm && screen !== 'ez' && screen !== 'full') this.setScreen(SCREENS.indexOf((screen = 'full')));
       if (alarm?.full && screen === 'ez') screen = 'full';
-      html = screen === 'ez' || screen === 'full' ? this.diveScreen(screen, v, s, alarm) : this.graphScreen(screen, v, s);
+      html = this.gasTable !== null ? this.gasTableScreen(v, s)
+        : screen === 'ez' || screen === 'full' ? this.diveScreen(screen, v, s, alarm) : this.graphScreen(screen, v, s);
     }
     el.innerHTML = `
       <div class="dev qc">
@@ -228,8 +271,32 @@ export class MaresQuadCi extends QuadCiRules {
     return `<div class="qc-tank ${this.tankColor(v)}"><b>${pressText(v.tank.pressure)}</b><u>${pressUnit().toUpperCase()}</u></div>`;
   }
 
+  /**
+   * §13.2: the gas switch prompt "below the top row", or the short messages that follow (colours not
+   * given: yellow like the warnings, assumed), in place of the N2 divider.
+   */
+  private gasLine(): string | null {
+    if (this.prompt.offer !== null) return `<div class="qc-gsw">SWITCH TO G${this.prompt.offer + 1}</div>`;
+    const msg = this.gasMessage();
+    return msg ? `<div class="qc-gsw">${msg}</div>` : null;
+  }
+
+  /** §13.2: gas summary table: each active gas, its MOD and its tank pressure (NP: no transmitter paired). */
+  private gasTableScreen(v: ComputerView, s: DiveSession): string {
+    const du = depthUnit();
+    const rows = this.knownGases(s).map((g, i) => {
+      const mod = i === 0 ? this.modDepth(g.o2) : this.decoMod(g.o2);
+      // Only the main tank has a transmitter here: --- when it is off (§13.2 NOTE), NP for the others.
+      const p = i === 0 && this.transmitter && s.transmitterOn ? `${pressText(s.tankPressure)}<u>${pressUnit().toUpperCase()}</u>` : i === 0 ? '---' : 'NP';
+      return `<div class="qc-gt ${this.gasTable === i ? 'sel' : ''} ${s.breathing === i ? 'cur' : ''}"><span>G${i + 1}</span><span>${Math.round(g.o2 * 100)}<u>%</u></span><span><u>MOD</u> ${depthText(mod)}<u>${du}</u></span><span>${p}</span></div>`;
+    }).join('');
+    return `<div class="qc-row top sm"><div class="qc-depth">${depthText(v.depth)}<u>${du}</u></div></div><div class="qc-gtab">${rows}</div>`;
+  }
+
   /** Magenta N2 divider (nitrogen bar graph), or the ascent speed graph while ascending. */
   private n2Bar(v: ComputerView, forceN2 = false, label = true): string {
+    const line = this.gasLine();
+    if (line) return line;
     if (!forceN2 && v.ascentRate > 0.5) {
       const pct = v.ascentRate / quadAscentLimit(v.depth);
       const cls = pct > 1 ? 'red' : pct > 0.8 ? 'yellow' : 'green';
@@ -306,7 +373,9 @@ export class MaresQuadCi extends QuadCiRules {
       const fields = this.ezBottomFields(s);
       const bot = this.ezBottom && now < this.ezBottom.until ? fields[this.ezBottom.i % fields.length] : null;
       let left = this.dtime(v, false);
-      if (bot) left = `<div class="qc-c"><em class="cy">${EZ_LABELS[bot]}</em><b>${this.fieldValue(bot, v, s)}</b></div>`;
+      // §13.1 NOTE: "When more than one gas is set, the label G1 (or G2 or G3) appears together with the O2% label."
+      const lbl = bot === 'o2' && this.knownGases(s).length > 1 ? `G${s.breathing + 1} O2%` : EZ_LABELS[bot!];
+      if (bot) left = `<div class="qc-c"><em class="cy">${lbl}</em><b>${this.fieldValue(bot, v, s)}</b></div>`;
       return `
         <div class="qc-row top ${v.tank.ai ? '' : 'center'}">${topCell}${v.tank.ai ? this.tankBlock(v) : ''}</div>
         ${this.n2Bar(v)}
@@ -368,7 +437,7 @@ export class MaresQuadCi extends QuadCiRules {
     switch (f) {
       case 'ttr': return v.tank.gasTime === null || s.diveTime < 120 ? '--' : `${v.tank.gasTime}:`;
       case 'gas': return v.tank.ai ? String(Math.round(s.rmv)) : '--';
-      case 'o2': return `${v.o2}<u>%</u>`;
+      case 'o2': return `${v.o2}<u>%</u>`; // label: see ezLabel()
       default: return `${h}:${String(m).padStart(2, '0')}`;
     }
   }
@@ -403,7 +472,7 @@ export class MaresQuadCi extends QuadCiRules {
         const r = this.gfRate(v, s);
         return `<div class="qc-f"><em class="cy">GF@SURF/RATE</em><b class="${r.cls}">${this.surfGfText(v)}/${r.text}</b></div>`;
       }
-      case 'o2': return f('O2', String(v.o2), '%');
+      case 'o2': return f(this.knownGases(s).length > 1 ? `G${s.breathing + 1} O2` : 'O2', String(v.o2), '%');
       case 'cns': return f('CNS', String(Math.round(v.cns)), '%', v.cns > 75 ? 'red' : '');
       case 'ppo2': return f('PPO2', v.ppO2.toFixed(2));
       case 'time': return f('TIME OF DAY', `${h}:${String(m).padStart(2, '0')}`);
@@ -493,7 +562,7 @@ export class MaresQuadCi extends QuadCiRules {
         <div class="qc-row low sm"><div class="qc-f"><em class="cy">CNS</em><b>${Math.round(v.cns)}<u>%</u></b></div><div class="qc-f"><em class="cy">GF NOW</em><b>${Math.round(v.surfGf)}</b></div></div>${lock}`;
     }
     return `
-      <div class="qc-row pd"><div class="qc-f"><em class="cy">${dateText}</em></div><div class="qc-f"><em class="cy">SINGLE GAS</em></div></div>
+      <div class="qc-row pd"><div class="qc-f"><em class="cy">${dateText}</em></div><div class="qc-f"><em class="cy">${this.knownGases(s).length > 1 ? 'MULTIGAS' : 'SINGLE GAS'}</em></div></div>
       <div class="qc-row mid"><div class="qc-c"><b class="huge">${time}</b></div><div class="qc-f mode"><b>${mode}</b></div></div>
       <div class="qc-bar green"></div>
       <div class="qc-row low sm"><div class="qc-f"><em class="cy">MAIN GF</em><b>${v.gfLow}/${v.gfHigh}</b></div><div class="qc-f"><em class="cy">ALT GF</em><b>${v.gfLow}/${v.gfHigh}</b></div></div>${lock}`;

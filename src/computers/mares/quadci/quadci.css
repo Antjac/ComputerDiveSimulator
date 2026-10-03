@@ -125,3 +125,10 @@
 .qc-dive.qc-bt .qc-row.top.center { flex: 0 0 56px; }
 .qc-dive.qc-bt .qc-row.top.center .qc-depth { font-size: 50px; }
 .qc-msg { flex: none; background: var(--qc-red); color: #fff; text-align: center; font-size: 14px; font-weight: 700; padding: 3px 0; }
+/* §13.2 gas switch prompt and messages, below the top row; gas summary table. */
+.qc-gsw { flex: none; background: var(--qc-yellow); color: #000; text-align: center; font-size: 15px; font-weight: 700; padding: 2px 0; }
+.qc-gtab { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 4px 8px; }
+.qc-gt { display: grid; grid-template-columns: 34px 54px 1fr 70px; align-items: baseline; font-size: 20px; font-weight: 700; padding: 2px 4px; border: 2px solid transparent; }
+.qc-gt u { font-size: 11px; text-decoration: none; color: var(--qc-cyan); }
+.qc-gt.sel { border-color: var(--qc-cyan); }
+.qc-gt.cur span:first-child { color: var(--qc-green); }

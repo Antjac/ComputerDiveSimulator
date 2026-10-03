@@ -147,7 +147,7 @@ export abstract class ZoopNovoRules extends DiveComputer {
     return { gfLow: hi - 0.1, gfHigh: hi, lastStop: 3, stopStep: 3, ascentRate: 10 };
   }
 
-  decoParams(s: DiveSession): DecoParams {
+  algoParams(s: DiveSession): DecoParams {
     const p = this.baseParams();
     // Repetitive dives (§3.24: "computing closely spaced repetitive diving"): same fading penalty as the D5.
     let drop = 0;

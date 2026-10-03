@@ -49,7 +49,7 @@ export abstract class DonatelloRules extends CressiRules {
     // not given in the manual: alarm enabled assumed.
     {
       key: 'alsp',
-      label: { fr: 'Alarme sonore de vitesse (AL.SP)', en: 'Ascent rate alarm sound (AL.SP)' },
+      label: { fr: 'Bip de vitesse (AL.SP)', en: 'Ascent beep (AL.SP)' },
       options: [{ value: 'on', label: { fr: 'Active', en: 'On' } }, { value: 'off', label: { fr: 'Désactivée', en: 'Off' } }],
       default: 'on',
     },

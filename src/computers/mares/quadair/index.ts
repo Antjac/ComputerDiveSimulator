@@ -19,6 +19,7 @@ export class MaresQuadAir extends QuadAirRules {
   private botUntil = 0;
   private stopwatchFrom = 0;
   private acks = new Acks();
+  private lastSession: DiveSession | null = null;
   private surfacePage: 'pre' | 'post' = 'pre';
   // -------------------------------------------------------------------------
   // Buttons (§1.5, figures of §1.5): during the dive both upper buttons act as UP (top-right field,
@@ -50,6 +51,19 @@ export class MaresQuadAir extends QuadAirRules {
       return true;
     }
     const v = this.lastView;
+    // §3.5.2: a lower button while G1 blinks starts the switch (G2 proposed); during the sequence it
+    // shows the next gas available at that depth.
+    if (!this.isUp(button) && !this.locked) {
+      if (this.seq.gas !== null) {
+        this.seq.next(s, this.gasMods(s));
+        return true;
+      }
+      if (this.prompt.offer !== null) {
+        this.seq.start(s, this.gasMods(s), this.prompt.offer);
+        this.prompt.offer = null;
+        return true;
+      }
+    }
     if (this.isUp(button)) {
       this.topIdx = (this.topIdx + 1) % this.topFields(s, v).length;
     } else {
@@ -71,6 +85,19 @@ export class MaresQuadAir extends QuadAirRules {
       this.stopwatchFrom = s.diveTime; // §3.6: press and hold a lower button restarts the stopwatch
       return true;
     }
+    if (!s.inDive) return false;
+    // §3.5.2: "Press and hold either of the lower buttons to confirm the switch"; with the O2 % shown in
+    // the lower right corner, a press and hold starts the manual gas switching sequence (§3.5.3.1).
+    if (this.seq.gas !== null) {
+      this.seq.confirm(s, this.gasMods(s));
+      return true;
+    }
+    const v = this.lastView;
+    if (this.knownGases(s).length > 1 && (this.prompt.offer !== null || this.bottomFields(s, v)[this.botIdx % this.bottomFields(s, v).length] === 'o2')) {
+      this.seq.start(s, this.gasMods(s), this.prompt.offer);
+      this.prompt.offer = null;
+      return true;
+    }
     return false;
   }
 
@@ -89,7 +116,7 @@ export class MaresQuadAir extends QuadAirRules {
     const gas = {
       real: { fr: 'Changement de gaz (multigaz) ; en profondimètre, remise à zéro du chronomètre', en: 'Gas switch (multigas); in bottom timer, restarts the stopwatch' },
       simulated: true,
-      note: { fr: 'chronomètre seulement (un seul gaz simulé)', en: 'stopwatch only (single gas simulated)' },
+      note: { fr: 'avec l’O2 % affiché en bas à droite (ou pendant l’invite) ; pendant la séquence, confirme le gaz proposé', en: 'with the O2 % shown in the lower right corner (or during the prompt); during the sequence, confirms the gas proposed' },
     };
     return {
       enter: { name: 'ENTER', press: up, hold: light },
@@ -133,6 +160,7 @@ export class MaresQuadAir extends QuadAirRules {
     // §3.2.4: while the missed deco stop alarm is on, desaturation of the tissues is halted.
     const v = this.withPausedDeco(view);
     this.lastView = view;
+    this.lastSession = s;
     const lcd = !v.inDive ? this.surface(v, s) : this.locked ? this.bottomTimer(v, s) : this.dive(v, s);
     el.innerHTML = `
       <div class="dev qa">
@@ -177,6 +205,11 @@ export class MaresQuadAir extends QuadAirRules {
     let bot = bots[this.botIdx % bots.length];
     if (v.cns >= 75 && bots.includes('cns') && !this.botUntil) bot = 'cns';
     if (surfacing) bot = 'o2';
+    // §3.5.2: the prompt makes the O2 % of the gas breathed blink with SWITCH; during the sequence the
+    // O2 % of the gas proposed blinks and its MOD blinks in the top right corner.
+    const switching = this.prompt.offer !== null || this.seq.gas !== null;
+    if (switching) bot = 'o2';
+    if (this.seq.gas !== null) top = 'mod';
 
     // Acknowledgeable alarms.
     const reserveAt = this.reserveAlarmAt(); // §3.2.5 note
@@ -255,7 +288,11 @@ export class MaresQuadAir extends QuadAirRules {
       case 'temp': return { lbl: [], value: String(Math.round(tempVal(v.temperature))), unit: tempUnit() };
       case 'max': return { lbl: ['MAX'], value: depthText(v.maxDepth), unit: du };
       case 'avg': return { lbl: ['AVG'], value: depthText(v.avgDepth), unit: du };
-      case 'mod': return { lbl: ['MOD'], value: depthText(v.mod), unit: du, blink };
+      case 'mod': {
+        const seq = this.seq.gas;
+        if (seq !== null && this.lastSession) return { lbl: ['MOD'], value: depthText(this.gasMods(this.lastSession)[seq]), unit: du, blink: true };
+        return { lbl: ['MOD'], value: depthText(v.mod), unit: du, blink };
+      }
       case 'asc5': return { lbl: ['ASC+5'], value: `${Math.min(99, asc5)}:`, unit: '' };
       default: return { lbl: [], value: '', unit: '' };
     }
@@ -265,7 +302,13 @@ export class MaresQuadAir extends QuadAirRules {
     switch (f) {
       case 'ttr': return { lbl: ['TTR'], value: v.tank.gasTime === null || s.diveTime < 120 ? '' : `${v.tank.gasTime}:`, units: [], blink }; // §3.3 note: ~2 min to analyse
       case 'gas': return { lbl: [], value: String(Math.round(imperial() ? s.rmv / 28.3168 : s.rmv)), units: imperial() ? ['cuft', 'min'] : ['l', 'min'] };
-      case 'o2': return { lbl: [], value: String(v.o2), units: ['%', 'O2'] };
+      case 'o2': {
+        // §3.5.1: the gas number shows with the O2 % when more than one gas is set (G1 / ▸2 / ▸3 segments).
+        const multi = this.knownGases(s).length > 1;
+        const g = this.seq.gas ?? s.breathing;
+        const lbl = multi ? [`G${g + 1}`, ...(this.prompt.offer !== null ? ['SWITCH'] : [])] : [];
+        return { lbl, value: String(Math.round((s.allGases[g] ?? s.gas).o2 * 100)), units: ['%', 'O2'], blink: blink || this.seq.gas !== null || this.prompt.offer !== null };
+      }
       case 'cns': return { lbl: [], value: String(Math.round(v.cns)), units: ['%', 'CNS'], blink: v.cns >= 75 };
       case 'ppo2': return { lbl: [], value: v.ppO2.toFixed(2), units: ['PPO2'] };
       case 'asc5': return { lbl: ['ASC+5'], value: `${Math.min(99, asc5)}:`, units: [], blink };
@@ -405,7 +448,7 @@ export class MaresQuadAir extends QuadAirRules {
       <span class="qa-blbl">${L('P-START', false)}${L('P-END', bot.pressLbl === 'P-END')}${L('ΔP', false)}${L('AGF', false)}</span>
       <div class="qa-press ${bot.pressBlink ? 'blink' : ''}">${sevenSeg(bot.press, 4, 'qa-p')}</div>
       ${L('psi', !!bot.press && imp, 'qa-psi')}${L('bar', !!bot.press && !imp, 'qa-barl')}${L('BT', !!bot.bt, 'qa-bt')}
-      <span class="qa-rlbl">${L('SWITCH', false)}${L('G1', bl.has('G1'))}${L('▸2▸3', false)}${L('TTR', bl.has('TTR'))}${L('RGT', false)}</span>
+      <span class="qa-rlbl">${L('SWITCH', bl.has('SWITCH'), '', true)}${L('G1', bl.has('G1'))}${L('▸2', bl.has('G2'))}${L('▸3', bl.has('G3'))}${L('TTR', bl.has('TTR'))}${L('RGT', false)}</span>
       ${L('ASC<br>+5', bl.has('ASC+5'), 'qa-asc5b')}
       <div class="qa-br ${bot.blink ? 'blink' : ''}">${sevenSeg(bot.value, 3, 'qa-b')}</div>
       <span class="qa-units">

@@ -3,12 +3,13 @@ import type { DiveSession } from '../../../engine/session';
 import { depthToPressure } from '../../../engine/buhlmann';
 import { sacBarPerMin } from '../../../engine/gas';
 import { type AlertCue, ComputerView, DiveComputer, SettingDef } from '../../base';
+import { GasPrompt } from '../../common/gasSwitch';
 import { Notices } from '../../common/notices';
 import { ppo2Setting } from '../../common/ppo2';
 import { pressureSetting, pressureValue } from '../../common/tank';
 
 /** §4.1 warnings (acknowledged with any button), then notifications. */
-export type D5Notice = 'cns-100' | 'otu-300' | 'depth' | 'dive-time' | 'tank-alarm' | 'tank-50' | 'gas-time' | 'safety-broken' | 'cns-80' | 'otu-250';
+export type D5Notice = 'cns-100' | 'otu-300' | 'depth' | 'dive-time' | 'tank-alarm' | 'tank-50' | 'gas-time' | 'safety-broken' | 'cns-80' | 'otu-250' | 'change-gas';
 
 /** Approximate GF high equivalent for each personal setting (calibrated on published NDLs). */
 export const PERSONAL: Record<string, number> = { '-2': 0.98, '-1': 0.93, '0': 0.88, '+1': 0.83, '+2': 0.78 };
@@ -31,8 +32,8 @@ export abstract class D5Rules extends DiveComputer {
   readonly transmitter = 'Tank POD';
   readonly gasTimeName = 'gas time';
   readonly notes = {
-    fr: 'Fused RGBM 2 est propriétaire : approximation (Bühlmann + réglage personnel, pénalités en successives et après remontée rapide). Affichage, deepstops, fenêtre de déco et verrouillage 48 h conformes au manuel. Bouton bas : fenêtre d’information (appui long : repère) ; bouton haut : chronomètre. Les vues du bouton central (boussole, pression) ne sont pas simulées. Alarmes (§4.1) : High pO2 en bandeau jaune ; avertissements (CNS 100 %, temps de gaz, palier de sécurité cassé, pression du bloc) et notification CNS 80 % en bandeau jusqu’à l’appui sur un bouton. Alarme de pression du bloc réglable (valeur par défaut non indiquée : 100 bar, l’exemple du manuel, supposé) en plus de l’alarme fixe à 50 bar. Avertissements et notifications du §4.1 : CNS 80/100 %, OTU 250/300, Depth, Dive time et Gas time (seuils réglés dans l’application Suunto, plages et valeurs par défaut non indiquées : désactivés supposé), Safety stop broken, Tank pressure. Non simulés : changement de gaz, batteries.',
-    en: 'Fused RGBM 2 is proprietary: approximation (Bühlmann + personal setting, penalties for repetitive dives and fast ascents). Display, deepstops, deco window and 48 h lock as per the manual. Lower button: switch window (hold: bookmark); upper button: timer. The middle button views (compass, tank pressure) are not simulated. Alarms (§4.1): High pO2 as a yellow band; warnings (CNS 100 %, gas time, safety stop broken, tank pressure) and the CNS 80 % notification as a band until a button is pressed. Settable tank pressure alarm (default not given: 100 bar, the manual’s example, assumed) on top of the fixed 50 bar alarm. §4.1 warnings and notifications: CNS 80/100%, OTU 250/300, Depth, Dive time and Gas time (limits set in the Suunto app, ranges and defaults not given: off assumed), Safety stop broken, Tank pressure. Not simulated: gas change, batteries.',
+    fr: 'Fused RGBM 2 est propriétaire : approximation (Bühlmann + réglage personnel, pénalités en successives et après remontée rapide). Affichage, deepstops, fenêtre de déco et verrouillage 48 h conformes au manuel. Bouton bas : fenêtre d’information (appui long : repère) ; bouton haut : chronomètre. Les vues du bouton central (boussole, pression) ne sont pas simulées. Alarmes (§4.1) : High pO2 en bandeau jaune ; avertissements (CNS 100 %, temps de gaz, palier de sécurité cassé, pression du bloc) et notification CNS 80 % en bandeau jusqu’à l’appui sur un bouton. Alarme de pression du bloc réglable (valeur par défaut non indiquée : 100 bar, l’exemple du manuel, supposé) en plus de l’alarme fixe à 50 bar. Avertissements et notifications du §4.1 : CNS 80/100 %, OTU 250/300, Depth, Dive time et Gas time (seuils réglés dans l’application Suunto, plages et valeurs par défaut non indiquées : désactivés supposé), Safety stop broken, Tank pressure. Plusieurs gaz (§4.18, option Multiple gases désactivée par défaut) : bloc principal puis gaz de déco de la page, tous comptés dans le temps de remontée ; notification Change gas en remontant au MOD d’un gaz plus riche (acquittée par n’importe quel bouton, sans changer de gaz) ; appui long sur le bouton du milieu : liste des gaz (haut / bas, milieu pour confirmer ; affichage sans figure dans le guide, déduit) ; pO2 des gaz de déco 1,6 bar par défaut. Non simulés : modification des gaz en plongée, batteries.',
+    en: 'Fused RGBM 2 is proprietary: approximation (Bühlmann + personal setting, penalties for repetitive dives and fast ascents). Display, deepstops, deco window and 48 h lock as per the manual. Lower button: switch window (hold: bookmark); upper button: timer. The middle button views (compass, tank pressure) are not simulated. Alarms (§4.1): High pO2 as a yellow band; warnings (CNS 100 %, gas time, safety stop broken, tank pressure) and the CNS 80 % notification as a band until a button is pressed. Settable tank pressure alarm (default not given: 100 bar, the manual’s example, assumed) on top of the fixed 50 bar alarm. §4.1 warnings and notifications: CNS 80/100%, OTU 250/300, Depth, Dive time and Gas time (limits set in the Suunto app, ranges and defaults not given: off assumed), Safety stop broken, Tank pressure. Multiple gases (§4.18, Multiple gases option off by default): the main tank then the deco gases set on the page, all counted in the ascent time; Change gas notification when ascending to the MOD of a richer gas (acknowledged with any button, without changing gas); middle button held: list of gases (upper / lower, middle to confirm; display not shown in the guide, deduced); pO2 of the deco gases 1.6 bar by default. Not simulated: modifying gases during a dive, batteries.',
   };
   readonly settingDefs: SettingDef[] = [
     {
@@ -80,6 +81,24 @@ export abstract class D5Rules extends DiveComputer {
     },
     // §4.18: pO2 setting 1.6 bar by default (1.4 recommended for nitrox); range not given, 1.0–1.6 assumed.
     ppo2Setting(1.0, 1.6, 1.6, 'pO2'),
+    {
+      // §4.18: "If you need more than one gas, activate multi-gas option in your device. Go to Dive settings »
+      // Parameters and turn on Multiple gases option." ("By default, Suunto D5 has only one gas.")
+      key: 'multigas',
+      label: { fr: 'Plusieurs gaz', en: 'Multiple gases' },
+      options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'On' }],
+      default: 'off',
+      group: 'deco',
+    },
+    {
+      // §4.18: each gas has its pO2 (1.6 bar by default; the guide's example gives 1.6 to the deco gases).
+      key: 'po2Deco',
+      label: { fr: 'pO2 gaz de déco', en: 'Deco gas pO2' },
+      options: [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6].map((v) => ({ value: v.toFixed(2), label: `${v.toFixed(1)} bar` })),
+      default: '1.60',
+      group: 'deco',
+      showIf: (s) => s.multigas === 'on',
+    },
     // §4.1 Tank pressure: "There is a built in 50-bar alarm that cannot be changed. In addition to it,
     // there is a configurable tank pressure alarm you can set to any value". Default not given: 100 bar,
     // the §4.31 example, assumed (not verified); 60 to 200 bar by 10 offered.
@@ -132,7 +151,7 @@ export abstract class D5Rules extends DiveComputer {
     return { gfLow: hi - 0.1, gfHigh: hi, lastStop: Number(this.settings.lastStop), stopStep: 3, ascentRate: 10 };
   }
 
-  decoParams(s: DiveSession): DecoParams {
+  algoParams(s: DiveSession): DecoParams {
     const p = this.baseParams();
     // Repetitive-dive penalty: up to 8 GF points, fading with a ~2 h time constant.
     let rep = 0;
@@ -169,6 +188,7 @@ export abstract class D5Rules extends DiveComputer {
     this.deepstops = [];
     this.screen = 0;
     this.notices.clear();
+    this.prompt.reset();
   }
 
   /** §4.1, §4.31: the configurable tank pressure alarm (bar), null when off. */
@@ -177,7 +197,30 @@ export abstract class D5Rules extends DiveComputer {
   }
 
   /** §4.1: warnings then notifications, shown until a button is pressed (order within each: the table's). */
-  protected notices = new Notices<D5Notice>(['cns-100', 'otu-300', 'depth', 'dive-time', 'gas-time', 'safety-broken', 'tank-50', 'tank-alarm', 'cns-80', 'otu-250']);
+  protected notices = new Notices<D5Notice>(['cns-100', 'otu-300', 'depth', 'dive-time', 'gas-time', 'safety-broken', 'tank-50', 'tank-alarm', 'cns-80', 'otu-250', 'change-gas']);
+
+  /** §4.18.1: "While ascending, you are notified to change gas [...] according to the maximum operating depth (MOD) of the gas." */
+  protected prompt = new GasPrompt();
+
+  /** §4.18: "If you need more than one gas, activate multi-gas option" (Dive settings » Parameters » Multiple gases). */
+  get maxGases(): number {
+    return this.settings.multigas === 'on' ? 3 : 1; // number of gases not given: those carried (up to 3)
+  }
+
+  /** §4.18: pO2 of each gas, "1.6 bar" by default. */
+  decoPpo2(): number {
+    return Number(this.settings.po2Deco) || 1.6;
+  }
+
+  /** MOD of each gas (its own pO2), the depth of the Change gas notification. */
+  gasMods(s: DiveSession): number[] {
+    return this.knownGases(s).map((g, i) => (i === 0 ? this.modDepth(g.o2) : this.decoMod(g.o2)));
+  }
+
+  /** §4.31: "When you change gas, the displayed tank pressure changes accordingly": only gas 1 has a Tank POD here. */
+  airIntegrated(s: DiveSession): boolean {
+    return super.airIntegrated(s) && s.breathing === 0;
+  }
 
   /** The screen dismisses the warning itself (any button), see press(). */
   acknowledgeAlerts(): boolean {
@@ -211,6 +254,12 @@ export abstract class D5Rules extends DiveComputer {
     // 2.4 m down, so shallower than 1.8 m before it is completed.
     const st = this.safetyState;
     if ((st === 'pending' || st === 'active' || st === 'paused') && s.depth < this.safetyStop.top - 0.6 && s.depth > 0.3) now.push('safety-broken');
+    // §4.1 notification "Change gas": "On multi-gas dive when ascending, it is safe to switch to next
+    // available gas for optimum decompression profile."
+    if (this.maxGases > 1) {
+      this.prompt.update(s, this.gasMods(s), null);
+      if (this.prompt.offer !== null) now.push('change-gas');
+    }
     this.notices.update(now);
   }
 

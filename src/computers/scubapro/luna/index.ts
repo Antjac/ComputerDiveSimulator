@@ -92,6 +92,16 @@ export class ScubaproLuna extends LunaRules {
   private warnSeen = new Map<string, number>();
   private timer = { startClock: 0, pausedAt: -1, offset: 0 };
   private lastView: ComputerView | null = null;
+  /** §3.19 gas selection (SWITCH GAS, or CONFIRM for the suggestion): gas proposed, or null. */
+  private sel: number | null = null;
+  private selAt = 0;
+  private savedUntil = 0;
+
+  /** Gases breathable at this depth other than the current one (T1 always). */
+  private candidates(s: DiveSession): number[] {
+    const mods = this.gasMods(s);
+    return mods.map((m, i) => (i !== s.breathing && (i === 0 || s.depth <= m) ? i : -1)).filter((i) => i >= 0);
+  }
 
   onDiveStart(s: DiveSession): void {
     super.onDiveStart(s);
@@ -113,6 +123,15 @@ export class ScubaproLuna extends LunaRules {
       this.setScreen(this.idx);
       return true;
     }
+    // §3 button table (PMG on): short press left / right "Select previous gas" / "Select next gas".
+    if (this.sel !== null || this.prompt.offer !== null) {
+      const c = this.candidates(s);
+      const cur = this.sel ?? this.prompt.offer!;
+      const i = c.indexOf(cur);
+      this.sel = c[(i + (button === 'right' ? 1 : c.length - 1)) % c.length] ?? cur;
+      this.selAt = s.clock;
+      return true;
+    }
     if (button === 'right') this.idx = (this.idx + 1) % n;
     else if (button === 'left') this.idx = (this.idx + n - 1) % n;
     else return false;
@@ -120,11 +139,41 @@ export class ScubaproLuna extends LunaRules {
     return true;
   }
 
+  /** The gas proposed now: the one chosen in the selection, else the suggestion. */
+  private proposed(): number | null {
+    return this.sel ?? this.prompt.offer;
+  }
+
   hold(button: string, s: DiveSession): boolean {
     if (!s.inDive) return false;
     const v = this.lastView;
+    // §3 button table (PMG on): long press right "Confirm gas change auto suggestion" / "Enter gas
+    // selection"; long press left "Exit gas selection".
+    const g = this.proposed();
+    // The alarm on display is confirmed first (it hides the gas switch).
+    if (button === 'right' && v && this.confirmAlarms(v)) return true;
+    if (g !== null) {
+      if (button === 'right') {
+        s.switchGas(g);
+        this.prompt.offer = null;
+        this.sel = null;
+        this.savedUntil = performance.now() + WARNING_MS; // "GAS CHANGE SAVED" (duration not given: as a warning)
+      } else if (button === 'left') {
+        this.sel = null;
+        if (this.prompt.offer !== null) this.prompt.decline(); // leaving the suggestion: the gas is not used (deduced)
+      }
+      return true;
+    }
     if (button === 'right') {
       if (v && this.confirmAlarms(v)) return true;
+      if (SCREENS[this.idx] !== 'timer' && this.maxGases > 1 && !this.locked) {
+        const c = this.candidates(s);
+        if (c.length) {
+          this.sel = c[0];
+          this.selAt = s.clock;
+        }
+        return true;
+      }
       if (SCREENS[this.idx] === 'timer') {
         const t = this.timer;
         if (t.pausedAt >= 0) {
@@ -163,7 +212,7 @@ export class ScubaproLuna extends LunaRules {
         hold: {
           real: { fr: 'Confirme une alarme ; met en pause / relance le chronomètre (écran TIMER) ; changement de gaz (PMG)', en: 'Confirms an alarm; pauses / restarts the timer (TIMER screen); gas switch (PMG)' },
           simulated: true,
-          note: { fr: 'changement de gaz non simulé', en: 'gas switch not simulated' },
+          note: { fr: 'changement de gaz avec PMG activé (hors écran TIMER)', en: 'gas switch with PMG enabled (outside the TIMER screen)' },
         },
       },
     };
@@ -201,6 +250,8 @@ export class ScubaproLuna extends LunaRules {
 
   render(el: HTMLElement, v: ComputerView, s: DiveSession, _lang: Lang): void {
     this.lastView = v;
+    // A gas selection left alone closes after 30 s (not stated: as the suggestion).
+    if (this.sel !== null && (!v.inDive || s.clock - this.selAt > 30)) this.sel = null;
     this.pruneConfirmed(v);
     if (this.currentScreen() === 0) this.idx = 0;
     const ai = v.tank.ai;
@@ -271,6 +322,14 @@ export class ScubaproLuna extends LunaRules {
     } else if (alarms.length) {
       matrix = alarmBox(alarms[0], v);
       alarmShown = true;
+    } else if (this.proposed() !== null) {
+      // §3.19.1 / §3.19.2 figures: "CONFIRM / T1➔T2 / 74%", "SWITCH GAS / T2➔T1 / 21%".
+      const g = this.proposed()!;
+      matrix = `<div class="ln-l">${this.sel === null ? 'CONFIRM' : 'SWITCH GAS'}</div><div class="ln-l">T${s.breathing + 1}➔T${g + 1}</div><div class="ln-l">${Math.round((s.allGases[g] ?? s.gas).o2 * 100)}%</div>`;
+    } else if (performance.now() < this.savedUntil) {
+      matrix = box('GAS CHANGE', 'SAVED');
+    } else if (this.excluded && s.clock - this.excluded.at < 4) {
+      matrix = box(`GAS ${this.excluded.gas + 1}`, 'EXCLUDED'); // §3.19.3 figure (shown 4 s, assumed)
     } else if (warn) {
       matrix = warn;
       alarmShown = true;

@@ -1,4 +1,4 @@
-import { DecoParams, SURFACE_PRESSURE, ceilingDepth, gasLabel, ndl, planAscent, pressureToDepth, timeToTolerate, updateAnchor } from '../../engine/buhlmann';
+import { DecoParams, Gas, PlanGas, SURFACE_PRESSURE, ceilingDepth, gasLabel, ndl, planAscent, pressureToDepth, timeToTolerate, updateAnchor } from '../../engine/buhlmann';
 import { sacBarPerMin } from '../../engine/gas';
 import { DiveSession } from '../../engine/session';
 import type { Lang } from '../../i18n';
@@ -91,9 +91,50 @@ export abstract class DiveComputer {
 
   abstract baseParams(): DecoParams;
 
-  /** Deco parameters, possibly adjusted by the computer's own state (penalties, levels...). */
-  decoParams(_s: DiveSession): DecoParams {
+  /** Algorithm parameters, possibly adjusted by the computer's own state (penalties, levels...). */
+  algoParams(_s: DiveSession): DecoParams {
     return this.baseParams();
+  }
+
+  /** Deco parameters: the algorithm's, plus the other gases the computer counts on for the ascent. */
+  decoParams(s: DiveSession): DecoParams {
+    const p = this.algoParams(s);
+    const gases = this.planGases(s);
+    return gases.length ? { ...p, gases } : p;
+  }
+
+  /** Gases the simulated mode can hold, per the manual (1: single gas). */
+  get maxGases(): number {
+    return 1;
+  }
+
+  /** ppO2 that sets the switch depth (MOD) of a decompression gas (per manual). */
+  decoPpo2(): number {
+    return 1.6;
+  }
+
+  /** Switch depth of a deco gas with oxygen fraction `o2`. */
+  decoMod(o2: number): number {
+    return Math.max(0, pressureToDepth(this.decoPpo2() / o2));
+  }
+
+  /**
+   * Gases programmed in the computer: those the diver carries (main tank first), up to what the
+   * model holds. The simulator assumes the diver programmed them as carried.
+   */
+  knownGases(s: DiveSession): Gas[] {
+    return s.allGases.slice(0, this.maxGases);
+  }
+
+  /** MOD of the gas breathed: a decompression gas has its own (deco) ppO2 on multi-gas models. */
+  currentMod(s: DiveSession): number {
+    return s.breathing > 0 && this.maxGases > 1 ? this.decoMod(s.gas.o2) : this.modDepth(s.gas.o2);
+  }
+
+  /** Gases the ascent plan may switch to (all the other programmed gases, by default). */
+  planGases(s: DiveSession): PlanGas[] {
+    if (this.maxGases <= 1) return [];
+    return this.knownGases(s).filter((_, i) => i !== s.breathing).map((gas) => ({ gas, mod: this.decoMod(gas.o2) }));
   }
 
   /** Colour level of the ascent indicator for a given rate (m/min, positive = up). */
@@ -376,7 +417,7 @@ export abstract class DiveComputer {
       gas: gasLabel(s.gas),
       o2: Math.round(s.gas.o2 * 100),
       ppO2: s.ppO2,
-      mod: this.modDepth(s.gas.o2),
+      mod: this.currentMod(s),
       cns: s.oxygen.cns,
       otu: s.oxygen.otu,
       gfLow: Math.round(p.gfLow * 100),

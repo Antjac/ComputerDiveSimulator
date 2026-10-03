@@ -98,3 +98,31 @@
 
 .g2-btn.pressed { translate: 0 3px; }
 .g2-screen.backlit { filter: brightness(1.35) saturate(1.1); }
+/* §3.4.2 gas switch screen (figure): depth and dive time, green banner, gas mix / PPO2MAX / MOD. */
+.g2-grid.sw { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr auto 1fr; }
+.g2-grid.sw .w-depth { grid-column: 1 / 3; }
+.g2-swbanner { grid-column: 1 / 4; background: #1f8f1f; color: #fff; font-weight: 700; font-size: 22px; text-align: center; padding: 6px 0; border: 2px solid #2bb82b; border-radius: 3px; }
+.g2-swok { position: absolute; left: 30px; right: 30px; top: 60px; padding: 10px 0; background: #1f8f1f; color: #fff; border: 3px solid #2bb82b; text-align: center; font-weight: 700; font-size: 22px; line-height: 1.3; }
+/* §3.7.1 alternate displays (MORE held): title, green frame; gas summary, deco summary table, dive
+   profile and compartment saturation, after the manual's figures. */
+.g2-alt-title { margin: 2px 16px 0; color: #fff; font-size: 19px; font-weight: 700; }
+.g2-alt { position: absolute; left: 16px; right: 16px; top: 46px; bottom: 6px; border: 2px solid #2bb82b; border-radius: 2px; }
+.g2-prof { position: absolute; left: 0; top: 0; width: calc(100% - 16px); height: 100%; }
+.g2-prof-scale { position: absolute; right: 0; top: 0; bottom: 0; width: 14px; background: #1e6fc0; color: #fff; font-size: 7px; line-height: 14px; letter-spacing: -0.3px; writing-mode: vertical-rl; display: flex; justify-content: space-between; padding: 3px 0; }
+.g2-prof-stops { position: absolute; right: 22px; bottom: 4px; color: #ffa21a; font-size: 15px; font-weight: 700; text-align: right; }
+.g2-prof-stops div { display: flex; gap: 10px; justify-content: flex-end; }
+.g2-prof-stops small { font-size: 0.6em; }
+.g2-sat { position: absolute; inset: 4px 8px; display: flex; flex-direction: column; }
+.g2-sat-bars { flex: 1; display: flex; align-items: flex-end; gap: 3px; }
+.g2-sat-bars i { flex: 1; min-height: 2px; }
+.g2-sat-bars i.on { background: #ff2020; } .g2-sat-bars i.off { background: #2bd82b; }
+.g2-sat-lbl { display: flex; justify-content: space-between; padding: 3px 4px 0; color: #2bd82b; font-size: 13px; font-weight: 700; }
+.g2-gsum { padding: 4px 8px; color: #fff; font-size: 18px; font-weight: 700; }
+.g2-gsum div { display: grid; grid-template-columns: 34px 60px 54px 1fr; align-items: baseline; line-height: 1.3; white-space: nowrap; }
+.g2-gsum .hd { color: #2bd82b; font-size: 15px; }
+.g2-gsum .cur span:first-child { color: #2bd82b; }
+.g2-gsum small { font-size: 0.6em; }
+.g2-dsum { padding: 6px 10px; font-size: 22px; font-weight: 700; }
+.g2-dsum div { display: grid; grid-template-columns: 56px 40px 60px 50px 1fr; align-items: baseline; line-height: 1.35; white-space: nowrap; }
+.g2-dsum .b { color: #2f6bff; } .g2-dsum .o { color: #ffa21a; text-align: right; }
+.g2-dsum small { font-size: 0.6em; }

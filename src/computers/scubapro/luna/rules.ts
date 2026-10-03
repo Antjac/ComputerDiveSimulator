@@ -1,4 +1,5 @@
-import { ceilingDepth, type DecoParams, ndl, planAscent } from '../../../engine/buhlmann';
+import { ceilingDepth, type DecoParams, ndl, planAscent, pressureToDepth } from '../../../engine/buhlmann';
+import { GasPrompt } from '../../common/gasSwitch';
 import type { DiveSession } from '../../../engine/session';
 import { type AlertCue, ComputerView, SettingDef } from '../../base';
 import { ScubaproRules, idealAscent, levelParams, reserveSetting } from '../common';
@@ -57,8 +58,8 @@ export abstract class LunaRules extends ScubaproRules {
 
   get notes(): { fr: string; en: string } {
     return {
-      fr: 'Deux algorithmes (§2.1.2.2) : ZH-L16 ADT MB (ajustements non publiés : approximation, niveaux MB L0 à L5, PDIS) ou ZH-L16C+GF (Bühlmann avec gradient factors : reproduit ; les paliers GF s’ajoutent à la déco 100/100). Sonde désactivée : se comporte comme le Luna 2.0 (température et NDL en bas). Vitesse de remontée idéale selon la profondeur, SLOW DOWN au-delà de 110 % ; palier de sécurité de 3 min dès 5 m après 10 m ; MISSED DECO 0,5 m au-dessus du palier ; SOS 24 h. Bouton droit : écran suivant (appui long : confirmer une alarme, pause du chronomètre) ; bouton gauche : écran précédent (appui long : repère, remise à zéro du chronomètre). Non simulés : fréquence cardiaque et charge de travail, multigaz (PMG), altitude, apnée et profondimètre, perte du signal de l’émetteur. Avertissements du §3.9 (textes des figures), chacun quelques secondes (4 s supposées) : profondeur et durée (désactivés d’usine), les autres réglés dans LogTRAK (valeurs par défaut non indiquées : activés supposé) ; HALFTANK à 100 bar (figures). Alarme RESERVE à 50 bar par défaut.',
-      en: 'Two algorithms (§2.1.2.2): ZH-L16 ADT MB (unpublished adjustments: approximation, MB levels L0 to L5, PDIS) or ZH-L16C+GF (Bühlmann with gradient factors: reproduced; GF stops come on top of the 100/100 deco). Transmitter off: behaves as the Luna 2.0 (temperature and NDL at the bottom). Depth-dependent ideal ascent rate, SLOW DOWN above 110 %; 3-min safety stop from 5 m after 10 m; MISSED DECO 0.5 m above the stop; 24 h SOS. Right button: next screen (hold: confirm an alarm, pause the timer); left button: previous screen (hold: bookmark, reset the timer). Not simulated: heart rate and workload, multi-gas (PMG), altitude, apnea and gauge modes, transmitter signal loss. §3.9 warnings (texts of the figures), each for a couple of seconds (4 s assumed): depth and time (off from the factory), the others set in LogTRAK (defaults not given: on assumed); HALFTANK at 100 bar (figures). RESERVE alarm at 50 bar by default.',
+      fr: 'Deux algorithmes (§2.1.2.2) : ZH-L16 ADT MB (ajustements non publiés : approximation, niveaux MB L0 à L5, PDIS) ou ZH-L16C+GF (Bühlmann avec gradient factors : reproduit ; les paliers GF s’ajoutent à la déco 100/100). Sonde désactivée : se comporte comme le Luna 2.0 (température et NDL en bas). Vitesse de remontée idéale selon la profondeur, SLOW DOWN au-delà de 110 % ; palier de sécurité de 3 min dès 5 m après 10 m ; MISSED DECO 0,5 m au-dessus du palier ; SOS 24 h. Bouton droit : écran suivant (appui long : confirmer une alarme, pause du chronomètre) ; bouton gauche : écran précédent (appui long : repère, remise à zéro du chronomètre). Multigaz PMG (§3.19, à activer dans DIVE > SCUBA > PMG ; désactivé par défaut supposé) : jusqu’à 3 gaz (bloc principal T1 et gaz de déco de la page), tous comptés dans la décompression ; au MOD d’un autre gaz pendant la remontée, son et CONFIRM T1→T2 ; appui long à droite : GAS CHANGE SAVED ; sans réponse en 30 s : GAS 2 EXCLUDED et le gaz sort du calcul ; appui long à droite : SWITCH GAS (appuis courts : autre gaz ; appui long à gauche : sortie) ; PPO2max des gaz 2 et 3 : 1,40 bar d’usine (§2.3.2), 1,6 bar à partir de 80 % d’O2. Non simulés : fréquence cardiaque et charge de travail, altitude, apnée et profondimètre, perte du signal de l’émetteur. Avertissements du §3.9 (textes des figures), chacun quelques secondes (4 s supposées) : profondeur et durée (désactivés d’usine), les autres réglés dans LogTRAK (valeurs par défaut non indiquées : activés supposé) ; HALFTANK à 100 bar (figures). Alarme RESERVE à 50 bar par défaut.',
+      en: 'Two algorithms (§2.1.2.2): ZH-L16 ADT MB (unpublished adjustments: approximation, MB levels L0 to L5, PDIS) or ZH-L16C+GF (Bühlmann with gradient factors: reproduced; GF stops come on top of the 100/100 deco). Transmitter off: behaves as the Luna 2.0 (temperature and NDL at the bottom). Depth-dependent ideal ascent rate, SLOW DOWN above 110 %; 3-min safety stop from 5 m after 10 m; MISSED DECO 0.5 m above the stop; 24 h SOS. Right button: next screen (hold: confirm an alarm, pause the timer); left button: previous screen (hold: bookmark, reset the timer). PMG multi-gas (§3.19, to be enabled in DIVE > SCUBA > PMG; off by default assumed): up to 3 gases (the main tank T1 and the deco gases set on the page), all counted in the decompression; at the MOD of another gas during the ascent, a sound and CONFIRM T1→T2; right hold: GAS CHANGE SAVED; without an answer within 30 s: GAS 2 EXCLUDED and the gas leaves the calculation; right hold: SWITCH GAS (short presses: another gas; left hold: exit); PPO2max of gases 2 and 3: 1.40 bar from the factory (§2.3.2), 1.6 bar from 80 % O2. Not simulated: heart rate and workload, altitude, apnea and gauge modes, transmitter signal loss. §3.9 warnings (texts of the figures), each for a couple of seconds (4 s assumed): depth and time (off from the factory), the others set in LogTRAK (defaults not given: on assumed); HALFTANK at 100 bar (figures). RESERVE alarm at 50 bar by default.',
     };
   }
 
@@ -103,6 +104,25 @@ export abstract class LunaRules extends ScubaproRules {
     },
     // §2.3.2: PPO2max 1.40 bar from the factory, 1.20 to 1.60 bar (step not given: 0.1).
     ppo2Setting(1.2, 1.6, 1.4, 'PPO2max'),
+    {
+      // §2.1.2.6: "Predictive multi-gas (PMG) mode enables the use of multiple tanks (up to 3 tanks)".
+      // Default not given: off assumed (as the G2's factory setting).
+      key: 'pmg',
+      label: { fr: 'Multigaz PMG', en: 'PMG multi-gas' },
+      options: [{ value: 'off', label: 'OFF' }, { value: 'on', label: 'ON' }],
+      default: 'off',
+      group: 'deco',
+    },
+    {
+      // §2.3.2: PPO2max 2 and 3 "can be set the same way as PPO2max 1" (1.20 to 1.60 bar); "The factory
+      // setting is 1.40bar"; "The ppO2 is fixed to 1.6bar when the selected oxygen content is 80% or higher."
+      key: 'ppo2Deco',
+      label: { fr: 'PPO2max gaz 2 / 3', en: 'PPO2max gases 2 / 3' },
+      options: [1.2, 1.3, 1.4, 1.5, 1.6].map((v) => ({ value: v.toFixed(2), label: `${v.toFixed(2)} bar` })),
+      default: '1.40',
+      group: 'deco',
+      showIf: (s) => s.pmg === 'on',
+    },
     // §2.3.5 Half gas: "ON" or "OFF", "a value from 50 to 200bar in 5-bar increments". Default not
     // given: ON at 100 bar, the value of the §2.3.5 and §3.9.8 figures, assumed.
     pressureSetting('halfTank', { fr: 'Avertissement de demi-bloc (Half gas)', en: 'Half tank warning (Half gas)' }, 50, 200, 5, 100, 'OFF'),
@@ -133,9 +153,43 @@ export abstract class LunaRules extends ScubaproRules {
     onOff('wRelaxed', 'Avertissement MB réduit / GF augmenté (§3.9.16, §3.9.17)', 'MB-level reduced / GF increased warning (§3.9.16, §3.9.17)'),
   ];
 
+  /** §3.19: "The LUNA 2.0 AI enables you to use up to 3 gas mixtures during the dive" with PMG on. */
+  get maxGases(): number {
+    return this.settings.pmg === 'on' ? 3 : 1;
+  }
+
+  decoPpo2(): number {
+    return Number(this.settings.ppo2Deco) || 1.4;
+  }
+
+  /** §3.19: "The MOD for tanks 2 and 3 are the switch depths"; 1.6 bar from 80 % O2 (§2.3.2). */
+  decoMod(o2: number): number {
+    return Math.max(0, pressureToDepth((o2 >= 0.8 ? 1.6 : this.decoPpo2()) / o2));
+  }
+
+  /** §3.19.3: a gas whose switch was not confirmed within 30 s is excluded from the calculation. */
+  planGases(s: DiveSession) {
+    return super.planGases(s).filter((g) => !this.prompt.declined.has(s.allGases.indexOf(g.gas)));
+  }
+
+  gasMods(s: DiveSession): number[] {
+    return this.knownGases(s).map((g, i) => (i === 0 ? this.modDepth(g.o2) : this.decoMod(g.o2)));
+  }
+
+  /** Only T1 has a transmitter here. */
+  airIntegrated(s: DiveSession): boolean {
+    return super.airIntegrated(s) && s.breathing === 0;
+  }
+
+  /** §3.19.1: suggested gas switch (CONFIRM T1→T2), 30 s to answer. */
+  prompt = new GasPrompt();
+  /** §3.19.3: gas just excluded (GAS 2 EXCLUDED), and when. */
+  excluded: { gas: number; at: number } | null = null;
+
   /** No-stop time and first stop of the stage on display (the base algorithm's without a stage). */
   stageInfo(v: ComputerView, s: DiveSession): StageInfo {
-    const lp = v.inDive ? this.stageParams() : null;
+    const sp = v.inDive ? this.stageParams() : null;
+    const lp = sp ? { ...sp, gases: this.planGases(s) } : null;
     const info: StageInfo = { ndl: v.ndl, stop: null };
     if (lp && !v.inDeco) {
       info.ndl = ndl(s.tissues, v.depth, s.gas, lp.gfHigh, this.ndlCap);
@@ -269,6 +323,15 @@ export abstract class LunaRules extends ScubaproRules {
     this.confirmed.clear();
     this.warnSince.clear();
     this.activeWarnings = [];
+    this.prompt.reset();
+    this.excluded = null;
+  }
+
+  tick(s: DiveSession, dt: number): void {
+    super.tick(s, dt);
+    if (!s.inDive || this.locked || this.maxGases < 2) return;
+    const { expired } = this.prompt.update(s, this.gasMods(s), 30);
+    if (expired !== null) this.excluded = { gas: expired, at: s.clock };
   }
 
   /** §3.10 alarms active in `v` (all shown, sounded, and confirmable). */
@@ -311,6 +374,8 @@ export abstract class LunaRules extends ScubaproRules {
     if (this.settings.sound === 'off' || !v.inDive) return [];
     this.pruneConfirmed(v);
     const cues: AlertCue[] = [];
+    // §3.19.1: "An audible sequence is played" with the suggested gas switch.
+    if (this.prompt.offer !== null) cues.push({ key: `switch-${this.prompt.offer}`, kind: 'beep', level: 'info', until: 'once' });
     for (const k of this.activeAlarms(v)) {
       if (this.confirmed.has(k)) continue;
       if (k === 'cns100') cues.push({ key: k, kind: 'beep', level: 'alarm', until: 'once', first: 12 });

@@ -34,8 +34,30 @@ export class AqualungI330r extends I330rRules {
     return [...(s.log.length ? ['fly' as const] : []), 'alt2', ...(nitroxDive ? ['alt3' as const] : [])];
   }
 
+  /**
+   * Dive Main Menu (▼ hold): lead-in BRIGHT. / GAS SWTCH; Gas Menu: SWITCH TO GAS n. "If no button is
+   * pressed the i330R will revert to the Dive Main screen after 10 seconds."
+   */
+  private menu: { page: 'lead' | 'gas'; idx: number; gas: number; warned: boolean; at: number } | null = null;
+
+  /** Gases offered in the Gas Menu ("The active gas will not display in the Gas Menu"). */
+  private menuGases(s: DiveSession): number[] {
+    return this.knownGases(s).map((_, i) => i).filter((i) => i !== s.breathing);
+  }
+
   press(button: string, s: DiveSession): boolean {
-    if (button === 'down') return this.acknowledge(s) || true; // acknowledge alarms (menus not simulated)
+    const m = this.menu;
+    if (m && s.inDive) {
+      m.at = s.clock;
+      if (m.page === 'lead') m.idx = m.idx ? 0 : 1; // ▲ / ▼: "to Gas Switch Lead-in" / "to Brightness Lead-in"
+      else {
+        const list = this.menuGases(s);
+        m.gas = list[(list.indexOf(m.gas) + (button === 'up' ? 1 : list.length - 1)) % list.length]; // "toggle between available gasses"
+        m.warned = false;
+      }
+      return true;
+    }
+    if (button === 'down') return this.acknowledge(s) || true; // acknowledge alarms
     if (button === 'up') {
       if (this.lastIdx) {
         // Up steps LAST DIVE 1 → LAST DIVE 2 → back to Main (Last Dive 2 bypassed if no dive yet).
@@ -48,6 +70,35 @@ export class AqualungI330r extends I330rRules {
   }
 
   hold(button: string, s: DiveSession): boolean {
+    if (s.inDive && !this.locked) {
+      const m = this.menu;
+      // ▲ + ▼ held exits the menu (both buttons cannot be held here: ▲ held stands for it).
+      if (m && button === 'up') {
+        this.menu = null;
+        return true;
+      }
+      if (button === 'down') {
+        // "The Gas Switch Menu cannot be accessed during the sounding of alarms"; lead-in bypassed with a single gas.
+        if (!m) {
+          if (!this.shownAlarm(s)) this.menu = { page: 'lead', idx: this.knownGases(s).length > 1 ? 1 : 0, gas: 0, warned: false, at: s.clock };
+        } else if (m.page === 'lead') {
+          if (m.idx === 1 && this.knownGases(s).length > 1) Object.assign(m, { page: 'gas', gas: this.menuGases(s)[0], warned: false, at: s.clock });
+          else this.menu = null; // Brightness: not simulated
+        } else {
+          // "If the current PO2 value is greater than max PO2 value set, then a warning not to switch will
+          // display [...] The diver may override the i330R and force the gas switch" (a second hold, deduced).
+          const limit = m.gas === 0 ? Number(this.settings.ppo2) || 1.4 : this.decoPpo2();
+          if (s.pressure * s.allGases[m.gas].o2 > limit + 1e-9 && !m.warned) {
+            m.warned = true;
+            m.at = s.clock;
+          } else {
+            s.switchGas(m.gas);
+            this.menu = null;
+          }
+        }
+        return true;
+      }
+    }
     if (button === 'up' && !s.inDive) {
       this.lastIdx = 1;
       this.setScreen(0);
@@ -66,7 +117,7 @@ export class AqualungI330r extends I330rRules {
       down: {
         name: '▼',
         press: { real: { fr: 'Acquitte l’alarme sonore', en: 'Acknowledges the audible alarm' }, simulated: true },
-        hold: { real: { fr: 'Menu (luminosité, changement de gaz ; en surface : Plan, Log, réglages…)', en: 'Menu (brightness, gas switch; on the surface: Plan, Log, settings…)' }, simulated: false },
+        hold: { real: { fr: 'Menu (luminosité, changement de gaz ; en surface : Plan, Log, réglages…) ; dans un menu : sélection', en: 'Menu (brightness, gas switch; on the surface: Plan, Log, settings…); in a menu: select' }, simulated: true, note: { fr: 'en plongée, changement de gaz seulement ; ▲ long remplace ▲ + ▼ pour sortir', en: 'during the dive, gas switch only; ▲ hold stands for ▲ + ▼ to exit' } },
       },
     };
   }
@@ -79,8 +130,11 @@ export class AqualungI330r extends I330rRules {
     const alarm = s.inDive ? this.shownAlarm(s) : undefined;
     const blink = Math.floor(performance.now() / 500) % 2 === 0;
 
+    // The menu closes after 10 s without a button, when the dive ends, or when an alarm strikes.
+    if (this.menu && (!s.inDive || s.clock - this.menu.at > 10 || alarm)) this.menu = null;
     let body: string;
-    if (this.lastIdx && s.log.length) body = this.lastDive(s);
+    if (this.menu) body = this.menuScreen(v, s);
+    else if (this.lastIdx && s.log.length) body = this.lastDive(s);
     else if (this.lastIdx) body = '<div class="aq3-center">NO DIVE YET</div>';
     else if (alt) body = this.altScreen(alt, v, s);
     else body = s.inDive ? this.diveMain(v, s, alarm, blink) : this.surfaceMain(v, s);
@@ -114,7 +168,23 @@ export class AqualungI330r extends I330rRules {
 
   /** Bottom line: gas number (tank icon) and battery (simulated value). */
   private footer(): string {
-    return `<div class="aq3-foot"><span class="aq3-tank"><i></i>1</span><span class="aq3-batt"><i></i></span></div>`;
+    const g = (this.lastSession?.breathing ?? 0) + 1;
+    return `<div class="aq3-foot"><span class="aq3-tank"><i></i>${g}</span><span class="aq3-batt"><i></i></span></div>`;
+  }
+
+  /** Dive Main Menu lead-ins and Gas Menu (p. 43–44 figures); high PO2 warning text deduced. */
+  private menuScreen(_v: ComputerView, s: DiveSession): string {
+    const m = this.menu!;
+    if (m.page === 'lead') {
+      const [other, name] = m.idx === 1 ? ['BRIGHTNESS', 'GAS SWTCH'] : ['GAS SWITCH', 'BRIGHT.'];
+      return `<div class="aq3-lbl c">${other} ▲</div><div class="aq3-menu">${name}</div><div class="aq3-lbl c">${other} ▼</div>`;
+    }
+    const gas = s.allGases[m.gas] ?? s.gas;
+    const po2 = s.pressure * gas.o2;
+    const limit = m.gas === 0 ? Number(this.settings.ppo2) || 1.4 : this.decoPpo2();
+    const fo2 = Math.round(gas.o2 * 100) === 100 ? 'O2' : Math.round(gas.o2 * 100) === 21 ? 'AIR' : `${Math.round(gas.o2 * 100)}<small>%</small>`;
+    const warn = m.warned ? '<div class="aq3-msg red"><span>HIGH PO2</span></div>' : '';
+    return `<div class="aq3-lbl c">SWITCH TO</div><div class="aq3-menu big">GAS ${m.gas + 1}</div>${warn || this.pair('PO2', po2.toFixed(2), po2 > limit ? 'red' : 'green', 'FO2', fo2, 'white')}`;
   }
 
   private diveMain(v: ComputerView, s: DiveSession, alarm: PelagicAlarm | undefined, blink: boolean): string {
@@ -144,7 +214,11 @@ export class AqualungI330r extends I330rRules {
     const msg = this.message(alarm, v, s, cv);
     let row: string;
     if (msg) row = msg;
-    else if (v.inDeco) {
+    else if (this.switchWarn !== null && blink) {
+      // GAS SWITCH WARNING figure: "SWITCH TO FO2: 80%", flashing.
+      const o2 = Math.round((s.allGases[this.switchWarn] ?? s.gas).o2 * 100);
+      row = `<div class="aq3-msg yellow"><span>SWITCH TO<br>FO2: ${o2 === 100 ? 'O2' : `${o2}%`}</span></div>`;
+    } else if (v.inDeco) {
       // TTS "0 - 99, then - - if greater than 99 min"; PO2 above 1.60 alternates with TTS.
       const po2 = s.ppO2 > 1.6 && Math.floor(s.clock / 2) % 2 === 0;
       row = this.pair(po2 ? 'PO2' : 'TTS', po2 ? s.ppO2.toFixed(2) : v.tts > 99 ? '- -' : String(v.tts), po2 ? 'red' : 'yellow', 'DIVE-T', String(Math.floor(v.diveTime / 60)), 'cyan');

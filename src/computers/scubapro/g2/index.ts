@@ -1,11 +1,15 @@
+import { WATER_VAPOUR, planAscent } from '../../../engine/buhlmann';
 import type { DiveSession } from '../../../engine/session';
 import { depthInt, depthText, imperial, pressText, pressUnit, tempUnit, tempVal } from '../../../units';
 import type { Lang } from '../../../i18n';
 import { ButtonHelp, ComputerView, clockOfDay, hmm, mmss } from '../../base';
-import { idealAscent } from '../common';
+import { idealAscent, levelParams } from '../common';
 import { type G2Warning, G2Rules } from './rules';
 
 const DU = () => (imperial() ? 'FEET' : 'METER');
+
+/** §3.7.1 alternate displays reached with MORE held. */
+type AltPage = 'gas' | 'deco' | 'profile' | 'sat';
 const DU1 = () => (imperial() ? 'FT' : 'M');
 const TU = () => tempUnit();
 
@@ -39,7 +43,42 @@ export class ScubaproG2 extends G2Rules {
   // User manual §3.2 (button functions while diving) and §3.7.2–3.7.6: left sets a bookmark (and
   // restarts the safety stop timer), middle steps through the alternate window, right brightens the
   // backlight; holding middle shows the profile, holding right shows the compass.
-  press(button: string): boolean {
+  press(button: string, s: DiveSession): boolean {
+    // §3.7.1 alternate displays (MORE held): "With the ARROW buttons you can scroll to the next display"
+    // (figures: ⇩ on the left button, ⇧ on the middle one, DIM on the right).
+    if (this.alt) {
+      this.alt.last = performance.now();
+      // The display after the compartment saturation is the list of pictures (not simulated): back to
+      // the dive screen instead; ⇩ on the first display goes back to it too (deduced).
+      const pages = this.altPages(s);
+      const i = pages.indexOf(this.alt.page);
+      if (button === 'more' || button === 'timer') {
+        const next = pages[i + (button === 'more' ? 1 : -1)];
+        if (next) this.alt.page = next;
+        else this.alt = null;
+      } else if (button === 'dim') this.backlightUntil = performance.now() + 6000;
+      return true;
+    }
+    // §3.4.2 gas switch screen: SAVE (left) confirms, the arrow (middle) proposes another gas.
+    if (this.sw !== null) {
+      if (button === 'timer') {
+        const g = this.sw;
+        this.sw = null;
+        if (s.depth <= this.gasMods(s)[g] || g === 0) {
+          s.switchGas(g);
+          this.prompt.offer = null;
+          this.successUntil = performance.now() + 4000; // "remains on the screen for 4 seconds"
+          this.successGas = g;
+        }
+        return true;
+      }
+      if (button === 'more') {
+        const c = this.candidates(s);
+        this.sw = c[(c.indexOf(this.sw) + 1) % c.length] ?? this.sw;
+        this.swAt = s.clock;
+        return true;
+      }
+    }
     if (button === 'more') this.setScreen((this.screen + 1) % this.altCount);
     else if (button === 'timer') {
       if (this.safetyState === 'active' || this.safetyState === 'paused') this.safetyRemaining = this.safetyTotal;
@@ -50,6 +89,57 @@ export class ScubaproG2 extends G2Rules {
   }
 
   private altCount = 8;
+  /** §3.7.1 alternate displays opened by MORE held: page shown, real time opened and of the last press. */
+  private alt: { page: AltPage; opened: number; last: number } | null = null;
+
+  /**
+   * §3.2 button table, MORE held: Light: dive profile, compartment saturation, pictures; Classic and
+   * Full: gas summary, deco summary, dive profile, compartment saturation, pictures ("depending on MB/PMG
+   * settings", §3.7.1: the gas summary with PMG, the deco summary with PMG or an MB level, deduced).
+   * The Graphical screen is taken as Classic (not stated).
+   */
+  private altPages(s: DiveSession): AltPage[] {
+    const summaries = this.settings.screen !== 'light';
+    const pmg = this.maxGases > 1 && this.knownGases(s).length > 1;
+    return [
+      ...(summaries && pmg ? ['gas' as const] : []),
+      ...(summaries && (pmg || this.activeLevel > 0) ? ['deco' as const] : []),
+      'profile', 'sat',
+    ];
+  }
+  /** Gas proposed on the switch screen (§3.4.2), from the prompt or from BOOK held; null when closed. */
+  private sw: number | null = null;
+  private swFromPrompt = false;
+  private swAt = 0;
+  private successUntil = 0;
+  private successGas = 0;
+
+  /** Gases that can be breathed at this depth, other than the current one (T1 always). */
+  private candidates(s: DiveSession): number[] {
+    const mods = this.gasMods(s);
+    return mods.map((m, i) => (i !== s.breathing && (i === 0 || s.depth <= m) ? i : -1)).filter((i) => i >= 0);
+  }
+
+  hold(button: string, s: DiveSession): boolean {
+    // §3.7.1: "A press-and-hold of the MORE button launches a dive profile (or gas/deco summary displays
+    // depending on MB/PMG settings) display" (the gas and deco summaries are not simulated).
+    if (button === 'more' && s.inDive && !this.locked && this.sw === null) {
+      const now = performance.now();
+      this.alt = this.alt ? null : { page: this.altPages(s)[0], opened: now, last: now };
+      return true;
+    }
+    // §3.4.2: "you can manually initiate the gas switch by pressing and holding the BOOK button";
+    // the richest gas available is proposed first (the planned switch), else a leaner one.
+    if (button !== 'timer' || !s.inDive || this.locked || this.maxGases < 2) return false;
+    const c = this.candidates(s);
+    if (!c.length) return true;
+    const gases = s.allGases;
+    const richer = c.filter((i) => gases[i].o2 > s.gas.o2);
+    this.sw = richer.length ? richer.reduce((a, b) => (gases[b].o2 > gases[a].o2 ? b : a)) : c[0];
+    this.swFromPrompt = false;
+    this.swAt = s.clock;
+    return true;
+  }
 
   buttons(): Record<string, ButtonHelp> {
     return {
@@ -60,7 +150,7 @@ export class ScubaproG2 extends G2Rules {
           simulated: true,
           note: { fr: 'chronomètre non simulé', en: 'stopwatch not simulated' },
         },
-        hold: { real: { fr: 'Changement de gaz manuel (multigaz uniquement)', en: 'Manual gas switch (multi-gas only)' }, simulated: false },
+        hold: { real: { fr: 'Changement de gaz manuel (multigaz uniquement) ; sur l’écran de changement, SAVE confirme', en: 'Manual gas switch (multi-gas only); on the switch screen, SAVE confirms' }, simulated: true, note: { fr: 'avec PMG activé', en: 'with PMG enabled' } },
       },
       more: {
         name: 'MORE',
@@ -69,7 +159,11 @@ export class ScubaproG2 extends G2Rules {
           simulated: true,
           note: { fr: 'séquence de l’écran Light pour toutes les configurations ; fréquence cardiaque, température cutanée et batterie absentes', en: 'Light-screen sequence for every layout; heart rate, skin temperature and battery omitted' },
         },
-        hold: { real: { fr: 'Profil de plongée, saturation des compartiments, images', en: 'Dive profile, compartment saturation, pictures' }, simulated: false },
+        hold: {
+          real: { fr: 'Profil de plongée, saturation des compartiments, images (Classic, Full : d’abord résumés des gaz et de la déco)', en: 'Dive profile, compartment saturation, pictures (Classic, Full: gas and deco summaries first)' },
+          simulated: true,
+          note: { fr: 'profil et saturation ; ⇧ (bouton du milieu) : écran suivant, ⇩ (bouton de gauche) : précédent ; images et résumés non simulés', en: 'profile and saturation; ⇧ (middle button): next display, ⇩ (left button): previous; pictures and summaries not simulated' },
+        },
       },
       dim: {
         name: 'LIGHT · DIM',
@@ -80,6 +174,23 @@ export class ScubaproG2 extends G2Rules {
   }
 
   render(el: HTMLElement, v: ComputerView, s: DiveSession, _lang: Lang): void {
+    // §3.4.2: the prompt opens the switch screen; it closes when the 30 s run out (EXCLUDING GAS T2) and
+    // a switch started with BOOK closes after 30 s too (not stated, assumed).
+    if (this.prompt.offer !== null && this.sw === null && !this.swFromPrompt) {
+      this.sw = this.prompt.offer;
+      this.swFromPrompt = true;
+      this.swAt = s.clock;
+    }
+    if (this.swFromPrompt && this.prompt.offer === null) {
+      if (this.sw !== null && this.sw !== s.breathing) this.sw = null;
+      this.swFromPrompt = false;
+    }
+    if (this.sw !== null && (!v.inDive || (!this.swFromPrompt && s.clock - this.swAt > 30))) this.sw = null;
+    if (this.sw !== null) {
+      this.alt = null;
+      this.renderSwitch(el, v, s, this.sw);
+      return;
+    }
     const screen = this.currentScreen();
     const ideal = idealAscent(v.depth);
     const pct = Math.max(0, Math.round((v.ascentRate / ideal) * 100));
@@ -106,6 +217,19 @@ export class ScubaproG2 extends G2Rules {
     const hl = (...k: G2Warning[]) => (k.some((x) => warnings.includes(x)) ? 'yellow' : '');
     const note = this.flashMessage();
     if (note && barCls !== 'red') [bar, barCls] = [note, ''];
+    // §3.4.2 figure: EXCLUDING GAS T2 in the top bar (4 s assumed).
+    if (this.excluded && s.clock - this.excluded.at < 4 && barCls !== 'red') [bar, barCls] = [`EXCLUDING GAS T${this.excluded.gas + 1}`, 'yellow'];
+    // §3.7.1: the alternate displays "remain for 12 seconds and return to the normal dive display unless
+    // buttons are pressed"; "can be viewed for a maximum of 1 minute"; "If any warning or alarm is
+    // triggered while viewing alternate screens, the G2 will immediately revert to the normal dive screen".
+    if (this.alt) {
+      const now = performance.now();
+      if (!v.inDive || barCls === 'red' || barCls === 'yellow' || now - this.alt.last > 12_000 || now - this.alt.opened > 60_000 || !this.altPages(s).includes(this.alt.page)) this.alt = null;
+    }
+    if (this.alt) {
+      this.renderAlt(el, v, s, this.alt.page);
+      return;
+    }
 
     // Depth window colour follows the ascent speed (yellow > 110 %, red > 140 %).
     const depthWin = v.ascentLevel === 2 ? 'red' : v.ascentLevel === 1 ? 'yellow' : hl('depth', 'mbIgnored');
@@ -241,6 +365,37 @@ export class ScubaproG2 extends G2Rules {
             <div class="g2-side l"><span>O2</span><div><i style="height:${Math.round(o2h)}%"></i></div></div>
             <div class="g2-side r"><span>N2</span><div><i style="height:${Math.round(n2h)}%" class="${v.inDeco ? 'red' : ''}"></i></div></div>
             ${grid}
+            ${performance.now() < this.successUntil ? `<div class="g2-swok">SWITCH TO GAS T${this.successGas + 1}<br>SUCCESSFUL</div>` : ''}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  /**
+   * §3.4.2 figure: SAVE / arrow / DIM in the bar, depth and dive time, the green SWITCH TO GAS T2 banner,
+   * then the gas mix, its PPO2MAX and its MOD.
+   */
+  private renderSwitch(el: HTMLElement, v: ComputerView, s: DiveSession, g: number): void {
+    const win = (lbl: string, unit: string, body: string, extra = '') =>
+      `<div class="g2-win ${extra}"><div class="g2-h"><span>${lbl}</span><span>${unit}</span></div><div class="g2-v">${body}</div></div>`;
+    const gas = s.allGases[g] ?? s.gas;
+    const ppo2 = g === 0 ? this.modPpo2 : gas.o2 >= 0.8 ? 1.6 : this.decoPpo2();
+    el.innerHTML = `
+      <div class="dev g2">
+        <div class="g2-case">
+          <button class="g2-btn l" data-btn="timer"></button>
+          <button class="g2-btn m" data-btn="more"></button>
+          <button class="g2-btn r" data-btn="dim"></button>
+          <div class="g2-screen ${this.backlit ? 'backlit' : ''}">
+            <div class="g2-bar"><span>SAVE</span><span>⇨</span><span>DIM</span></div>
+            <div class="g2-grid sw">
+              ${win('DEPTH', DU(), depthText(v.depth), 'w-depth')}
+              ${win('DIVE TIME', 'MIN', `${Math.floor(v.diveTime / 60)}:`, 'w-time')}
+              <div class="g2-swbanner">SWITCH TO GAS T${g + 1}</div>
+              ${win('GAS MIX', 'O2', `${Math.round(gas.o2 * 100)}%`)}
+              ${win('PO2MAX', 'BAR', ppo2.toFixed(2))}
+              ${win('MOD', DU(), depthText(this.gasMods(s)[g]))}
+            </div>
           </div>
         </div>
       </div>`;
@@ -265,10 +420,9 @@ export class ScubaproG2 extends G2Rules {
    * Graphical screen: the dive profile so far, the diver as a grey cursor line, and the projected
    * ascent with its stops on the right of the cursor.
    */
-  private profileGraph(v: ComputerView, s: DiveSession): string {
-    const past: [number, number][] = v.inDive ? [...s.profile.map((p) => [p.t, p.depth] as [number, number]), [v.diveTime, v.depth]] : [];
+  /** Projected ascent at 10 m/min with the planned stops (and the safety stop when pending), as [s, m] points. */
+  private projection(v: ComputerView): [number, number][] {
     const now = v.inDive ? v.diveTime : 0;
-    // Projected ascent at 10 m/min with the planned stops (and the safety stop when pending).
     const proj: [number, number][] = [[now, v.depth]];
     let t = now;
     let d = v.depth;
@@ -283,6 +437,130 @@ export class ScubaproG2 extends G2Rules {
     }
     t += (d / 10) * 60;
     proj.push([t, 0]);
+    return proj;
+  }
+
+  /**
+   * §3.7.1 alternate displays (figures of §3.4.2 and §3.7.1): ⇩ ⇧ DIM in the bar, "5.Dive profile" or
+   * "6.Compartment saturation" in white, then the graph in a green frame.
+   */
+  private renderAlt(el: HTMLElement, v: ComputerView, s: DiveSession, page: AltPage): void {
+    const body = page === 'gas' ? this.gasSummary(s) : page === 'deco' ? this.decoSummary(v, s) : page === 'profile' ? this.diveProfile(v, s) : this.saturation(s);
+    const title = { gas: '3.Gas summary', deco: '4.Deco summary table', profile: '5.Dive profile', sat: '6.Compartment saturation' }[page];
+    el.innerHTML = `
+      <div class="dev g2">
+        <div class="g2-case">
+          <button class="g2-btn l" data-btn="timer"></button>
+          <button class="g2-btn m" data-btn="more"></button>
+          <button class="g2-btn r" data-btn="dim"></button>
+          <div class="g2-screen ${this.backlit ? 'backlit' : ''}">
+            <div class="g2-bar"><span>⇩</span><span>⇧</span><span>DIM</span></div>
+            <div class="g2-alt-title">${title}</div>
+            <div class="g2-alt">${body}</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  /**
+   * Gas summary (§2.8.2.5 figure, "a fast overview of the paired tank pressures and their content"):
+   * BAR, O2 and MOD of tanks T1 to T4 (more rows when more gases are set); "NO P" for a tank without a
+   * paired transmitter (only T1 has one here), "---" when it is not received, "--%" and "-" for an
+   * unused tank; the MOD column gives the AMD (0.0 with nitrox) and the MOD. Title number deduced.
+   */
+  private gasSummary(s: DiveSession): string {
+    const gases = this.knownGases(s);
+    const mods = this.gasMods(s);
+    const n = Math.max(4, gases.length);
+    const u = imperial() ? 'FT' : 'M';
+    const rows = Array.from({ length: n }, (_, i) => {
+      const g = gases[i];
+      const bar = i === 0 ? (this.transmitter && s.transmitterOn ? pressText(s.tankPressure) : '---') : 'NO P';
+      const o2 = g ? `${Math.round(g.o2 * 100)}<small>%</small>` : '--<small>%</small>';
+      const mod = g ? `0.0- ${depthText(mods[i])}<small>${u}</small>` : '-';
+      return `<div class="${i === s.breathing ? 'cur' : ''}"><span>T${i + 1}</span><span>${bar}</span><span>${o2}</span><span>${mod}</span></div>`;
+    }).join('');
+    return `<div class="g2-gsum"><div class="hd"><span></span><span>${imperial() ? 'PSI' : 'BAR'}</span><span>O2</span><span>MOD</span></div>${rows}</div>`;
+  }
+
+  /**
+   * Deco summary table (§3.4.2 figure): "the predicted decompression stops are shown with all enabled
+   * gases used (PMG) and assuming only the current gas would be used (1G). Also, current selected MB
+   * level as well as MB level 0 schedules are shown": first stop (depth, minutes) and TAT in orange.
+   * Without PMG the rows are labelled 1G (deduced).
+   */
+  private decoSummary(v: ComputerView, s: DiveSession): string {
+    const pmg = this.maxGases > 1 && this.knownGases(s).length > 1;
+    const levels = this.activeLevel > 0 ? [this.activeLevel, 0] : [0];
+    const rows: string[] = [];
+    for (const lv of levels) {
+      for (const mode of pmg ? ['PMG', '1G'] : ['1G']) {
+        const p = { ...levelParams(lv), gases: mode === 'PMG' ? this.planGases(s) : [] };
+        const plan = planAscent(s.tissues, v.depth, s.gas, p, lv > 0 ? this.levelAnchor : this.anchor);
+        const st = plan.stops[0];
+        const stop = st ? `<span class="o">${depthInt(st.depth)}<small>${imperial() ? 'FT' : 'M'}</small></span><span class="o">${Math.ceil(st.minutes)}:</span>` : '<span></span><span></span>';
+        rows.push(`<div><span class="b">${mode}</span><span class="b">L${lv}</span>${stop}<span class="o">${plan.tts}:</span></div>`);
+      }
+    }
+    return `<div class="g2-dsum">${rows.join('')}</div>`;
+  }
+
+  /**
+   * "blue is the dived part, the gray line identifies current time and green is the predicted ascent
+   * profile) with required gas switching depths according to MOD's (white lines)"; figures: depth scale
+   * on the right (0 m to a round depth below the maximum: deduced) and the stops in orange.
+   */
+  private diveProfile(v: ComputerView, s: DiveSession): string {
+    const past: [number, number][] = [...s.profile.map((p) => [p.t, p.depth] as [number, number]), [v.diveTime, v.depth]];
+    const proj = this.projection(v);
+    const now = v.diveTime;
+    const tMax = Math.max(proj[proj.length - 1][0], 600);
+    const scale = Math.max(10, Math.ceil(v.maxDepth / 10) * 10);
+    const W = 268;
+    const H = 150;
+    const X = (x: number) => ((x / tMax) * W).toFixed(1);
+    const Y = (y: number) => ((Math.min(y, scale) / scale) * (H - 2) + 1).toFixed(1);
+    const area = (pts: [number, number][]) => `M ${X(pts[0][0])} 0 ${pts.map(([x, y]) => `L ${X(x)} ${Y(y)}`).join(' ')} L ${X(pts[pts.length - 1][0])} 0 Z`;
+    const line = (pts: [number, number][]) => pts.map(([x, y], i) => `${i ? 'L' : 'M'} ${X(x)} ${Y(y)}`).join(' ');
+    const mods = this.maxGases > 1
+      ? this.planGases(s).map((g) => `<line x1="${X(now)}" y1="${Y(g.mod)}" x2="${W}" y2="${Y(g.mod)}" stroke="#fff" stroke-width="1"/>`).join('')
+      : '';
+    const stops = [...v.plan.stops].reverse().map((st) => `<div><span>${depthInt(st.depth)}<small>${imperial() ? 'FT' : 'M'}</small></span><span>${Math.ceil(st.minutes)}:</span></div>`).join('');
+    const u = imperial() ? 'FT' : 'M';
+    return `<svg class="g2-prof" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+        <path d="${area(past)}" fill="#0b1f78"/><path d="${line(past)}" fill="none" stroke="#3f7bff" stroke-width="1.5"/>
+        <path d="${area(proj)}" fill="#1c6a1c"/><path d="${line(proj)}" fill="none" stroke="#8be08b" stroke-width="1.5"/>
+        ${mods}
+        <line x1="${X(now)}" y1="0" x2="${X(now)}" y2="${H}" stroke="#a0a0a0" stroke-width="2"/>
+        <path d="M ${Number(X(now)) - 4} 0 L ${Number(X(now)) + 4} 0 L ${X(now)} 6 Z M ${Number(X(now)) - 4} ${H} L ${Number(X(now)) + 4} ${H} L ${X(now)} ${H - 6} Z" fill="#a0a0a0"/>
+      </svg>
+      <div class="g2-prof-scale"><span>0${u}</span><span>${imperial() ? depthInt(scale) : scale}${u}</span></div>
+      <div class="g2-prof-stops">${stops}</div>`;
+  }
+
+  /**
+   * "The height of each bar indicates the ratio of current tissue loading with respect to the maximum
+   * tolerable loading, expressed in a percentage. The green color indicates that the compartment is
+   * off-gassing, and the red color shows on-gassing." The tolerable loading is taken as the M-value at
+   * the current ambient pressure (deduced). Captions of the figures: CNS, SKIN, MUSCLE, BONE.
+   */
+  private saturation(s: DiveSession): string {
+    const t = s.tissues;
+    const inspired = (s.pressure - WATER_VAPOUR) * (1 - s.gas.o2);
+    const bars = Array.from({ length: 16 }, (_, i) => {
+      const [a, b] = t.coefficients(i);
+      const p = t.n2[i] + t.he[i];
+      const ratio = Math.max(0, Math.min(1, p / (s.pressure / b + a)));
+      return `<i class="${p > inspired ? 'off' : 'on'}" style="height:${(ratio * 100).toFixed(1)}%"></i>`;
+    }).join('');
+    return `<div class="g2-sat"><div class="g2-sat-bars">${bars}</div><div class="g2-sat-lbl"><span>CNS</span><span>SKIN</span><span>MUSCLE</span><span>BONE</span></div></div>`;
+  }
+
+  private profileGraph(v: ComputerView, s: DiveSession): string {
+    const past: [number, number][] = v.inDive ? [...s.profile.map((p) => [p.t, p.depth] as [number, number]), [v.diveTime, v.depth]] : [];
+    const now = v.inDive ? v.diveTime : 0;
+    const proj = this.projection(v);
+    const t = proj[proj.length - 1][0];
 
     const tMax = Math.max(t, 600);
     const dMax = Math.max(10, v.maxDepth) * 1.1;

@@ -114,3 +114,15 @@
 .gn-post em { font-style: normal; font-size: 10px; color: #bbb; }
 .gn-tbars { position: absolute; left: 8px; right: 8px; bottom: 26px; height: 60px; display: flex; align-items: flex-end; gap: 3px; border-bottom: 1px solid #555; }
 .gn-tbars i { flex: 1; background: var(--gn-orange); }
+/* §11.2 gas switch: prompt band (fig. 34) and gas switch screen (fig. 35). */
+.gn-bot.blue { background: #0b62b8; color: #fff; }
+.gn-bot.blue .gn-msg { font-size: 20px; line-height: 1.05; }
+.gn-icons.txt span { flex: 1; text-align: center; font-size: 12px; color: #fff; }
+.gn-main.wide { width: auto; right: 0; }
+.gn-gases { display: flex; flex-direction: column; gap: 4px; padding: 4px 0; }
+.gn-gas { display: grid; grid-template-columns: 20px 16px 58px 1fr 70px; align-items: center; gap: 4px; height: 38px; padding: 0 6px; background: #1d2b8a; color: #fff; font-size: 22px; }
+.gn-gas.sel { background: #0b62b8; }
+.gn-gas.grey { background: #8a8a8a; }
+.gn-gas u { font-size: 12px; text-decoration: none; }
+.gn-gas .gn-cur { color: #ffd400; }
+.gn-gas .gn-tk { background: #3a7bff; border-radius: 3px; font-size: 12px; text-align: center; }

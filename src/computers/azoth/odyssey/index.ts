@@ -40,6 +40,8 @@ export class AzothOdyssey extends OdysseyRules {
   private homeSel = 3;
   private sel: Field | null = null;
   private selAt = 0;
+  /** §8 (figure) : écran « Changement de gaz », avec le gaz sous le curseur ; null quand il est fermé. */
+  private gasPick: number | null = null;
   private dtrMode = 0;
   private mid: Mid = 'tank';
 
@@ -55,6 +57,19 @@ export class AzothOdyssey extends OdysseyRules {
   // n'importe lequel des 3 boutons.
   press(button: string, s: DiveSession): boolean {
     if (this.notices.dismiss()) return true;
+    // §8 (figures) : sur l'écran « Changement de gaz », G / D déplacent le choix, OK valide (déduit).
+    if (this.gasPick !== null) {
+      const n = this.knownGases(s).length;
+      if (button === 'left') this.gasPick = (this.gasPick + n - 1) % n;
+      else if (button === 'right') this.gasPick = (this.gasPick + 1) % n;
+      else {
+        s.switchGas(this.gasPick);
+        this.gasPick = null;
+        this.sel = null;
+      }
+      this.selAt = performance.now();
+      return true;
+    }
     if (!s.inDive && this.page === 'home') {
       if (button === 'left') this.homeSel = (this.homeSel + 3) % 4;
       else if (button === 'right') this.homeSel = (this.homeSel + 1) % 4;
@@ -75,6 +90,10 @@ export class AzothOdyssey extends OdysseyRules {
     this.selAt = performance.now();
     if (this.sel === 'top') this.settings.top = this.settings.top === 'ceil' ? 'gfsurf' : 'ceil';
     else if (this.sel === 'dtr') this.dtrMode = (this.dtrMode + 1) % DTR_MODES.length;
+    else if (this.sel === 'gas' && s.inDive && this.knownGases(s).length > 1) {
+      // §8 (figures) : « Sélection du 2ème Gaz disponible » puis « Changement de gaz » : le gaz suivant est proposé.
+      this.gasPick = (s.breathing + 1) % this.knownGases(s).length;
+    }
     else if (this.sel === 'mid') {
       const list = this.mids(s);
       this.mid = list[(list.indexOf(this.mid) + 1) % list.length];
@@ -101,7 +120,7 @@ export class AzothOdyssey extends OdysseyRules {
         press: {
           real: { fr: 'Valider / entrer : change l’affichage du champ en surbrillance (§8)', en: 'Confirm / enter: changes the highlighted field (§8)' },
           simulated: true,
-          note: { fr: 'en surface : passe de l’écran d’accueil à la page plongée et inversement ; changement de gaz non simulé (un seul gaz)', en: 'at the surface: switches between the home screen and the dive page; gas switching not simulated (single gas)' },
+          note: { fr: 'en surface : passe de l’écran d’accueil à la page plongée et inversement ; champ gaz : écran « Changement de gaz »', en: 'at the surface: switches between the home screen and the dive page; gas field: “Changement de gaz” screen' },
         },
       },
       right: {
@@ -119,8 +138,11 @@ export class AzothOdyssey extends OdysseyRules {
    * §8 : durée totale de remontée, à 12 m/min jusqu'au premier palier puis 6 m/min entre les paliers,
    * plus les paliers (et le palier O'Dive restant, s'il est actif), en secondes.
    */
-  private dtrSec(t: Tissues, depth: number, s: DiveSession, v: ComputerView): number {
-    const plan = planAscent(t, depth, s.gas, this.decoParams(s), this.anchor, 1 / 6);
+  private dtrSec(t: Tissues, depth: number, s: DiveSession, v: ComputerView, backGas = false): number {
+    const p = this.decoParams(s);
+    // §8 : « DTR - avec prise en compte du gaz de décompression disponible ; BG (Back Gas) - en
+    // considérant uniquement le gaz fond pour le calcul de la décompression ».
+    const plan = planAscent(t, depth, s.gas, backGas ? { ...p, gases: [] } : p, this.anchor, 1 / 6);
     const first = plan.stops.length ? plan.stops[0].depth : 0;
     const stops = plan.stops.reduce((a, st) => a + st.minutes, 0);
     const odive = !v.inDeco && (v.safety.state === 'pending' || v.safety.state === 'active' || v.safety.state === 'paused') ? v.safety.remaining / 60 : 0;
@@ -146,8 +168,7 @@ export class AzothOdyssey extends OdysseyRules {
       case 3:
         return { label, main, sub: `${Math.ceil((v.diveTime + sec) / 60)}'` };
       case 4:
-        // Un seul gaz simulé : la DTR « Back Gas » est la DTR.
-        return { label, main, sub: main };
+        return { label, main, sub: dur(this.dtrSec(s.tissues, v.depth, s, v, true), 1, true) };
       default:
         return { label, main, sub: null };
     }
@@ -156,7 +177,8 @@ export class AzothOdyssey extends OdysseyRules {
   render(el: HTMLElement, v: ComputerView, s: DiveSession, _lang: Lang): void {
     if (this.sel && performance.now() - this.selAt > 10_000) this.sel = null; // délai non donné : 10 s supposées
     if (!this.mids(s).includes(this.mid)) this.mid = this.airIntegrated(s) ? 'tank' : 'tissues';
-    const screen = !v.inDive && this.page === 'home' ? this.home(v, s) : this.divePage(v, s);
+    if (this.gasPick !== null && (!v.inDive || performance.now() - this.selAt > 10_000)) this.gasPick = null; // délai supposé, comme la surbrillance
+    const screen = this.gasPick !== null ? this.gasScreen(s) : !v.inDive && this.page === 'home' ? this.home(v, s) : this.divePage(v, s);
     el.innerHTML = `
       <div class="dev od">
         <div class="od-body">
@@ -186,6 +208,16 @@ export class AzothOdyssey extends OdysseyRules {
       <div class="od-hc bot"><div>${String(day).padStart(2, '0')}/10/26</div><div>${h}:${String(m).padStart(2, '0')}</div><div>${battery()}</div><small>1,5lithium</small></div>
       ${tile(3)}
     </div>`;
+  }
+
+  /** §8 (figure « Changement de gaz ») : en-tête vert, gaz respiré sur fond vert, gaz proposé sur fond olive. */
+  private gasScreen(s: DiveSession): string {
+    const boxes = this.knownGases(s).map((g, i) => {
+      const o2 = Math.round(g.o2 * 100);
+      const txt = o2 === 100 ? 'OXY' : `${o2}/${String(Math.round(g.he * 100)).padStart(2, '0')}`;
+      return `<span class="od-gbox${i === s.breathing ? ' cur' : ''}${i === this.gasPick ? ' pick' : ''}">${txt}</span>`;
+    }).join('');
+    return `<div class="od-ghead"><span>Changement de gaz</span><b>⮥</b></div><div class="od-gboxes">${boxes}</div>`;
   }
 
   /** §8 (figures) : page plongée. */
@@ -240,7 +272,7 @@ export class AzothOdyssey extends OdysseyRules {
     const gas = o2 === 100 ? 'OXY' : ai ? `${o2}%` : `${o2}/${String(he).padStart(2, '0')}`;
     // §10 (figures) : ppO2 sur fond rouge au-delà de l'alerte PO2 fond (« 1,32 » pour 1,30) ; fond
     // olive juste en dessous (« 1,29 », figure de l'alarme PN2) : seuil de 0,05 bar déduit.
-    const lim = this.modPpo2;
+    const lim = this.po2Limit(s);
     const poCls = v.ppO2 > lim ? ' od-al' : v.ppO2 > lim - 0.05 ? ' od-wa' : '';
     const bottom = `
       <div class="od-b mode">CO</div>

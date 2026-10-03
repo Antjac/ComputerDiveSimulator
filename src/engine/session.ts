@@ -58,6 +58,16 @@ export interface Tank {
   fill: number;
 }
 
+/** A decompression gas carried in its own tank (stage), with its current pressure (bar). */
+export interface DecoGas {
+  gas: Gas;
+  tank: Tank;
+  pressure: number;
+}
+
+/** Most decompression gases the page lets the diver carry (besides the bottom gas). */
+export const MAX_DECO_GASES = 2;
+
 export interface DiveLogEntry {
   number: number;
   start: number; // session clock (s)
@@ -65,6 +75,8 @@ export interface DiveLogEntry {
   maxDepth: number;
   avgDepth: number;
   gas: Gas;
+  /** Decompression gases carried during the dive. */
+  decoGases?: Gas[];
   minTemp: number;
   surfaceIntervalBefore: number | null; // s
   profile: ProfileSample[];
@@ -90,7 +102,37 @@ export function waterTemperature(depth: number): number {
 export class DiveSession {
   tissues = new Tissues();
   oxygen = new OxygenTracker();
-  gas: Gas = { ...AIR };
+  /** Mix of the main tank (T1). */
+  backGas: Gas = { ...AIR };
+  /** Decompression gases carried in stage tanks (at most MAX_DECO_GASES). */
+  decoGases: DecoGas[] = [];
+  /** Gas breathed: 0 = the main tank, i = decoGases[i - 1]. Changed with the computer's buttons. */
+  breathing = 0;
+
+  /** Gas breathed now. Setting it (at the surface) sets the main tank's mix and breathes from it. */
+  get gas(): Gas {
+    return this.breathing > 0 && this.decoGases[this.breathing - 1] ? this.decoGases[this.breathing - 1].gas : this.backGas;
+  }
+
+  set gas(g: Gas) {
+    this.backGas = { ...g };
+    this.breathing = 0;
+  }
+
+  /** Every gas carried: the main tank first, then the deco gases. */
+  get allGases(): Gas[] {
+    return [this.backGas, ...this.decoGases.map((d) => d.gas)];
+  }
+
+  /** Breathes from gas `i` (0 = main tank, as in allGases). */
+  switchGas(i: number): void {
+    if (i >= 0 && i <= this.decoGases.length) this.breathing = i;
+  }
+
+  /** Pressure (bar) of the tank of gas `i` (0 = main tank). */
+  gasPressure(i: number): number {
+    return i === 0 ? this.tankPressure : this.decoGases[i - 1]?.pressure ?? 0;
+  }
 
   clock = 0; // s, total simulated time
   depth = 0;
@@ -333,13 +375,15 @@ export class DiveSession {
   /** Gas consumption: RMV scaled by ambient pressure, drawn from the tank. */
   private breathe(prevDepth: number, minutes: number, dt: number): void {
     const inWater = Math.max(prevDepth, this.depth) > 0.5;
-    if (inWater && this.tankPressure > 0) {
+    const stage = this.breathing > 0 ? this.decoGases[this.breathing - 1] : undefined;
+    if (inWater && !this.outOfGas) {
       const pAtm = depthToPressure((prevDepth + this.depth) / 2) / 1.01325;
       const liters = this.rmv * pAtm * minutes;
       this.gasUsed += liters;
-      this.tankPressure = Math.max(0, this.tankPressure - liters / this.tank.volume);
-      // Out of air in the water: always stops the simulation.
-      if (this.tankPressure <= 0) this.raise({ reasons: ['OUT_OF_AIR'], clock: this.clock, depth: this.depth });
+      if (stage) stage.pressure = Math.max(0, stage.pressure - liters / stage.tank.volume);
+      else this.tankPressure = Math.max(0, this.tankPressure - liters / this.tank.volume);
+      // Out of gas in the water (the tank breathed is empty): always stops the simulation.
+      if (this.outOfGas) this.raise({ reasons: ['OUT_OF_AIR'], clock: this.clock, depth: this.depth });
     }
     this.historyTimer += dt;
     if (this.historyTimer >= 5) {
@@ -353,11 +397,13 @@ export class DiveSession {
    *  (boardBoat). There is no automatic refill between dives. */
   refillTank(): void {
     this.tankPressure = this.tank.fill;
+    for (const d of this.decoGases) d.pressure = d.tank.fill;
     this.pressureHistory = [];
   }
 
+  /** The tank breathed is empty. */
   get outOfGas(): boolean {
-    return this.tankPressure <= 0;
+    return this.gasPressure(this.breathing) <= 0;
   }
 
   /** A full tank handed from the boat at the surface: the diver climbs aboard, so the dive in
@@ -395,7 +441,8 @@ export class DiveSession {
       duration,
       maxDepth: this.maxDepth,
       avgDepth: this.depthIntegral / Math.max(1, duration),
-      gas: { ...this.gas },
+      gas: { ...this.backGas },
+      decoGases: this.decoGases.map((d) => ({ ...d.gas })),
       minTemp: this.minTemp,
       surfaceIntervalBefore: this.lastDiveEnd === null ? null : this.diveStart - this.lastDiveEnd,
       profile: this.profile.filter((p) => p.t <= duration + 5),
@@ -406,6 +453,8 @@ export class DiveSession {
       alarms: [...this.diveAlarms],
     });
     this.inDive = false;
+    // Back on the main tank between dives.
+    this.breathing = 0;
     this.lastDiveEnd = this.clock - this.surfaceTimer;
     this.diveTime = duration;
     this.listeners.forEach((l) => l('end'));
@@ -430,6 +479,7 @@ export class DiveSession {
     this.depthIntegral = 0;
     this.surfaceTimer = 0;
     this.lastDiveEnd = null;
+    this.breathing = 0;
     this.refillTank();
     this.profile = [];
     this.log = [];

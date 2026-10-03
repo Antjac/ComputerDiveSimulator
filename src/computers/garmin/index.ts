@@ -134,7 +134,29 @@ export class GarminDescent extends DescentRules {
 
   // Owner's manual, "Going Diving" and "Device Overview": DOWN scrolls through the data screens and
   // the dive compass, START opens the in-dive menu, LIGHT lights the screen (hold: controls menu).
-  press(button: string): boolean {
+  /** In-dive menu (START): "select Gas, and select a backup or decompression gas". */
+  private menu: { page: 'menu' | 'gas'; idx: number } | null = null;
+
+  press(button: string, s: DiveSession): boolean {
+    const m = this.menu;
+    if (m && s.inDive) {
+      const n = m.page === 'menu' ? 1 : this.knownGases(s).length;
+      if (button === 'down') m.idx = (m.idx + 1) % n;
+      else if (button === 'up') m.idx = (m.idx + n - 1) % n;
+      else if (button === 'back') this.menu = m.page === 'gas' ? { page: 'menu', idx: 0 } : null;
+      else if (button === 'start') {
+        if (m.page === 'menu') this.menu = { page: 'gas', idx: s.breathing };
+        else {
+          s.switchGas(m.idx);
+          this.menu = null;
+        }
+      }
+      return true;
+    }
+    if (button === 'start' && s.inDive && this.knownGases(s).length > 1) {
+      this.menu = { page: 'menu', idx: 0 };
+      return true;
+    }
     const n = this.screenCount;
     if (button === 'down') this.setScreen((this.screen + 1) % n);
     else if (button === 'up') this.setScreen((this.screen + n - 1) % n);
@@ -167,11 +189,11 @@ export class GarminDescent extends DescentRules {
       },
       start: {
         name: 'START · STOP',
-        press: { real: { fr: 'Menu de plongée (gaz, réglages…)', en: 'In-dive menu (gases, settings…)' }, simulated: false },
+        press: { real: { fr: 'Menu de plongée (gaz, réglages…) ; dans un menu : sélection', en: 'In-dive menu (gases, settings…); in a menu: select' }, simulated: true, note: { fr: 'avec plusieurs gaz, entrée Gas seulement', en: 'with several gases, Gas item only' } },
       },
       back: {
         name: 'BACK · LAP',
-        press: { real: { fr: 'Retour à l’écran précédent (pas de fonction décrite en plongée bouteille)', en: 'Back to the previous screen (no function described for scuba dives)' }, simulated: false },
+        press: { real: { fr: 'Retour à l’écran précédent', en: 'Back to the previous screen' }, simulated: true, note: { fr: 'dans le menu de plongée', en: 'in the in-dive menu' } },
       },
     };
   }
@@ -183,7 +205,9 @@ export class GarminDescent extends DescentRules {
     this.trackAlerts(v, s);
     const screen = this.currentScreen();
     let content: string;
-    if (!v.inDive) content = this.surfaceScreen(v, s);
+    if (this.menu && !v.inDive) this.menu = null;
+    if (this.menu) content = this.menuScreen(s);
+    else if (!v.inDive) content = this.surfaceScreen(v, s);
     else if (screen === 0) content = this.settings.layout === 'std' ? this.standardScreen(v) : this.bigScreen(v);
     else content = this.dataScreen(screen, v, s);
 
@@ -202,6 +226,24 @@ export class GarminDescent extends DescentRules {
           </svg></div>
         </div>
       </div>`;
+  }
+
+  /** In-dive menu and gas list (no figure in the manual: a plain list, deduced). */
+  private menuScreen(s: DiveSession): string {
+    const m = this.menu!;
+    const items = m.page === 'menu'
+      ? ['Gas']
+      : this.knownGases(s).map((g, i) => {
+        const o2 = Math.round(g.o2 * 100);
+        const name = o2 === 21 ? 'Air' : o2 === 100 ? 'O2' : `${o2}% O2`;
+        return `${name}${i === s.breathing ? ' ✓' : i > 0 ? ' (Backup)' : ''}`;
+      });
+    const rows = items.map((t, i) => {
+      const y = 150 + (i - (items.length - 1) / 2) * 42;
+      const sel = i === m.idx;
+      return `${sel ? `<rect x="40" y="${y - 28}" width="220" height="38" rx="6" fill="#0a84ff"/>` : ''}<text x="150" y="${y}" class="gm-t gm-pill">${t}</text>`;
+    }).join('');
+    return `<text x="150" y="62" class="gm-t gm-lbl">${m.page === 'menu' ? 'DIVE' : 'GAS'}</text>${rows}`;
   }
 
   /** Is a stop (safety or deco) currently guiding the diver? */

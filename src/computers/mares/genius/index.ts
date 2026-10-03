@@ -26,6 +26,8 @@ export class MaresGenius extends GeniusRules {
   private stopwatchFrom = 0;
   private acks = new Acks();
   private surfacePage: 'home' | 'post' = 'home';
+  /** §11.2 gas switch screen (fig. 35), with the gas under the cursor; null when closed. */
+  private gasScreen: number | null = null;
 
   onDiveStart(s: DiveSession): void {
     super.onDiveStart(s);
@@ -34,6 +36,7 @@ export class MaresGenius extends GeniusRules {
     this.botUntil = 0;
     this.stopwatchFrom = 0;
     this.acks.clear();
+    this.gasScreen = null;
   }
 
   onDiveEnd(s: DiveSession): void {
@@ -49,6 +52,7 @@ export class MaresGenius extends GeniusRules {
   press(button: string, s: DiveSession): boolean {
     this.acks.ackAll();
     if (!s.inDive) return true; // surface: PRE DIVE, LOG, GAS, MENU are not simulated
+    if (this.gasButton(button, s)) return true;
     if (this.mode !== 'std' && button === 'b1') {
       this.mode = 'std';
       return true;
@@ -70,12 +74,48 @@ export class MaresGenius extends GeniusRules {
       if (button === 'b1' && this.hasPostDive(s)) this.surfacePage = this.surfacePage === 'post' ? 'home' : 'post';
       return button === 'b1';
     }
+    if (this.gasButton(button, s)) return true;
+    // §11.2: "Press and hold: displays the gas switch screen" ("If there is only one gas set, the
+    // computer will not enter this menu").
+    if (button === 'b3' && !this.locked && this.knownGases(s).length > 1) {
+      this.gasScreen = s.breathing;
+      this.mode = 'std';
+      return true;
+    }
     if (button === 'b4' && !this.locked) {
       this.mode = this.mode === 'tissue' ? 'std' : 'tissue';
       return true;
     }
     if (button === 'b3' && this.locked) this.stopwatchFrom = s.diveTime; // §12: restarts the stopwatch
     return false;
+  }
+
+  /**
+   * §11.2: during SWITCH TO GAS G2 "The left button now has label NO while the second and the third
+   * button have label OK" (press or press and hold); in the gas switch screen (fig. 35) the buttons are
+   * ◀ (exit), ⇕ (scroll) and ✓ (activate, "if permitted at that depth"). True when the press was used.
+   */
+  private gasButton(button: string, s: DiveSession): boolean {
+    if (this.prompt.offer !== null) {
+      const g = this.prompt.offer;
+      if (button === 'b1') {
+        this.prompt.decline();
+        this.notSwitched(g);
+      } else if (button === 'b2' || button === 'b3') {
+        this.prompt.accept(s);
+        this.gasMsgs.say('GAS SWITCH OK');
+      } else return false;
+      return true;
+    }
+    if (this.gasScreen === null) return false;
+    const n = this.knownGases(s).length;
+    if (button === 'b1') this.gasScreen = null;
+    else if (button === 'b2') this.gasScreen = (this.gasScreen + 1) % n;
+    else if (button === 'b3' && s.depth <= this.gasMods(s)[this.gasScreen]) {
+      s.switchGas(this.gasScreen);
+      this.gasScreen = null;
+    }
+    return true;
   }
 
   buttons(): Record<string, ButtonHelp> {
@@ -93,7 +133,7 @@ export class MaresGenius extends GeniusRules {
       b3: {
         name: '3',
         press: { real: { fr: 'Champ en bas à droite : GF, GF NOW/@SURF, GF @SURF/RATE, chronomètre, CNS, ppO2, heure, batteries, consommation', en: 'Bottom-right field: GF, GF NOW/@SURF, GF @SURF/RATE, stopwatch, CNS, ppO2, time, batteries, gas consumption' }, simulated: true, note: { fr: 'batteries fictives', en: 'fictitious batteries' } },
-        hold: { real: { fr: 'Changement de gaz ; en profondimètre, remise à zéro du chronomètre', en: 'Gas switch; in bottom timer, restarts the stopwatch' }, simulated: true, note: { fr: 'chronomètre seulement (un seul gaz)', en: 'stopwatch only (single gas)' } },
+        hold: { real: { fr: 'Écran de changement de gaz (multigaz) ; en profondimètre, remise à zéro du chronomètre', en: 'Gas switch screen (multigas); in bottom timer, restarts the stopwatch' }, simulated: true, note: { fr: 'invite SWITCH TO GAS : bouton 1 = NO, boutons 2 et 3 = OK ; écran de changement : 1 sortie, 2 défilement, 3 activation', en: 'SWITCH TO GAS prompt: button 1 = NO, buttons 2 and 3 = OK; switch screen: 1 exit, 2 scroll, 3 activate' } },
       },
       b4: {
         name: '4',
@@ -153,7 +193,7 @@ export class MaresGenius extends GeniusRules {
    *  yellow down to 50 bar, red below). */
   private tankColumn(v: ComputerView, s: DiveSession, bottomLbl: string, bottomVal: string): string {
     const ai = v.tank.ai;
-    const gas = this.nitrox(s) ? `<b class="yel">G1 ${v.o2}%</b>` : '<b>AIR</b>';
+    const gas = this.nitrox(s) ? `<b class="yel">G${s.breathing + 1} ${v.o2}%</b>` : '<b>AIR</b>';
     const p = v.tank.pressure;
     const mid = this.halfTank();
     const low = imperial() ? 750 / 14.5038 : 50; // §2.3.1: "RED: below 50bar / 750psi"
@@ -233,6 +273,7 @@ export class MaresGenius extends GeniusRules {
     // An alarm kicks out of the graphic displays (§8.5 note).
     if (msg.mid || msg.bot) this.mode = 'std';
     if (this.locked) return this.bottomTimer(v, s);
+    if (this.gasScreen !== null) return this.gasSwitchScreen(v, s);
 
     const modAlarm = v.depth > v.mod;
     const aboveStop = v.ceilingViolation === 2;
@@ -273,7 +314,15 @@ export class MaresGenius extends GeniusRules {
 
     // Bottom row: dive time (ascent speed while ascending) and the selected field, or a message.
     let botRow: string;
-    if (msg.bot) {
+    // §11.2 / fig. 34: SWITCH TO GAS, the gas and its MOD in a blue band, button labels NO OK OK; the
+    // short messages that follow in the same band (deduced).
+    const gasMsg = this.gasMsgs.current;
+    if (this.prompt.offer !== null && !msg.bot) {
+      const g = this.prompt.offer;
+      botRow = `<div class="gn-bot blue"><span class="gn-msg">SWITCH TO GAS<br>G${g + 1} ${Math.round((s.allGases[g] ?? s.gas).o2 * 100)}%<br>MOD ${depthText(this.gasMods(s)[g])}${du}</span></div>`;
+    } else if (gasMsg && !msg.bot) {
+      botRow = `<div class="gn-bot blue"><span class="gn-msg">${gasMsg}</span></div>`;
+    } else if (msg.bot) {
       botRow = `<div class="gn-bot red"><span class="gn-msg">${msg.bot}</span></div>`;
     } else {
       const now = performance.now();
@@ -292,7 +341,27 @@ export class MaresGenius extends GeniusRules {
         : `<span class="gn-lbl">D-TIME</span><span class="gn-dt">${Math.floor(v.diveTime / 60)}:${this.settings.seconds === 'on' ? `<sup>${pad2(Math.floor(v.diveTime % 60))}</sup>` : ''}</span>`;
       botRow = `<div class="gn-bot">${left}<span class="gn-rlbl">${bf.lbl}</span><span class="gn-bv ${bf.cls ?? ''}">${bf.val}</span></div>`;
     }
-    return `${this.leftBar(v)}<div class="gn-main">${topBand}${midBand}${botRow}</div>${this.tankColumn(v, s, 'TTR', this.ttrText(v, s))}${this.icons('std')}`;
+    const icons = this.prompt.offer !== null ? '<div class="gn-icons txt"><span>NO</span><span>OK</span><span>OK</span><span></span></div>' : this.icons('std');
+    return `${this.leftBar(v)}<div class="gn-main">${topBand}${midBand}${botRow}</div>${this.tankColumn(v, s, 'TTR', this.ttrText(v, s))}${icons}`;
+  }
+
+  /**
+   * Fig. 35: depth and ascent time on top, then one row per active gas: tank number, O2 %, MOD and
+   * tank pressure ("-" without a tank module); ▶ marks the gas under the cursor, a gas too rich for
+   * the depth is grey. Buttons ◀ ⇕ ✓.
+   */
+  private gasSwitchScreen(v: ComputerView, s: DiveSession): string {
+    const du = depthUnit();
+    const right = v.inDeco ? `<span class="gn-rlbl or">ASC TIME</span><span class="gn-tv or">${v.tts}:</span>` : `<span class="gn-rlbl">NO DECO</span><span class="gn-tv">${Math.min(99, v.ndl)}:</span>`;
+    const head = `<div class="gn-top"><span class="gn-lbl">DEPTH</span>${right}<span class="gn-depth">${depthText(v.depth)}<u>${du}</u></span></div>`;
+    const mods = this.gasMods(s);
+    const rows = this.knownGases(s).map((g, i) => {
+      const p = i === 0 && v.tank.ai ? `${pressText(v.tank.pressure)}<u>${pressUnit()}</u>` : '-';
+      const cls = s.depth > mods[i] ? 'grey' : this.gasScreen === i ? 'sel' : '';
+      return `<div class="gn-gas ${cls}"><span class="gn-cur">${this.gasScreen === i ? '▶' : ''}</span><span class="gn-tk">${i + 1}</span><span>${Math.round(g.o2 * 100)}%</span><span>${depthText(mods[i])}<u>${du}</u></span><span>${p}</span></div>`;
+    }).join('');
+    const icons = ['◀', '⇕', '✓', ''].map((x) => `<span class="gn-ic"><i>${x}</i></span>`).join('');
+    return `${this.leftBar(v)}<div class="gn-main wide">${head}<div class="gn-gases">${rows}</div></div><div class="gn-icons">${icons}</div>`;
   }
 
   /** "-" during the first two minutes, as in the figures (breathing rate not yet known). */

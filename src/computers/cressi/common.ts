@@ -41,7 +41,7 @@ export abstract class CressiRules extends DiveComputer {
     return { gfLow: g - 0.1, gfHigh: g, lastStop: 3, stopStep: 3, ascentRate: 10 };
   }
 
-  decoParams(s: DiveSession): DecoParams {
+  algoParams(s: DiveSession): DecoParams {
     const p = this.baseParams();
     let drop = 0;
     if (s.lastDiveEnd !== null) {

@@ -26,8 +26,8 @@ export abstract class DescentRules extends DiveComputer {
   readonly transmitter = 'Descent T2';
   readonly gasTimeName = 'ATR';
   readonly notes = {
-    fr: 'Bühlmann ZHL-16C avec facteurs de gradient : Low, Medium, High ou Custom (GF bas et haut réglés séparément ; bornes et pas non donnés par le manuel, 10 à 100 % par 5 supposés). DOWN (et UP en sens inverse) : écrans de données ; LIGHT, START et BACK ne sont pas simulés. Verrouillage de déco après 3 min au-dessus du plafond. L’écran TTS / plafond / GF99 / Surface GF est un écran personnalisé : sur la montre, ces champs s’ajoutent via Dive Setup > Display Settings > Data Screens. Émetteur : pression de réserve réglable (valeur par défaut non indiquée : 50 bar supposé), alertes « T1 is below reserve pressure. » et « T1 pressure is critically low. » sous max(21 bar, réserve / 2) ; la montre n’a pas d’alerte de demi-bloc. Alertes du tableau Dive Alerts : Approaching NDL (10 et 5 min), NDL exceeded, Approaching Deco Stop, Decompression Cleared, Safety Stop Started / Cleared, CNS 80 % et 100 % (toutes les 2 min, 3 fois), OTU 250 et 300, PO2 Warning (valeur en jaune) et PO2 is high (toutes les 30 s, 3 fois ; seuils 1,4 / 1,6 bar supposés), alertes personnalisées de profondeur et de durée (texte non donné : « Depth Alert » / « Time Alert » déduits). Non simulés : fin automatique de plongée, batterie, capteur, CCR et multigaz.',
-    en: 'Bühlmann ZHL-16C with gradient factors: Low, Medium, High or Custom (GF low and high set separately; range and step not given by the manual, 10 to 100 % by 5 assumed). DOWN (and UP backwards): data screens; LIGHT, START and BACK are not simulated. Decompression lockout after 3 min above the ceiling. The TTS / ceiling / GF99 / Surface GF screen is a custom one: on the watch, these fields are added via Dive Setup > Display Settings > Data Screens. Transmitter: settable reserve pressure (default not given: 50 bar assumed), "T1 is below reserve pressure." and "T1 pressure is critically low." below max(21 bar, reserve / 2) alerts; the watch has no half tank alert. Dive Alerts table: Approaching NDL (10 and 5 min), NDL exceeded, Approaching Deco Stop, Decompression Cleared, Safety Stop Started / Cleared, CNS 80% and 100% (every 2 min, 3 times), OTU 250 and 300, PO2 Warning (yellow value) and PO2 is high (every 30 s, 3 times; 1.4 / 1.6 bar thresholds assumed), custom depth and time alerts (text not given: "Depth Alert" / "Time Alert" deduced). Not simulated: automatic dive end, battery, sensor, CCR and multi-gas.',
+    fr: 'Bühlmann ZHL-16C avec facteurs de gradient : Low, Medium, High ou Custom (GF bas et haut réglés séparément ; bornes et pas non donnés par le manuel, 10 à 100 % par 5 supposés). DOWN (et UP en sens inverse) : écrans de données ; LIGHT, START et BACK ne sont pas simulés. Verrouillage de déco après 3 min au-dessus du plafond. L’écran TTS / plafond / GF99 / Surface GF est un écran personnalisé : sur la montre, ces champs s’ajoutent via Dive Setup > Display Settings > Data Screens. Émetteur : pression de réserve réglable (valeur par défaut non indiquée : 50 bar supposé), alertes « T1 is below reserve pressure. » et « T1 pressure is critically low. » sous max(21 bar, réserve / 2) ; la montre n’a pas d’alerte de demi-bloc. Alertes du tableau Dive Alerts : Approaching NDL (10 et 5 min), NDL exceeded, Approaching Deco Stop, Decompression Cleared, Safety Stop Started / Cleared, CNS 80 % et 100 % (toutes les 2 min, 3 fois), OTU 250 et 300, PO2 Warning (valeur en jaune) et PO2 is high (toutes les 30 s, 3 fois ; seuils 1,4 / 1,6 bar supposés), alertes personnalisées de profondeur et de durée (texte non donné : « Depth Alert » / « Time Alert » déduits). Mode Single-Gas : les gaz de déco de la page sont des gaz de secours (« backup gases »), hors NDL et TTS tant qu’ils ne sont pas activés ; START > Gas : choix d’un gaz (UP / DOWN, START, BACK pour revenir). Le mode Multi-Gas (invite « Safe to switch to… ») est un autre mode de plongée, non simulé. Non simulés : fin automatique de plongée, batterie, capteur, CCR, mode Multi-Gas.',
+    en: 'Bühlmann ZHL-16C with gradient factors: Low, Medium, High or Custom (GF low and high set separately; range and step not given by the manual, 10 to 100 % by 5 assumed). DOWN (and UP backwards): data screens; LIGHT, START and BACK are not simulated. Decompression lockout after 3 min above the ceiling. The TTS / ceiling / GF99 / Surface GF screen is a custom one: on the watch, these fields are added via Dive Setup > Display Settings > Data Screens. Transmitter: settable reserve pressure (default not given: 50 bar assumed), "T1 is below reserve pressure." and "T1 pressure is critically low." below max(21 bar, reserve / 2) alerts; the watch has no half tank alert. Dive Alerts table: Approaching NDL (10 and 5 min), NDL exceeded, Approaching Deco Stop, Decompression Cleared, Safety Stop Started / Cleared, CNS 80% and 100% (every 2 min, 3 times), OTU 250 and 300, PO2 Warning (yellow value) and PO2 is high (every 30 s, 3 times; 1.4 / 1.6 bar thresholds assumed), custom depth and time alerts (text not given: "Depth Alert" / "Time Alert" deduced). Single-Gas mode: the deco gases set on the page are backup gases, left out of the NDL and TTS until activated; START > Gas: choose a gas (UP / DOWN, START, BACK to go back). The Multi-Gas mode ("Safe to switch to…" prompt) is another dive mode, not simulated. Not simulated: automatic dive end, battery, sensor, CCR, Multi-Gas mode.',
   };
   readonly settingDefs: SettingDef[] = [
     {
@@ -83,7 +83,7 @@ export abstract class DescentRules extends DiveComputer {
       default: 'off',
     },
     // Manual, Setting PO2 Thresholds (MOD/Deco PO2): range and default not given, 1.0–1.6 and 1.4 assumed.
-    ppo2Setting(1.0, 1.6, 1.4, 'MOD/Deco PO2'),
+    { ...ppo2Setting(1.0, 1.6, 1.4, 'MOD/Deco PO2'), label: { fr: 'MOD/Deco PO2', en: 'MOD/Deco PO2' } },
     // Manual, Transceiver Settings: "Reserve Pressure: Sets the threshold values for reserve pressure and
     // critical pressure alerts" (both always on; no half tank or turn pressure alert on the device).
     // Range and default not given: 20 to 100 bar by 5, 50 bar assumed (not verified).
@@ -117,6 +117,29 @@ export abstract class DescentRules extends DiveComputer {
       default: 'off',
     },
   ];
+
+  /**
+   * Single-Gas mode: "You can set up to 11 additional gases as backup gases" (the deco gases set on the
+   * page are taken as backup gases); "Backup gases are not used in no-decompression limit (NDL) and time
+   * to surface (TTS) decompression calculations until you activate them during a dive".
+   */
+  get maxGases(): number {
+    return 12;
+  }
+
+  planGases() {
+    return [];
+  }
+
+  /** "MOD/Deco PO2": one threshold for the bottom gas and the decompression gases. */
+  decoPpo2(): number {
+    return this.modPpo2;
+  }
+
+  /** The transceiver is paired with the main tank only here. */
+  airIntegrated(s: DiveSession): boolean {
+    return super.airIntegrated(s) && s.breathing === 0;
+  }
 
   /** PO2 Critical threshold (bar): "PO2 is high" alert, value flashing red. */
   get po2Critical(): number {

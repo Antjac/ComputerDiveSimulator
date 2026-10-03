@@ -1,10 +1,11 @@
 // Settings panel: the chosen computer's settings, gas, dive parameters, and the controls' state.
 import type { DiveComputer, SettingDef, SettingGroup, SettingOption } from '../computers/base';
+import { MAX_DECO_GASES } from '../engine/session';
 import { gasLabel } from '../engine/buhlmann';
 import { type I18nKey, lang, t } from '../i18n';
 import { depthLabel, imperial, setUnits, units, type UnitSystem } from '../units';
 import { renderLog } from './logbook';
-import { ENVS, GASES, RMVS, SITES, SPEEDS, TANKS, applyTank, tankLabel } from './options';
+import { DECO_GASES, ENVS, GASES, RMVS, SITES, SPEEDS, STAGES, TANKS, applyDecoGases, applyTank, tankLabel } from './options';
 import { savePrefs } from './prefs';
 import { refresh } from './render';
 import { $, app, computers, session } from './state';
@@ -116,8 +117,25 @@ export function renderControls(): void {
   gasSel.innerHTML = GASES.map((o2) => {
     const label = gasLabel({ o2: o2 / 100, he: 0 });
     const mod = depthLabel(app.active.modDepth(o2 / 100), 0);
-    return `<option value="${o2}" ${Math.round(session.gas.o2 * 100) === o2 ? 'selected' : ''}>${label} (MOD ${mod})</option>`;
+    return `<option value="${o2}" ${Math.round(session.backGas.o2 * 100) === o2 ? 'selected' : ''}>${label} (MOD ${mod})</option>`;
   }).join('');
+  // Decompression gases: a second one once the first is chosen. Switch depth: the computer's deco MOD.
+  const decoField = (i: number) => {
+    const cur = app.decoO2[i];
+    const opts = [`<option value="" ${cur ? '' : 'selected'}>${t('noDecoGas')}</option>`, ...DECO_GASES.map((o2) => {
+      const label = o2 === 100 ? 'O₂' : gasLabel({ o2: o2 / 100, he: 0 });
+      return `<option value="${o2}" ${cur === o2 ? 'selected' : ''}>${label} (MOD ${depthLabel(active.decoMod(o2 / 100), 0)})</option>`;
+    })].join('');
+    return `<label class="field"><span>${t('decoGas').replace('{n}', String(i + 1))}</span><select data-deco="${i}" ${session.inDive ? 'disabled' : ''}>${opts}</select></label>`;
+  };
+  $('deco-gas-fields').innerHTML = Array.from({ length: Math.min(MAX_DECO_GASES, app.decoO2.length + 1) }, (_, i) => decoField(i)).join('');
+  const carried = 1 + app.decoO2.length;
+  $('multigas-hint').textContent = carried === 1 ? ''
+    : active.maxGases <= 1 ? t('multiGasNone')
+    : `${active.maxGases < carried ? `${t('multiGasSome').replace('{n}', String(active.maxGases))} ` : ''}${t('multiGasHow')}`;
+  const stageSel = $<HTMLSelectElement>('stage-select');
+  stageSel.innerHTML = STAGES.map((k) => `<option value="${k.id}" ${k.id === app.stageId ? 'selected' : ''}>${tankLabel(k)}</option>`).join('');
+  stageSel.disabled = session.inDive;
 
   $<HTMLSelectElement>('units-select').innerHTML = (['metric', 'imperial'] as const)
     .map((u) => `<option value="${u}" ${units() === u ? 'selected' : ''}>${t(u)}</option>`).join('');
@@ -184,6 +202,27 @@ export function setupSettings(): void {
   $('gas-select').addEventListener('change', (e) => {
     if (session.inDive) return;
     session.gas = { o2: Number((e.target as HTMLSelectElement).value) / 100, he: 0 };
+    savePrefs();
+    refresh(true);
+  });
+
+  $('deco-gas-fields').addEventListener('change', (e) => {
+    const el = e.target as HTMLSelectElement;
+    if (session.inDive || el.dataset.deco === undefined) return;
+    const i = Number(el.dataset.deco);
+    const list = app.decoO2.slice(0, i);
+    if (el.value) list.push(Number(el.value), ...app.decoO2.slice(i + 1));
+    app.decoO2 = list;
+    applyDecoGases();
+    savePrefs();
+    renderControls();
+    refresh(true);
+  });
+
+  $('stage-select').addEventListener('change', (e) => {
+    if (session.inDive) return;
+    app.stageId = (e.target as HTMLSelectElement).value;
+    applyDecoGases();
     savePrefs();
     refresh(true);
   });

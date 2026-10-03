@@ -43,13 +43,28 @@ const NOTICE_TEXT: Record<D5Notice, string> = {
   'tank-alarm': 'Tank pressure',
   'cns-80': 'CNS 80%',
   'otu-250': 'OTU 250',
+  'change-gas': 'Change gas',
 };
 
 /** Suunto D5: buttons and round display, after the manual (rules in rules.ts). */
 export class SuuntoD5 extends D5Rules {
-  press(button: string): boolean {
+  /** §4.18.1 gas options (middle button held): the gas under the cursor, or null when closed. */
+  private gasList: number | null = null;
+
+  press(button: string, s: DiveSession): boolean {
     // §4.1: "Acknowledge the warning by pressing any button" (the press only acknowledges: assumed).
     if (this.notices.dismiss()) return true;
+    // §4.18.1: "Scroll with the upper or lower button to the desired gas. Press the middle button to confirm gas selection."
+    if (this.gasList !== null) {
+      const n = this.knownGases(s).length;
+      if (button === 'upper') this.gasList = (this.gasList + n - 1) % n;
+      else if (button === 'lower') this.gasList = (this.gasList + 1) % n;
+      else {
+        s.switchGas(this.gasList);
+        this.gasList = null;
+      }
+      return true;
+    }
     if (button === 'lower') this.setScreen((this.screen + 1) % (this.switchCount + 1));
     else if (button === 'upper') {
       this.timerRunning = !this.timerRunning;
@@ -58,8 +73,13 @@ export class SuuntoD5 extends D5Rules {
     return true;
   }
 
-  hold(button: string): boolean {
+  hold(button: string, s: DiveSession): boolean {
     if (this.notices.dismiss()) return true;
+    // §4.18.1: "Long press the middle button to see gas options."
+    if (button === 'middle' && s.inDive && this.knownGases(s).length > 1) {
+      this.gasList = this.gasList === null ? s.breathing : null;
+      return true;
+    }
     if (button === 'upper') {
       this.timerRunning = false;
       this.timerSec = 0;
@@ -79,7 +99,7 @@ export class SuuntoD5 extends D5Rules {
       middle: {
         name: 'MIDDLE',
         press: { real: { fr: 'Vue suivante : sans palier, boussole, pression bouteille', en: 'Next view: no deco, compass, tank pressure' }, simulated: false },
-        hold: { real: { fr: 'Options de gaz', en: 'Gas options' }, simulated: false },
+        hold: { real: { fr: 'Options de gaz (choix avec les boutons du haut et du bas, confirmation avec celui du milieu)', en: 'Gas options (choose with the upper and lower buttons, confirm with the middle one)' }, simulated: true, note: { fr: 'avec l’option Multiple gases', en: 'with the Multiple gases option' } },
       },
       lower: {
         name: 'LOWER',
@@ -116,7 +136,7 @@ export class SuuntoD5 extends D5Rules {
     return list;
   }
 
-  render(el: HTMLElement, view: ComputerView, _s: DiveSession, _lang: Lang): void {
+  render(el: HTMLElement, view: ComputerView, s: DiveSession, _lang: Lang): void {
     // §4.11: above the safe margin "the decompression calculation is paused until you go back down
     // below this limit".
     const v = this.withPausedDeco(view);
@@ -248,6 +268,20 @@ export class SuuntoD5 extends D5Rules {
         `<text x="150" y="261" class="su-t su-band su-red-fill">${v.ppO2.toFixed(1).replace(/^0/, '')}</text>`;
     } else if (notice) {
       popup = band(NOTICE_TEXT[notice]);
+    }
+    if (this.gasList !== null && (!v.inDive || this.knownGases(s).length < 2)) this.gasList = null;
+    if (this.gasList !== null && !popup) {
+      // Gas options: no figure in the user guide; a list over the middle of the screen (deduced).
+      const gases = this.knownGases(s);
+      const mods = this.gasMods(s);
+      const rows = gases.map((g, i) => {
+        const o2 = Math.round(g.o2 * 100);
+        const name = o2 === 21 ? 'Air' : o2 >= 99 ? `Oxygen ${o2}%` : `Nitrox ${o2}%`;
+        const y = 150 + (i - (gases.length - 1) / 2) * 30;
+        const sel = this.gasList === i;
+        return `${sel ? `<rect x="40" y="${y - 20}" width="220" height="27" rx="3" fill="${CYAN}"/>` : ''}<text x="150" y="${y}" class="su-t su-pop" style="font-size:20px" fill="${sel ? '#000' : '#fff'}">${name}${i === s.breathing ? ' ✓' : ''} · ${depthInt(mods[i])}${depthUnit()}</text>`;
+      }).join('');
+      popup = `<g clip-path="url(#su-clip)"><rect x="0" y="85" width="300" height="130" fill="#000" stroke="#444"/>${rows}</g>`;
     }
 
     el.innerHTML = `

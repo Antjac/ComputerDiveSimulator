@@ -10,13 +10,35 @@ export class MaresPuck extends PuckRules {
   // Manual §1.5 and §3.3: each press cycles average depth, O2 % and CNS (nitrox only), then time of
   // day (4 s time-out back to dive time and temperature); press and hold switches the backlight on.
   press(_button: string, s: DiveSession): boolean {
+    // §3.5.2: a press while G1 blinks proposes G2; during the sequence a press cancels the switch.
+    if (this.seq.gas !== null) {
+      this.seq.cancel();
+      return true;
+    }
+    if (this.prompt.offer !== null) {
+      this.seq.start(s, this.gasMods(s), this.prompt.offer);
+      this.prompt.offer = null;
+      return true;
+    }
     let next = this.screen + 1;
-    if (next === 2 && s.gas.o2 === 0.21) next = 4;
+    if (next === 2 && s.gas.o2 === 0.21 && this.knownGases(s).length < 2) next = 4;
     this.setScreen(next > 4 ? 0 : next);
     return true;
   }
 
-  hold(): boolean {
+  hold(_button: string, s: DiveSession): boolean {
+    // §3.5.2: "Press and hold the button to confirm the switch to G2"; with the O2 % on display a press
+    // and hold starts the switch (§1.5 figure: hold is the backlight "with exception when G2 = ON and
+    // O2% on display").
+    if (s.inDive && this.seq.gas !== null) {
+      this.seq.confirm(s, this.gasMods(s));
+      return true;
+    }
+    if (s.inDive && !this.locked && this.knownGases(s).length > 1 && (this.screen === 2 || this.prompt.offer !== null)) {
+      this.seq.start(s, this.gasMods(s), this.prompt.offer);
+      this.prompt.offer = null;
+      return true;
+    }
     this.backlightUntil = performance.now() + 5000;
     return true;
   }
@@ -30,9 +52,9 @@ export class MaresPuck extends PuckRules {
           simulated: true,
         },
         hold: {
-          real: { fr: 'Rétroéclairage (durée réglée dans le menu LGHt)', en: 'Backlight (duration set in the LGHt menu)' },
+          real: { fr: 'Rétroéclairage (durée réglée dans le menu LGHt) ; avec G2 activé et l’O2 % affiché : changement de gaz, puis confirmation', en: 'Backlight (duration set in the LGHt menu); with G2 on and the O2 % shown: gas switch, then confirmation' },
           simulated: true,
-          note: { fr: 'durée fixe de 5 s ici', en: 'fixed 5 s here' },
+          note: { fr: 'rétroéclairage de 5 s ici', en: '5 s backlight here' },
         },
       },
     };
@@ -60,6 +82,9 @@ export class MaresPuck extends PuckRules {
     let topRightVal = depthText(v.maxDepth);
     if (modAlarm) [topRightLbl, topRightVal] = ['mod', String(depthInt(v.mod))];
     else if (screen === 1) [topRightLbl, topRightVal] = ['avg', depthText(v.avgDepth)];
+    // §3.5.2: during the switch "the letters MOD and the value of the MOD for G2 alternate every 2 seconds".
+    const seq = this.seq.gas;
+    if (seq !== null) [topRightLbl, topRightVal] = Math.floor(performance.now() / 2000) % 2 ? ['mod', String(depthInt(this.gasMods(s)[seq]))] : ['mod', ''];
 
     // Middle row.
     let midLbl = 'no deco';
@@ -103,7 +128,12 @@ export class MaresPuck extends PuckRules {
     let bottomLeft = sevenSeg(time(v.diveTime / 60), 3, 'mr-small');
     let bottomRightLbl = tempUnit();
     let bottomRight = sevenSeg(String(Math.round(tempVal(v.temperature))), 2, 'mr-small');
-    if (screen === 2 && v.o2 !== 21) [bottomRightLbl, bottomRight] = ['O2%', sevenSeg(String(v.o2), 2, 'mr-small')];
+    if (screen === 2 && (v.o2 !== 21 || this.knownGases(s).length > 1)) [bottomRightLbl, bottomRight] = ['O2%', sevenSeg(String(v.o2), 2, 'mr-small')];
+    // §3.5.2: the O2 % of G1 blinks during the prompt, that of the gas proposed during the sequence.
+    if (v.inDive && (this.prompt.offer !== null || seq !== null)) {
+      const o2 = Math.round((s.allGases[seq ?? s.breathing] ?? s.gas).o2 * 100);
+      [bottomRightLbl, bottomRight] = ['O2%', sevenSeg(String(o2), 3, 'mr-small blink')];
+    }
     if (screen === 3 || cns) [bottomRightLbl, bottomRight] = ['cns', sevenSeg(String(Math.round(v.cns)), 3, `mr-small ${cns ? 'blink' : ''}`)];
     if (screen === 4) {
       bottomLeft = sevenSeg(`${clock.h}:${String(clock.m).padStart(2, '0')}`, 4, 'mr-small');

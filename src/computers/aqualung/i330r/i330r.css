@@ -55,3 +55,6 @@
 .aq3-alt { display: flex; flex-direction: column; gap: 6px; margin-top: 16px; }
 .aq3-alt .aq3-box { height: 88px; }
 .aq3-center { margin-top: 100px; text-align: center; font-size: 24px; }
+/* Dive Main Menu lead-ins and Gas Menu (manual p. 43-44 figures). */
+.aq3-menu { text-align: center; font-size: 34px; font-weight: 600; color: #3fd0ff; margin: 10px 0; white-space: nowrap; }
+.aq3-menu.big { font-size: 52px; color: #fff; margin: 2px 0; }

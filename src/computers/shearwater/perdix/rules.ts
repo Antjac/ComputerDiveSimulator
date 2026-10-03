@@ -94,7 +94,7 @@ export abstract class PerdixRules extends DiveComputer {
       // sets the MOD. Can be set from 100ft to 165ft (default is 130ft), or 30m to 50m (default 40m)."
       // Step not given: 5 m offered.
       key: 'maxdepth',
-      label: { fr: 'Profondeur max. de la MOD (Max. Depth)', en: 'MOD depth limit (Max. Depth)' },
+      label: { fr: 'Limite MOD (Max. Depth)', en: 'MOD limit (Max. Depth)' },
       options: [30, 35, 40, 45, 50].map((m) => ({ value: String(m), label: `${m} m` })),
       default: '40',
     },

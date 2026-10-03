@@ -1,7 +1,7 @@
 // Preferences saved in the browser: computer and its settings, dive parameters, view.
 import type { Environment } from '../ui/scene3d';
 import { setUnits, units, type UnitSystem } from '../units';
-import { ENVS, TANKS, applyTank } from './options';
+import { DECO_GASES, ENVS, STAGES, TANKS, applyDecoGases, applyTank } from './options';
 import { $, app, computers, session } from './state';
 
 interface Prefs {
@@ -11,6 +11,8 @@ interface Prefs {
   site: number;
   units: UnitSystem;
   tank: string;
+  decoO2?: number[];
+  stage?: string;
   rmv: number;
   transmitter: boolean;
   spgWithTx: boolean;
@@ -33,7 +35,9 @@ export function savePrefs(): void {
   const prefs: Prefs = {
     computer: app.active.id,
     settings: Object.fromEntries(computers.map((c) => [c.id, c.settings])),
-    o2: Math.round(session.gas.o2 * 100),
+    o2: Math.round(session.backGas.o2 * 100),
+    decoO2: app.decoO2,
+    stage: app.stageId,
     site: session.siteDepth,
     units: units(),
     tank: app.tankId,
@@ -70,6 +74,9 @@ export function applyPrefs(): void {
   app.spgWithTx = prefs.spgWithTx === true; // off unless chosen
   session.rescueAlert = prefs.rescue === true; // off unless chosen
   applyTank();
+  app.stageId = STAGES.some((k) => k.id === prefs.stage) ? prefs.stage! : '7-200';
+  app.decoO2 = (prefs.decoO2 ?? []).filter((o2) => DECO_GASES.includes(o2));
+  applyDecoGases();
   app.view = prefs.view === '3d' ? '3d' : '2d';
   app.env = ENVS.some((e) => e.id === prefs.env) ? prefs.env! : 'reef';
   $<HTMLDetailsElement>('advanced').open = prefs.advanced === true;

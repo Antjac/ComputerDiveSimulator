@@ -155,6 +155,17 @@ export interface DecoParams {
   lastStop: number; // m (3 or 6)
   stopStep: number; // m (3)
   ascentRate: number; // m/min used for planning
+  /**
+   * Other gases the computer counts on for the ascent (multi-gas), each breathable from `mod` up: the
+   * plan switches to the richest one available as soon as it is shallow enough. None: the gas in use.
+   */
+  gases?: PlanGas[];
+}
+
+/** A gas the ascent plan may switch to, from its switch depth (the computer's deco MOD) up. */
+export interface PlanGas {
+  gas: Gas;
+  mod: number;
 }
 
 export interface DecoStop {
@@ -242,14 +253,25 @@ export function planAscent(tissues: Tissues, depth: number, gas: Gas, p: DecoPar
   let a = updateAnchor(anchor, t, p);
   let d = depth;
   let time = 0;
+  let g = gas;
+  const others = p.gases ?? [];
+  // Multi-gas: the richest gas breathable at depth d (switches only to a richer gas).
+  const pick = () => {
+    for (const o of others) if (o.gas.o2 > g.o2 + 1e-9 && d <= o.mod + 1e-6) g = o.gas;
+  };
+  pick();
 
   const ascend = (to: number) => {
-    if (to >= d) return;
-    const minutes = (d - to) / p.ascentRate;
-    t.exposeLinear(depthToPressure(d), depthToPressure(to), gas, minutes);
-    time += minutes;
-    d = to;
-    a = updateAnchor(a, t, p);
+    while (to < d) {
+      // Stop on the way where a richer gas becomes breathable.
+      const sw = others.filter((o) => o.gas.o2 > g.o2 + 1e-9 && o.mod < d - 1e-6 && o.mod > to).reduce((m, o) => Math.max(m, o.mod), to);
+      const minutes = (d - sw) / p.ascentRate;
+      t.exposeLinear(depthToPressure(d), depthToPressure(sw), g, minutes);
+      time += minutes;
+      d = sw;
+      a = updateAnchor(a, t, p);
+      pick();
+    }
   };
 
   const nextStopAbove = (from: number) => {
@@ -266,6 +288,7 @@ export function planAscent(tissues: Tissues, depth: number, gas: Gas, p: DecoPar
   // Diver already above that stop (missed stop, back at the surface): the plan sends them back down
   // to it rather than announcing a stop at their own, too shallow, depth.
   else if (first > d) d = first;
+  pick();
   const initialStop = first;
 
   let guard = 0;
@@ -275,7 +298,7 @@ export function planAscent(tissues: Tissues, depth: number, gas: Gas, p: DecoPar
       ascend(next);
       continue;
     }
-    t.expose(depthToPressure(d), gas, resolution);
+    t.expose(depthToPressure(d), g, resolution);
     time += resolution;
     a = updateAnchor(a, t, p);
     // Report stops on the stop grid, even when the diver waits between two grid depths.

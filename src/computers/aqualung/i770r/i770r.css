@@ -59,3 +59,12 @@
 .aq7-lastlbl { text-align: center; font-size: 18px; margin-top: 10px; }
 .aq7-lastval { text-align: center; font-size: 40px; }
 .aq7-center { margin-top: 70px; text-align: center; }
+/* Gas Switch list (manual p. 56-57 figures): gases on the left, PO2 and MOD of the highlighted one on the right. */
+.aq7-gsw { display: grid; grid-template-columns: minmax(0, 1fr) 92px; gap: 4px; }
+.aq7-gsw .aq7-li { grid-template-columns: 58px 1fr; font-size: 15px; }
+.aq7-li.hl { outline: 2px solid #fff; }
+.aq7-li.cur span { color: #fff; }
+.aq7-gw { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 12px; text-align: center; min-width: 0; }
+.aq7-gw b { font-size: 28px; }
+.aq7-gw.red { color: #ff2a1f; font-weight: 700; }
+.aq7-keys { font-size: 11px; text-align: center; margin-top: 4px; color: #ccc; }

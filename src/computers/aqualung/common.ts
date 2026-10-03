@@ -1,7 +1,7 @@
 // Rules shared by the Aqua Lung i330R and i770R (both built on the same Pelagic firmware family; each
 // rule below is stated identically in both owner's manuals unless noted): DTR, O2 SAT, safety and
 // deep stops, conditional and delayed violations, Violation Gauge Mode, audible alarms.
-import { type DecoParams, ceilingDepth } from '../../engine/buhlmann';
+import { type DecoParams, ceilingDepth, pressureToDepth } from '../../engine/buhlmann';
 import type { DiveSession } from '../../engine/session';
 import { type AlertCue, type ComputerView, DiveComputer, type SettingDef } from '../base';
 
@@ -68,6 +68,16 @@ export function pelagicSettings(): SettingDef[] {
       label: { fr: 'Alarme PO2 (et MOD)', en: 'PO2 alarm (and MOD)' },
       options: ['1.10', '1.15', '1.20', '1.25', '1.30', '1.35', '1.40', '1.45', '1.50', '1.55', '1.60'].map((v) => ({ value: v, label: v })),
       default: '1.40',
+    },
+    {
+      // Set Gas: "the i330R allows for each gas (1 - 3) to have individual PO2 alarm settings" (i770R: 1 - 4),
+      // 1.10 to 1.60 by 0.05. Value of the other gases not given: 1.40 assumed, as Gas 1 (i770R figure
+      // "PO2 AL 1.40").
+      key: 'ppo2Deco',
+      label: { fr: 'Alarme PO2 gaz 2+', en: 'PO2 alarm gases 2+' },
+      options: ['1.10', '1.15', '1.20', '1.25', '1.30', '1.35', '1.40', '1.45', '1.50', '1.55', '1.60'].map((v) => ({ value: v, label: v })),
+      default: '1.40',
+      group: 'deco',
     },
   ];
 }
@@ -152,9 +162,73 @@ export abstract class PelagicRules extends DiveComputer {
     return Math.max(0, Math.floor((300 - s.oxygen.otu) / rate));
   }
 
-  /** PO2 alarm set point; "except in Deco then at greater than 1.60". */
-  po2Limit(inDeco: boolean): number {
-    return inDeco ? 1.6 : Number(this.settings.ppo2) || 1.4;
+  /** PO2 alarm set point of the gas breathed; "except in Deco then at greater than 1.60". */
+  po2Limit(inDeco: boolean, s: DiveSession | null = this.lastSession): number {
+    if (inDeco) return 1.6;
+    return s && s.breathing > 0 ? this.decoPpo2() : Number(this.settings.ppo2) || 1.4;
+  }
+
+  // --- Gases (Set Gas, Gas Switch Menu, Gas Switch Warning) ------------------------------------------
+
+  /** PO2 alarm of gases 2 and up (each gas has its own on the device). */
+  decoPpo2(): number {
+    return Number(this.settings.ppo2Deco) || 1.4;
+  }
+
+  /** MOD of each gas set, from its own PO2 alarm. */
+  gasMods(s: DiveSession): number[] {
+    return this.knownGases(s).map((g, i) => (i === 0 ? this.modDepth(g.o2) : this.decoMod(g.o2)));
+  }
+
+  /**
+   * The manuals do not say that the decompression calculation counts on the other gases; the Gas Switch
+   * Warning only comes "when approaching the decompression stop zone": the gas breathed only (assumed).
+   */
+  planGases() {
+    return [];
+  }
+
+  /** "the best gas": the richest gas set whose PO2 at this depth stays within its alarm value. */
+  bestGas(s: DiveSession): number {
+    const mods = this.gasMods(s);
+    let best = s.breathing;
+    s.allGases.slice(0, mods.length).forEach((g, i) => {
+      if (s.depth <= mods[i] && g.o2 > s.allGases[best].o2 + 1e-9) best = i;
+    });
+    return best;
+  }
+
+  /** Gas Switch Warning on display (the best gas), the clock it started, and the gases it gave up on. */
+  switchWarn: number | null = null;
+  protected switchWarnAt = 0;
+  protected switchWarnDone = new Set<number>();
+  /** Seconds the warning waits for a confirmation (i770R: 30; null: until the switch or the stop zone is left). */
+  protected readonly switchWarnTimeout: number | null = null;
+
+  /**
+   * GAS SWITCH WARNING: "If gas 2 (3) is set on and the current gas is not the best gas when approaching
+   * the decompression stop zone" (within 3 m below the stop, as Deco Stop Main), the computer warns.
+   */
+  protected updateSwitchWarn(s: DiveSession, inDeco: boolean, stop: number): void {
+    const best = this.knownGases(s).length > 1 && inDeco && s.depth <= stop + 3 ? this.bestGas(s) : s.breathing;
+    if (best === s.breathing) {
+      this.switchWarn = null;
+      if (!inDeco) this.switchWarnDone.clear();
+      return;
+    }
+    if (this.switchWarn !== best && !this.switchWarnDone.has(best)) {
+      this.switchWarn = best;
+      this.switchWarnAt = s.clock;
+    }
+    if (this.switchWarn !== null && this.switchWarnTimeout !== null && s.clock - this.switchWarnAt > this.switchWarnTimeout) {
+      this.switchWarnDone.add(this.switchWarn);
+      this.switchWarn = null;
+    }
+  }
+
+  /** MOD depth from a PO2 (helper for the screens). */
+  protected modAt(o2: number, po2: number): number {
+    return Math.max(0, pressureToDepth(po2 / o2));
   }
 
   // --- N2 bar graph --------------------------------------------------------------------------------
@@ -178,7 +252,7 @@ export abstract class PelagicRules extends DiveComputer {
     if (v.inDeco && v.ceilingViolation > 0) a.push('down-to-stop');
     if (v.inDeco) a.push('deco-entry');
     if (v.inDeco && v.stopDepth >= 18 && v.stopDepth <= 21) a.push('deco-deep'); // DV2
-    if (v.inDeco ? s.ppO2 > 1.6 : s.ppO2 >= this.po2Limit(false) - 1e-9) a.push('high-po2');
+    if (v.inDeco ? s.ppO2 > 1.6 : s.ppO2 >= this.po2Limit(false, s) - 1e-9) a.push('high-po2');
     const sat = this.o2Sat(s);
     if (sat >= 100) a.push('o2-alarm');
     else if (sat >= 80) a.push('o2-warning');
@@ -217,7 +291,10 @@ export abstract class PelagicRules extends DiveComputer {
     if (this.settings.audible === 'off' || !v.inDive || !this.lastSession) return [];
     const k = this.shownAlarm(this.lastSession);
     // 1 beep per second for 10 seconds; the cue disappears once acknowledged (shownAlarm() is then empty).
-    return k ? [{ key: `pelagic-${k}-${this.alarmUntil.get(k)}`, kind: 'beep', level: 'alarm', until: 'once', first: 10 }] : [];
+    const cues: AlertCue[] = k ? [{ key: `pelagic-${k}-${this.alarmUntil.get(k)}`, kind: 'beep', level: 'alarm', until: 'once', first: 10 }] : [];
+    // Gas Switch Alarm (listed with the audible alarms): the same 10 s sequence (assumed).
+    if (this.switchWarn !== null) cues.push({ key: `gas-switch-${this.switchWarn}-${this.switchWarnAt}`, kind: 'beep', level: 'warning', until: 'once', first: 10 });
+    return cues;
   }
 
   protected lastSession: DiveSession | null = null;
@@ -241,6 +318,8 @@ export abstract class PelagicRules extends DiveComputer {
     this.ssCancelled = false;
     this.ssAfterDeco = 'none';
     this.deep = { state: this.settings.deepStop === 'on' ? 'none' : 'off', target: 0, remaining: 120, outSec: 0 };
+    this.switchWarn = null;
+    this.switchWarnDone.clear();
   }
 
   /** DV1: "5 minutes after surfacing from the dive, operation will now enter Violation Gauge Mode" (at the end of the dive here). */
@@ -278,6 +357,7 @@ export abstract class PelagicRules extends DiveComputer {
     if (this.settings.safety === 'off' || this.ssCancelled || this.ssAfterDeco === 'wait' || this.locked) this.safetyState = 'none';
 
     this.tickDeepStop(s, dt, inDeco);
+    this.updateSwitchWarn(s, inDeco, stop);
   }
 
   /**
@@ -288,7 +368,7 @@ export abstract class PelagicRules extends DiveComputer {
   private tickDeepStop(s: DiveSession, dt: number, inDeco: boolean): void {
     const ds = this.deep;
     if (ds.state === 'off' || ds.state === 'done') return;
-    if (inDeco || s.depth > 57 || this.o2Sat(s) >= 80 || s.ppO2 >= this.po2Limit(false)) {
+    if (inDeco || s.depth > 57 || this.o2Sat(s) >= 80 || s.ppO2 >= this.po2Limit(false, s)) {
       ds.state = 'off';
       return;
     }

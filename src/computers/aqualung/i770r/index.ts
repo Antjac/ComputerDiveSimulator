@@ -20,13 +20,55 @@ export class AqualungI770r extends I770rRules {
   /** "EARMARK APPLIED" is displayed for 3 seconds. */
   private earmarkUntil = 0;
 
+  /**
+   * Dive Menu (▼): GAS SWITCH, DISPLAY, DS PREVIEW; Gas Switch list (p. 55–57 figures): ▲ / ▼ scroll,
+   * SELECT "to select an option" / "TO SWITCH", SELECT held "to step back", ▼ held "Back to Dive Main".
+   */
+  private menu: { page: 'menu' | 'gas'; idx: number; warned: boolean; at: number } | null = null;
+
   press(button: string, s: DiveSession): boolean {
-    if (button === 'select') return this.acknowledge(s) || true;
+    const m = this.menu;
+    if (m && s.inDive) {
+      m.at = s.clock;
+      const n = m.page === 'menu' ? 3 : 4;
+      if (button === 'down') m.idx = (m.idx + 1) % n;
+      else if (button === 'up') m.idx = (m.idx + n - 1) % n;
+      else if (m.page === 'menu') {
+        if (m.idx === 0) Object.assign(m, { page: 'gas', idx: s.breathing, warned: false }); // DISPLAY, DS PREVIEW: not simulated
+      } else if (m.idx < this.knownGases(s).length && m.idx !== s.breathing) {
+        // "If the current PO2 value is greater than 1.6, then a warning not to switch will display [...]
+        // The diver may overide the i770R and force the gas switch by pressing the (Select) button during
+        // the DO NOT SWITCH TO GAS n HIGH PO2 message."
+        if (s.pressure * s.allGases[m.idx].o2 > 1.6 && !m.warned) m.warned = true;
+        else {
+          s.switchGas(m.idx);
+          this.menu = null;
+        }
+      }
+      if (m.page === 'gas' && button !== 'select') m.warned = false;
+      return true;
+    }
+    if (button === 'select') {
+      if (this.acknowledge(s)) return true;
+      // Gas Switch Warning: "You must confirm the gas switch by pressing the (Select) button."
+      if (this.switchWarn !== null && s.inDive) {
+        s.switchGas(this.switchWarn);
+        this.switchWarn = null;
+      }
+      return true;
+    }
     if (button === 'up') this.setScreen((this.screen + 1) % (this.pages(s).length + 1));
-    return true; // Down: Dive Main Menu (not simulated)
+    // "The Gas Switch Menu cannot be accessed during the sounding of alarms."
+    if (button === 'down' && s.inDive && !this.locked && !this.shownAlarm(s)) this.menu = { page: 'menu', idx: 0, warned: false, at: s.clock };
+    return true;
   }
 
   hold(button: string, s: DiveSession): boolean {
+    if (this.menu && s.inDive) {
+      if (button === 'down') this.menu = null;
+      else if (button === 'select') this.menu = this.menu.page === 'gas' ? { ...this.menu, page: 'menu', idx: 0 } : null;
+      return true;
+    }
     if (button === 'down' && s.inDive) {
       this.earmarkUntil = s.clock + 3;
       return true;
@@ -38,7 +80,7 @@ export class AqualungI770r extends I770rRules {
     return {
       down: {
         name: '▼',
-        press: { real: { fr: 'Menu (plongée : changement de gaz, affichage, DS Preview)', en: 'Menu (dive: gas switch, display, DS Preview)' }, simulated: false },
+        press: { real: { fr: 'Menu (plongée : changement de gaz, affichage, DS Preview) ; dans un menu : descendre', en: 'Menu (dive: gas switch, display, DS Preview); in a menu: scroll down' }, simulated: true, note: { fr: 'changement de gaz seulement', en: 'gas switch only' } },
         hold: { real: { fr: 'En plongée : repère (EARMARK APPLIED)', en: 'During a dive: earmark (EARMARK APPLIED)' }, simulated: true },
       },
       up: {
@@ -47,7 +89,7 @@ export class AqualungI770r extends I770rRules {
       },
       select: {
         name: 'SELECT',
-        press: { real: { fr: 'Acquitte l’alarme sonore', en: 'Acknowledges the audible alarm' }, simulated: true },
+        press: { real: { fr: 'Acquitte l’alarme sonore ; confirme le changement de gaz proposé ; dans un menu : sélection', en: 'Acknowledges the audible alarm; confirms the gas switch proposed; in a menu: select' }, simulated: true },
         hold: { real: { fr: 'Boussole', en: 'Compass' }, simulated: false },
       },
     };
@@ -60,8 +102,11 @@ export class AqualungI770r extends I770rRules {
     const alarm = s.inDive ? this.shownAlarm(s) : undefined;
     const blink = Math.floor(performance.now() / 500) % 2 === 0;
 
+    // The menu closes when the dive ends, when an alarm strikes, or after 10 s without a button (not stated: as the i330R).
+    if (this.menu && (!s.inDive || alarm || s.clock - this.menu.at > 10)) this.menu = null;
     let content: string;
-    if (page === 'more') content = this.moreData(v, s);
+    if (this.menu) content = this.menuScreen(s);
+    else if (page === 'more') content = this.moreData(v, s);
     else if (page === 'last') content = this.lastDive(s);
     else content = s.inDive ? this.diveMain(v, s, alarm, blink) : this.surfaceMain(v, s);
 
@@ -93,7 +138,29 @@ export class AqualungI770r extends I770rRules {
     const mod = imperial() ? `${Math.round(v.mod * 3.28084)} FT` : `${v.mod.toFixed(1)} M`;
     const third = po2Red ? `<span class="red">PO2: ${s.ppO2.toFixed(2)}</span>`
       : this.settings.field === 'po2' ? `PO2: ${s.ppO2.toFixed(2)}` : this.settings.field === 'mod' && v.o2 !== 21 ? `MOD: ${mod}` : '';
-    return `<div class="aq7-gas"><span>GAS 1</span><span>FO2: ${fo2}</span><span>${third}</span></div>`;
+    return `<div class="aq7-gas"><span>GAS ${s.breathing + 1}</span><span>FO2: ${fo2}</span><span>${third}</span></div>`;
+  }
+
+  /** Dive Menu and Gas Switch list (p. 55–57 figures). */
+  private menuScreen(s: DiveSession): string {
+    const m = this.menu!;
+    if (m.page === 'menu') {
+      return this.list('DIVE MENU', ['GAS SWITCH', 'DISPLAY', 'DS PREVIEW'].map((k, i) => [m.idx === i ? `▶ ${k}` : k, '']));
+    }
+    const gases = this.knownGases(s);
+    const fo2 = (i: number) => {
+      if (i >= gases.length) return 'OFF';
+      const o2 = Math.round(gases[i].o2 * 100);
+      return o2 === 21 ? 'AIR' : `${o2}%`;
+    };
+    const rows = [0, 1, 2, 3].map((i) => `<div class="aq7-li ${m.idx === i ? 'hl' : ''} ${i === s.breathing ? 'cur' : 'green'}"><span>GAS ${i + 1}</span><span>FO2: ${fo2(i)}</span></div>`).join('');
+    const sel = m.idx < gases.length ? gases[m.idx] : null;
+    const u = imperial() ? 'FT' : 'M';
+    const mod = sel ? (m.idx === 0 ? this.modDepth(sel.o2) : this.decoMod(sel.o2)) : 0;
+    const side = m.warned
+      ? `<div class="aq7-gw red">DO NOT SWITCH<br>TO GAS ${m.idx + 1}<br>HIGH PO2</div>`
+      : sel ? `<div class="aq7-gw"><span>PO2</span><b>${(s.pressure * sel.o2).toFixed(2)}</b><span class="cyan">MOD: ${imperial() ? Math.round(mod * 3.28084) : Math.round(mod)} ${u}</span></div>` : '<div class="aq7-gw"></div>';
+    return `<div class="aq7-list"><div class="aq7-head"><span>DIVE</span><span class="green">GAS SWITCH</span></div><div class="aq7-gsw"><div>${rows}</div>${side}</div><div class="aq7-keys">▲ - UP LIST · ▼ - DOWN LIST · ◉ - TO SWITCH</div></div>`;
   }
 
   /** Alarm banner at the bottom (red: alarms; yellow: warnings). */
@@ -149,6 +216,11 @@ export class AqualungI770r extends I770rRules {
     else if (s.depth > 100) foot = this.banner('TOO DEEP', 'red', '▲');
     else if (alarm) foot = this.alarmBanner(alarm, v, s);
     else if (s.clock < this.earmarkUntil) foot = '<div class="aq7-gas green c">EARMARK APPLIED</div>';
+    else if (this.switchWarn !== null) {
+      // GAS SWITCH WARNING figure: yellow "SWITCH TO FO2: 100%".
+      const o2 = Math.round((s.allGases[this.switchWarn] ?? s.gas).o2 * 100);
+      foot = this.banner(`SWITCH TO FO2: ${o2 === 21 ? 'AIR' : `${o2}%`}`, 'yellow');
+    }
     else if (this.locked) foot = this.banner('VIOLATION');
     else {
       // After a PO2 alarm the value (red) alternates with the normal data in the bottom bar.

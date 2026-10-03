@@ -89,3 +89,10 @@
 .od-hc { display: flex; flex-direction: column; align-items: center; justify-content: space-around; font-size: 17px; }
 .od-hc.top { border-bottom: 1px solid #ccc; }
 .od-hc small { font-size: 12px; }
+/* §8 "Changement de gaz" screen (figure): green header, the gas breathed on green, the gas offered on olive. */
+.od-ghead { display: flex; justify-content: space-between; align-items: center; height: 30px; padding: 0 8px; background: #1f5a22; font-size: 18px; font-weight: 400; }
+.od-ghead b { font-weight: 400; }
+.od-gboxes { display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 8px; height: 200px; padding: 0 8px; }
+.od-gbox { font-size: 40px; padding: 2px 8px; border-radius: 3px; letter-spacing: -1px; }
+.od-gbox.cur { background: #3e9a43; }
+.od-gbox.pick { background: #5a4a00; outline: 2px solid #c9a400; }

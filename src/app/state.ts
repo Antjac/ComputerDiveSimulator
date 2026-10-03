@@ -21,6 +21,10 @@ export const app = {
   view: '2d' as '2d' | '3d',
   env: 'reef' as Environment,
   tankId: '12-200',
+  /** Stage tank of the decompression gases. */
+  stageId: '7-200',
+  /** Oxygen % of the decompression gases carried (none: single gas). */
+  decoO2: [] as number[],
   /** Logbook entry whose profile is drawn at the surface (-1: none). */
   selectedLog: -1,
   activeTab: 'settings',

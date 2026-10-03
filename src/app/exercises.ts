@@ -11,7 +11,7 @@ import { depthLabel, imperial, rateLabel } from '../units';
 import { resetAll } from './diveControls';
 import { EXERCISES, type Bi, type ExContext, type Exercise, type SetupTools } from './exerciseDefs';
 import { advance } from './loop';
-import { applyTank } from './options';
+import { applyDecoGases, applyTank } from './options';
 import { savePrefs } from './prefs';
 import { renderControls } from './settings';
 import { $, app, compactMq, computers, session } from './state';
@@ -31,7 +31,7 @@ const run = {
   mem: {} as Record<string, number | boolean>,
   why: null as Bi | null,
   /** Dive parameters changed by the exercise, put back when leaving it. */
-  saved: null as { gas: Gas; site: number; rescue: boolean; rmv: number; tank: string } | null,
+  saved: null as { gas: Gas; deco: number[]; site: number; rescue: boolean; rmv: number; tank: string } | null,
 };
 
 /** Passed exercises: exercise id → ids of the computers it was passed with. */
@@ -105,6 +105,8 @@ function tools(): SetupTools {
 function restoreParams(): void {
   if (!run.saved) return;
   session.gas = run.saved.gas;
+  app.decoO2 = run.saved.deco;
+  applyDecoGases();
   session.siteDepth = run.saved.site;
   session.rescueAlert = run.saved.rescue;
   session.rmv = run.saved.rmv;
@@ -117,9 +119,12 @@ function restoreParams(): void {
 function start(ex: Exercise): void {
   run.phase = 'list'; // nothing is checked while the dive is reset and prepared
   restoreParams();
-  run.saved = { gas: { ...session.gas }, site: session.siteDepth, rescue: session.rescueAlert, rmv: session.rmv, tank: app.tankId };
+  run.saved = { gas: { ...session.backGas }, deco: app.decoO2, site: session.siteDepth, rescue: session.rescueAlert, rmv: session.rmv, tank: app.tankId };
   resetAll();
   session.gas = { o2: 0.21, he: 0 };
+  // Single gas: the exercises are not about gas switching.
+  app.decoO2 = [];
+  applyDecoGases();
   session.siteDepth = Math.max(session.siteDepth, 50);
   session.rescueAlert = false; // the exercises provoke what the rescue alert would stop
   // Enough gas for the deco exercises, which are not about gas management.

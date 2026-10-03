@@ -192,3 +192,77 @@ export function maresWarningSettings(noDecoName: string): SettingDef[] {
     { key: 'wDeco', label: { fr: 'Avertissement d’entrée en déco (ENTERING DECO)', en: 'Entering deco warning (ENTERING DECO)' }, options: onOff, default: 'on' },
   ];
 }
+
+/**
+ * Gas switch sequence of the segmented Mares models (Puck Pro §3.5.2, Quad Air §3.5.2): the O2 % of
+ * the gas proposed blinks in the lower right corner, a press shows the next gas available at that
+ * depth, a press and hold confirms. A gas is available only shallower than its MOD.
+ */
+export class GasSequence {
+  /** Gas proposed (index in DiveSession.allGases), or null when no sequence is under way. */
+  gas: number | null = null;
+  private at = 0;
+
+  /** `mods`: MOD of each programmed gas (its own ppO2max). */
+  private available(s: DiveSession, mods: number[]): number[] {
+    return mods.map((m, i) => (s.depth <= m ? i : -1)).filter((i) => i >= 0);
+  }
+
+  /** Starts with `gas` proposed (the gas offered by the prompt), or the next available after the one breathed. */
+  start(s: DiveSession, mods: number[], gas: number | null = null): void {
+    const list = this.available(s, mods).filter((i) => i !== s.breathing);
+    this.gas = gas ?? list.find((i) => i > s.breathing) ?? list[0] ?? null;
+    this.at = s.clock;
+  }
+
+  /** The next gas available at this depth (wraps around, the gas breathed included). */
+  next(s: DiveSession, mods: number[]): void {
+    if (this.gas === null) return;
+    const list = this.available(s, mods);
+    this.gas = list.find((i) => i > this.gas!) ?? list[0] ?? null;
+    this.at = s.clock;
+  }
+
+  /** Confirms the gas proposed; true when it changed the gas breathed. */
+  confirm(s: DiveSession, mods: number[]): boolean {
+    const g = this.gas;
+    this.gas = null;
+    if (g === null || g === s.breathing || s.depth > mods[g]) return false;
+    s.switchGas(g);
+    return true;
+  }
+
+  cancel(): void {
+    this.gas = null;
+  }
+
+  /** Ends a sequence left unanswered for `timeout` seconds. */
+  expire(s: DiveSession, timeout: number): void {
+    if (this.gas !== null && (!s.inDive || s.clock - this.at > timeout)) this.gas = null;
+  }
+}
+
+/**
+ * Short gas switch messages of the colour Mares (Quad Ci §13.2, Genius §11.2: GAS SWITCH OK, GAS NOT
+ * SWITCHED, EXCLUDING… / INCLUDING… AGAIN), shown "shortly" one after the other (3 s each assumed).
+ */
+export class GasMessages {
+  private list: { text: string; until: number }[] = [];
+
+  say(text: string): void {
+    const last = this.list[this.list.length - 1];
+    const from = Math.max(performance.now(), last ? last.until : 0);
+    this.list.push({ text, until: from + 3000 });
+  }
+
+  /** Message on display now, if any. */
+  get current(): string | null {
+    const now = performance.now();
+    this.list = this.list.filter((m) => m.until > now);
+    return this.list.length ? this.list[0].text : null;
+  }
+
+  clear(): void {
+    this.list = [];
+  }
+}

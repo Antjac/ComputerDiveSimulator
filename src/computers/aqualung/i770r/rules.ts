@@ -29,9 +29,17 @@ export abstract class I770rRules extends PelagicRules {
   readonly gasTimeName = 'GTR';
   readonly ackButton = 'select'; // "acknowledged and silenced by pressing the SELECT button"
   readonly fastRate = 9.2; // ASC bar graph: 5 segments "> 9.2 (> 30)", "all segments flash"
+
+  /** Set Gas: "OFF for Gas 2, 3, and 4": four gases. */
+  get maxGases(): number {
+    return 4;
+  }
+
+  /** Gas Switch Warning: "If the gas switch is not confirmed within 30 seconds, no switch will be made." */
+  protected readonly switchWarnTimeout = 30;
   readonly notes = {
-    fr: "Mode Dive (Air ou Nitrox ; Gauge, Free et boussole non simulés). Z+ est propriétaire (« basé sur Bühlmann ZHL-16C ») : approximation par Bühlmann ZHL-16C avec un GF unique, calibré sur la table des NDL du manuel (GF 95, CONSERVATIVE ON : GF 85 ; NDL trop longs au-dessus de 18 m). Conforme au manuel : DTR = le plus petit de NO-DECO et O2 TIME, barres ASC et N2, TOO FAST au-delà de 9,2 m/min, palier de sécurité (ON, OFF ou SET : 3 ou 5 min à 3–6 m) au-delà de 9 m, deep stop (ON), DECO ENTRY, DOWN TO STOP (pas de désaturation au-dessus du palier, 1,5 min de pénalité par minute), DV1 au-delà de 5 min puis Violation Gauge Mode, VGM si un palier à plus de 21 m est requis (24 h), alarmes PO2, O2 SAT, profondeur, durée, pression de demi-tour et de fin, barre N2 et DTR (10 bips, acquittées par SELECT). Bouton ▲ : More Dive Data (en surface : More Data et Last Dive Data) ; SELECT : acquittement ; ▼ : menu (non simulé), appui long : repère (EARMARK APPLIED). Supposés : définition du GTR (temps jusqu'à la réserve, remontée à 9 m/min), pression de fin = réserve, palier ON = 3 min à 5 m, valeurs par défaut des alarmes, pas de 3 m.",
-    en: 'Dive mode (Air or Nitrox; Gauge, Free and compass not simulated). Z+ is proprietary ("Bühlmann ZHL-16C based"): approximated by Bühlmann ZHL-16C with a single GF, calibrated on the manual\'s NDL table (GF 95, CONSERVATIVE ON: GF 85; NDLs too long shallower than 18 m). As per the manual: DTR = the least of NO-DECO and O2 TIME, ASC and N2 bar graphs, TOO FAST above 9.2 m/min, safety stop (ON, OFF or SET: 3 or 5 min at 3–6 m) beyond 9 m, deep stop (ON), DECO ENTRY, DOWN TO STOP (no off-gassing credit above the stop, 1.5 min penalty per minute), DV1 beyond 5 min then Violation Gauge Mode, VGM when a stop deeper than 21 m is required (24 h), PO2, O2 SAT, depth, dive time, turn and end pressure, N2 bar and DTR alarms (10 beeps, acknowledged with SELECT). ▲ button: More Dive Data (on the surface: More Data and Last Dive Data); SELECT: acknowledge; ▼: menu (not simulated), hold: earmark (EARMARK APPLIED). Assumed: GTR definition (time to the reserve, ascent at 9 m/min), end pressure = reserve, safety stop ON = 3 min at 5 m, alarm defaults, 3 m stop step.',
+    fr: "Mode Dive (Air ou Nitrox ; Gauge, Free et boussole non simulés). Gaz 1 à 4 (bloc principal puis gaz de déco de la page ; alarme PO2 des autres gaz : 1,40 supposé, comme la figure) : ▼ : menu de plongée, GAS SWITCH (SELECT), liste des gaz avec la PO2 et la MOD du gaz en surbrillance (▲ / ▼), SELECT : changement ; PO2 au-delà de 1,6 : DO NOT SWITCH TO GAS n HIGH PO2, SELECT force le changement ; appui long sur SELECT : retour, appui long sur ▼ : écran principal. Près de la zone de palier, avertissement SWITCH TO si un meilleur gaz est disponible, à confirmer par SELECT en 30 s. Calcul de la décompression avec le gaz respiré seulement (supposé). Z+ est propriétaire (« basé sur Bühlmann ZHL-16C ») : approximation par Bühlmann ZHL-16C avec un GF unique, calibré sur la table des NDL du manuel (GF 95, CONSERVATIVE ON : GF 85 ; NDL trop longs au-dessus de 18 m). Conforme au manuel : DTR = le plus petit de NO-DECO et O2 TIME, barres ASC et N2, TOO FAST au-delà de 9,2 m/min, palier de sécurité (ON, OFF ou SET : 3 ou 5 min à 3–6 m) au-delà de 9 m, deep stop (ON), DECO ENTRY, DOWN TO STOP (pas de désaturation au-dessus du palier, 1,5 min de pénalité par minute), DV1 au-delà de 5 min puis Violation Gauge Mode, VGM si un palier à plus de 21 m est requis (24 h), alarmes PO2, O2 SAT, profondeur, durée, pression de demi-tour et de fin, barre N2 et DTR (10 bips, acquittées par SELECT). Bouton ▲ : More Dive Data (en surface : More Data et Last Dive Data) ; SELECT : acquittement ; ▼ : menu (non simulé), appui long : repère (EARMARK APPLIED). Supposés : définition du GTR (temps jusqu'à la réserve, remontée à 9 m/min), pression de fin = réserve, palier ON = 3 min à 5 m, valeurs par défaut des alarmes, pas de 3 m.",
+    en: 'Dive mode (Air or Nitrox; Gauge, Free and compass not simulated). Gases 1 to 4 (the main tank, then the deco gases set on the page; PO2 alarm of the other gases: 1.40 assumed, as the figure): ▼: dive menu, GAS SWITCH (SELECT), list of the gases with the PO2 and MOD of the highlighted one (▲ / ▼), SELECT: switch; PO2 above 1.6: DO NOT SWITCH TO GAS n HIGH PO2, SELECT forces the switch; SELECT hold: back, ▼ hold: main screen. Near the stop zone, SWITCH TO warning when a better gas is available, to be confirmed with SELECT within 30 s. Decompression computed with the gas breathed only (assumed). Z+ is proprietary ("Bühlmann ZHL-16C based"): approximated by Bühlmann ZHL-16C with a single GF, calibrated on the manual\'s NDL table (GF 95, CONSERVATIVE ON: GF 85; NDLs too long shallower than 18 m). As per the manual: DTR = the least of NO-DECO and O2 TIME, ASC and N2 bar graphs, TOO FAST above 9.2 m/min, safety stop (ON, OFF or SET: 3 or 5 min at 3–6 m) beyond 9 m, deep stop (ON), DECO ENTRY, DOWN TO STOP (no off-gassing credit above the stop, 1.5 min penalty per minute), DV1 beyond 5 min then Violation Gauge Mode, VGM when a stop deeper than 21 m is required (24 h), PO2, O2 SAT, depth, dive time, turn and end pressure, N2 bar and DTR alarms (10 beeps, acknowledged with SELECT). ▲ button: More Dive Data (on the surface: More Data and Last Dive Data); SELECT: acknowledge; ▼: menu (not simulated), hold: earmark (EARMARK APPLIED). Assumed: GTR definition (time to the reserve, ascent at 9 m/min), end pressure = reserve, safety stop ON = 3 min at 5 m, alarm defaults, 3 m stop step.',
   };
   readonly settingDefs: SettingDef[] = [
     {
@@ -39,13 +47,13 @@ export abstract class I770rRules extends PelagicRules {
       // PO2 value, or blank". Default not given: MOD, as on the Dive Main figures.
       key: 'field',
       essential: true,
-      label: { fr: 'Barre du bas (Add PO2/MOD)', en: 'Bottom bar (Add PO2/MOD)' },
+      label: { fr: 'Barre (Add PO2/MOD)', en: 'Bar (Add PO2/MOD)' },
       options: [{ value: 'mod', label: 'MOD' }, { value: 'po2', label: 'PO2' }, { value: 'off', label: 'OFF' }],
       default: 'mod',
     },
     {
       key: 'cf',
-      label: { fr: 'Conservatisme (CONSERV FACTOR)', en: 'Conservative factor' },
+      label: { fr: 'CONSERV FACTOR', en: 'Conservative factor' },
       options: [{ value: 'off', label: 'OFF' }, { value: 'on', label: 'ON' }],
       default: 'off', // default not given: OFF assumed
     },

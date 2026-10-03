@@ -1,10 +1,11 @@
-import { ceilingDepth, depthToPressure, type DecoParams } from '../../../engine/buhlmann';
+import { ceilingDepth, depthToPressure, pressureToDepth, type DecoParams } from '../../../engine/buhlmann';
 import { type DiveSession } from '../../../engine/session';
 import { type AlertCue, ComputerView, DiveComputer, SettingDef } from '../../base';
 import { imperial } from '../../../units';
 import { standardNoFly } from '../../common/dives';
 import { ttsAfter } from '../../common/predict';
-import { FastAscentRgbm, MissedStop, maresCues, maresRgbmParams } from '../common';
+import { FastAscentRgbm, GasSequence, MissedStop, maresCues, maresRgbmParams } from '../common';
+import { GasPrompt } from '../../common/gasSwitch';
 import { ppo2Setting } from '../../common/ppo2';
 import { pressureSetting } from '../../common/tank';
 
@@ -26,8 +27,8 @@ export abstract class QuadAirRules extends DiveComputer {
   readonly transmitter = 'Tank module';
   readonly gasTimeName = 'TTR';
   readonly notes = {
-    fr: 'Le RGBM Mares-Wienke (10 tissus) est propriétaire : approximation identique à celle du Puck Pro (Bühlmann + P0/P1/P2, pénalité en successives). Conforme au manuel : SLOW dès 10 m/min ; remontée incontrôlée (> 12 m/min au-delà de 12 m, sur les 2/3 de la profondeur) ou palier manqué (> 1 m pendant > 3 min) = profondimètre seul pendant 24 h ; ▼ et clignotement à plus de 0,3 m au-dessus du palier, désaturation arrêtée ; RUNAWAY DECO ; TTR, réserve (au moins 50 bar) et demi-bloc (100 bar) avec le module de bloc. Boutons du haut : champ en haut à droite ; du bas : champ en bas à droite ; appui long en haut : rétroéclairage. Après la plongée : deux pages alternées (4 s). Non simulés : deep stops (le manuel ne donne pas leur calcul), altitude, multigaz, menus de surface, planificateur, carnet.',
-    en: 'Mares RGBM-Wienke (10 tissues) is proprietary: same approximation as the Puck Pro (Bühlmann + P0/P1/P2, repetitive-dive penalty). As per the manual: SLOW from 10 m/min; uncontrolled ascent (> 12 m/min deeper than 12 m, over 2/3 of the depth) or missed stop (> 1 m for > 3 min) = bottom timer only for 24 h; ▼ and blinking more than 0.3 m above the stop, desaturation halted; RUNAWAY DECO; TTR, reserve (at least 50 bar) and half tank (100 bar) with the tank module. Upper buttons: top-right field; lower buttons: bottom-right field; upper hold: backlight. After the dive: two alternating pages (4 s). Not simulated: deep stops (the manual does not give how they are computed), altitude, multigas, surface menus, planner, logbook.',
+    fr: 'Le RGBM Mares-Wienke (10 tissus) est propriétaire : approximation identique à celle du Puck Pro (Bühlmann + P0/P1/P2, pénalité en successives). Conforme au manuel : SLOW dès 10 m/min ; remontée incontrôlée (> 12 m/min au-delà de 12 m, sur les 2/3 de la profondeur) ou palier manqué (> 1 m pendant > 3 min) = profondimètre seul pendant 24 h ; ▼ et clignotement à plus de 0,3 m au-dessus du palier, désaturation arrêtée ; RUNAWAY DECO ; TTR, réserve (au moins 50 bar) et demi-bloc (100 bar) avec le module de bloc. Boutons du haut : champ en haut à droite ; du bas : champ en bas à droite ; appui long en haut : rétroéclairage. Après la plongée : deux pages alternées (4 s). Multigaz (§3.5) : jusqu’à 3 gaz G1 à G3 (bloc principal puis gaz de déco de la page) ; au MOD d’un gaz plus riche pendant la remontée, bip et O2 % de G1 clignotant avec SWITCH pendant 20 s ; bouton du bas : gaz suivant (O2 % et MOD clignotants), appui long : confirmation ; le temps de remontée ne compte que le gaz respiré (mis à jour après le changement) ; ppO2max des gaz de déco 1,6 bar supposé. Non simulés : deep stops (le manuel ne donne pas leur calcul), altitude, menus de surface, planificateur, carnet.',
+    en: 'Mares RGBM-Wienke (10 tissues) is proprietary: same approximation as the Puck Pro (Bühlmann + P0/P1/P2, repetitive-dive penalty). As per the manual: SLOW from 10 m/min; uncontrolled ascent (> 12 m/min deeper than 12 m, over 2/3 of the depth) or missed stop (> 1 m for > 3 min) = bottom timer only for 24 h; ▼ and blinking more than 0.3 m above the stop, desaturation halted; RUNAWAY DECO; TTR, reserve (at least 50 bar) and half tank (100 bar) with the tank module. Upper buttons: top-right field; lower buttons: bottom-right field; upper hold: backlight. After the dive: two alternating pages (4 s). Multigas (§3.5): up to 3 gases G1 to G3 (the main tank, then the deco gases set on the page); at the MOD of a richer gas during the ascent, a beep and the O2 % of G1 blinking with SWITCH for 20 s; lower button: next gas (O2 % and MOD blinking), hold: confirm; the ascent time only counts the gas breathed (updated after the switch); ppO2max of the deco gases 1.6 bar assumed. Not simulated: deep stops (the manual does not give how they are computed), altitude, surface menus, planner, logbook.',
   };
   readonly settingDefs: SettingDef[] = [
     {
@@ -75,6 +76,15 @@ export abstract class QuadAirRules extends DiveComputer {
     },
     // Manual: ppO2max 1.4 bar from the factory, adjustable between 1.2 and 1.6 bar (step not given: 0.1).
     ppo2Setting(1.2, 1.6, 1.4, 'ppO2max'),
+    {
+      // §3.5.1: G2 and G3 have their own ppO2max, set like G1's (1.2 to 1.6 bar); their value is not
+      // given: 1.6 bar assumed.
+      key: 'ppo2Deco',
+      label: { fr: 'ppO2max G2 / G3', en: 'ppO2max G2 / G3' },
+      options: [1.2, 1.3, 1.4, 1.5, 1.6].map((v) => ({ value: v.toFixed(2), label: `${v.toFixed(1)} bar` })),
+      default: '1.60',
+      group: 'deco',
+    },
     // §2.2.1.6: "tANK WARN, is the value at which Quad Air triggers a half tank warning [...] Default values
     // are 100bar"; "tANK RSRV, is the value at which an alarm is triggered [...] Default values are 50bar".
     // Ranges not given: 5 bar steps offered. §3.2.5: tANK WARN set to the tANK RSRV value eliminates the
@@ -97,6 +107,33 @@ export abstract class QuadAirRules extends DiveComputer {
   /** Depth where the current ascent started (speed shown after 0.8 m, §3.2.1). */
   protected ascentFrom = 0;
   protected lastView: ComputerView | null = null;
+  /** §3.5.2: gas switch prompt (O2 % of G1 blinking with SWITCH, 20 s) and the switch sequence. */
+  protected prompt = new GasPrompt();
+  protected seq = new GasSequence();
+
+  /** §3.5: up to three gases, G1 to G3. */
+  get maxGases(): number {
+    return 3;
+  }
+
+  decoPpo2(): number {
+    return Number(this.settings.ppo2Deco) || 1.6;
+  }
+
+  /** §3.5.2: "within 20 seconds the ascent time is updated to reflect the higher oxygen concentration": the gas breathed only. */
+  planGases() {
+    return [];
+  }
+
+  /** MOD of each programmed gas (its own ppO2max), the switch depth of G2 and G3 (§3.5). */
+  protected gasMods(s: DiveSession): number[] {
+    return this.knownGases(s).map((g, i) => (i === 0 ? this.modDepth(g.o2) : Math.max(0, pressureToDepth(this.decoPpo2() / g.o2))));
+  }
+
+  /** A deco gas has no tank module here: the tank data are those of G1 (§3.5.1 "P" / "nP"). */
+  airIntegrated(s: DiveSession): boolean {
+    return super.airIntegrated(s) && s.breathing === 0;
+  }
 
   constructor() {
     super();
@@ -114,7 +151,7 @@ export abstract class QuadAirRules extends DiveComputer {
     return maresRgbmParams(this.settings.personal, null);
   }
 
-  decoParams(s: DiveSession): DecoParams {
+  algoParams(s: DiveSession): DecoParams {
     return maresRgbmParams(this.settings.personal, s);
   }
 
@@ -137,6 +174,8 @@ export abstract class QuadAirRules extends DiveComputer {
     // §3.4: a dive started with remaining desaturation is a repetitive dive.
     this.repetitive = this.lastView !== null && this.lastView.desat > 0;
     this.ascentFrom = 0;
+    this.prompt.reset();
+    this.seq.cancel();
   }
 
   onDiveEnd(s: DiveSession): void {
@@ -153,6 +192,10 @@ export abstract class QuadAirRules extends DiveComputer {
     if (!s.inDive) return;
     if (s.ascentRate <= 0.3) this.ascentFrom = s.depth;
     if (this.locked) return;
+    // §3.5.2: "The automatic blinking of the oxygen concentration of G1 lasts only for 20 seconds."
+    // The sequence started by a button is given the same time (not stated).
+    this.prompt.update(s, this.gasMods(s), 20);
+    this.seq.expire(s, 20);
 
     // §3.2.1 / §2.2.1.7: faster than 12 m/min deeper than 12 m blinks the uncontrolled ascent icon;
     // kept for two thirds of the depth where it started, it is a dive violation.
@@ -173,7 +216,7 @@ export abstract class QuadAirRules extends DiveComputer {
 
 
   protected nitrox(s: DiveSession): boolean {
-    return s.gas.o2 > 0.215;
+    return s.gas.o2 > 0.215 || this.knownGases(s).length > 1;
   }
 
   protected asc5(v: ComputerView, s: DiveSession): number {
@@ -207,6 +250,8 @@ export abstract class QuadAirRules extends DiveComputer {
   alertCues(v: ComputerView): AlertCue[] {
     if (this.settings.alrm === 'off' || !v.inDive) return [];
     const cues = maresCues(v);
+    // Gas switch prompt: "sounds an audible signal" (once).
+    if (this.prompt.offer !== null) cues.push({ key: `switch-${this.prompt.offer}`, kind: 'beep', level: 'info', until: 'once' });
     // §3.2.5 (with the tank module), until a button is pressed: TTR shorter than the ascent time in
     // deco, tank reserve (at least 50 bar), half tank (tANK WARN, 100 bar by default) — the same
     // thresholds as the screen.

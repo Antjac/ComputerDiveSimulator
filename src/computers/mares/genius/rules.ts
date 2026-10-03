@@ -3,7 +3,8 @@ import { type DiveSession } from '../../../engine/session';
 import { type AlertCue, ComputerView, DiveComputer, SettingDef } from '../../base';
 import { divingDays, standardNoFly } from '../../common/dives';
 import { surfGfAfter, ttsAfter } from '../../common/predict';
-import { DeepStop, FastAscentZhl, MissedStop, PRESETS, maresCues, maresWarningSettings, quadAscentLimit } from '../common';
+import { GasPrompt } from '../../common/gasSwitch';
+import { DeepStop, FastAscentZhl, GasMessages, MissedStop, PRESETS, maresCues, maresWarningSettings, quadAscentLimit } from '../common';
 import { ppo2Setting } from '../../common/ppo2';
 import { pressureSetting } from '../../common/tank';
 
@@ -25,8 +26,8 @@ export abstract class GeniusRules extends DiveComputer {
   readonly transmitter = 'Tank module';
   readonly gasTimeName = 'TTR';
   readonly notes = {
-    fr: 'Bühlmann ZH-L16C non modifié avec gradient factors : reproduit (R0 85/85, R1 70/80, R3 50/60, T0 30/85 et T3 25/40 d’après le manuel, R2, T1 et T2 interpolés), personnalisation PHYSIO / DIVE / I TODAY, successives (−8 puis +1 par 15 min) et multi-jours (−2 par jour, max −6) en option. Vitesse maximale selon la profondeur (5 / 10 / 15 / 20 m/min, flèches de 20 % à gauche, SLOW DOWN!) ; plus de 120 % sur plus de 20 m ou palier manqué (< 1 m pendant 3 min, > 1 m pendant 1 min) = verrouillage 48 h. BACK TO STOP DEPTH à 0,3 m au-dessus du palier ; RUNAWAY DECO ; CNS > 75 % ; TANK RESERVE REACHED ; LOW TANK PRESSURE (TTR < TTS). Boutons : profil (2e), champ en bas à droite (3e), champ en haut à droite (4e), graphique des tissus (4e long). Non simulés : boussole, menu sous l’eau, cartes, liste des paliers, GF alternatifs, CEIL-CON, multigaz, RGT, mode nuit, niveau des batteries (valeur fictive). Émetteur : HALF TANK à la pression MID TANK WARNING (100 bar par défaut ; libellé repris du Quad Ci, non vérifié) et TANK RESERVE REACHED (50 bar par défaut), jusqu’à l’appui sur un bouton. Avertissements du §2.4 : MAX DEPTH REACHED, TURN AROUND / TIME LIMIT (désactivés par défaut), NO STOP 2 min et entrée en déco (activés supposé ; textes non donnés : « NO STOP 2 MIN » et « ENTERING DECO » déduits).',
-    en: 'Unmodified Bühlmann ZH-L16C with gradient factors: reproduced (R0 85/85, R1 70/80, R3 50/60, T0 30/85 and T3 25/40 from the manual, R2, T1 and T2 interpolated), PHYSIO / DIVE / I TODAY personalization, optional repetitive dive (−8 then +1 per 15 min) and multiday (−2 per day, max −6) conservatism. Depth-dependent maximum ascent rate (5 / 10 / 15 / 20 m/min, 20 % arrows on the left, SLOW DOWN!); more than 120 % over more than 20 m or a missed stop (< 1 m for 3 min, > 1 m for 1 min) = 48 h lock. BACK TO STOP DEPTH 0.3 m above the stop; RUNAWAY DECO; CNS > 75%; TANK RESERVE REACHED; LOW TANK PRESSURE (TTR < TTS). Buttons: profile (2nd), bottom-right field (3rd), top-right field (4th), tissue graph (4th hold). Not simulated: compass, underwater menu, maps, list of stops, alternate GF, CEIL-CON, multigas, RGT, night mode, battery levels (fictitious value). Transmitter: HALF TANK at the MID TANK WARNING pressure (100 bar by default; wording taken from the Quad Ci, not verified) and TANK RESERVE REACHED (50 bar by default), until a button is pressed. §2.4 warnings: MAX DEPTH REACHED, TURN AROUND / TIME LIMIT (off by default), NO STOP 2 min and entering deco (on assumed; texts not given: "NO STOP 2 MIN" and "ENTERING DECO" deduced).',
+    fr: 'Bühlmann ZH-L16C non modifié avec gradient factors : reproduit (R0 85/85, R1 70/80, R3 50/60, T0 30/85 et T3 25/40 d’après le manuel, R2, T1 et T2 interpolés), personnalisation PHYSIO / DIVE / I TODAY, successives (−8 puis +1 par 15 min) et multi-jours (−2 par jour, max −6) en option. Vitesse maximale selon la profondeur (5 / 10 / 15 / 20 m/min, flèches de 20 % à gauche, SLOW DOWN!) ; plus de 120 % sur plus de 20 m ou palier manqué (< 1 m pendant 3 min, > 1 m pendant 1 min) = verrouillage 48 h. BACK TO STOP DEPTH à 0,3 m au-dessus du palier ; RUNAWAY DECO ; CNS > 75 % ; TANK RESERVE REACHED ; LOW TANK PRESSURE (TTR < TTS). Boutons : profil (2e), champ en bas à droite (3e), champ en haut à droite (4e), graphique des tissus (4e long). Multigaz (§11) : jusqu’à 3 gaz G1 à G3 (bloc principal puis gaz de déco de la page) ; au MOD d’un gaz plus riche pendant la remontée, bip et SWITCH TO GAS G2 (boutons NO / OK / OK, 30 s), puis GAS SWITCH OK, ou GAS NOT SWITCHED et EXCLUDING GAS G2 avec PREDICTIVE (par défaut) ; bouton 3 long : écran de changement de gaz (fig. 35 : ◀ sortie, ⇕ défilement, ✓ activation, gaz trop riches pour la profondeur en gris) ; ppO2max des gaz de déco 1,60 bar (fig. 33). ALLOW SWITCH BELOW MOD, annoncé pour une future mise à jour, n’est pas simulé. Non simulés : boussole, menu sous l’eau, cartes, liste des paliers, GF alternatifs, CEIL-CON, RGT, mode nuit, niveau des batteries (valeur fictive). Émetteur : HALF TANK à la pression MID TANK WARNING (100 bar par défaut ; libellé repris du Quad Ci, non vérifié) et TANK RESERVE REACHED (50 bar par défaut), jusqu’à l’appui sur un bouton. Avertissements du §2.4 : MAX DEPTH REACHED, TURN AROUND / TIME LIMIT (désactivés par défaut), NO STOP 2 min et entrée en déco (activés supposé ; textes non donnés : « NO STOP 2 MIN » et « ENTERING DECO » déduits).',
+    en: 'Unmodified Bühlmann ZH-L16C with gradient factors: reproduced (R0 85/85, R1 70/80, R3 50/60, T0 30/85 and T3 25/40 from the manual, R2, T1 and T2 interpolated), PHYSIO / DIVE / I TODAY personalization, optional repetitive dive (−8 then +1 per 15 min) and multiday (−2 per day, max −6) conservatism. Depth-dependent maximum ascent rate (5 / 10 / 15 / 20 m/min, 20 % arrows on the left, SLOW DOWN!); more than 120 % over more than 20 m or a missed stop (< 1 m for 3 min, > 1 m for 1 min) = 48 h lock. BACK TO STOP DEPTH 0.3 m above the stop; RUNAWAY DECO; CNS > 75%; TANK RESERVE REACHED; LOW TANK PRESSURE (TTR < TTS). Buttons: profile (2nd), bottom-right field (3rd), top-right field (4th), tissue graph (4th hold). Multigas (§11): up to 3 gases G1 to G3 (the main tank, then the deco gases set on the page); at the MOD of a richer gas during the ascent, a beep and SWITCH TO GAS G2 (buttons NO / OK / OK, 30 s), then GAS SWITCH OK, or GAS NOT SWITCHED and EXCLUDING GAS G2 with PREDICTIVE (default); button 3 hold: gas switch screen (fig. 35: ◀ exit, ⇕ scroll, ✓ activate, gases too rich for the depth in grey); ppO2max of the deco gases 1.60 bar (fig. 33). ALLOW SWITCH BELOW MOD, announced for a future update, is not simulated. Not simulated: compass, underwater menu, maps, list of stops, alternate GF, CEIL-CON, RGT, night mode, battery levels (fictitious value). Transmitter: HALF TANK at the MID TANK WARNING pressure (100 bar by default; wording taken from the Quad Ci, not verified) and TANK RESERVE REACHED (50 bar by default), until a button is pressed. §2.4 warnings: MAX DEPTH REACHED, TURN AROUND / TIME LIMIT (off by default), NO STOP 2 min and entering deco (on assumed; texts not given: "NO STOP 2 MIN" and "ENTERING DECO" deduced).',
   };
   readonly settingDefs: SettingDef[] = [
     {
@@ -110,12 +111,29 @@ export abstract class GeniusRules extends DiveComputer {
     {
       // §4 ALL SILENT MODE turns the audible alarms off (off by default, assumed).
       key: 'silent',
-      label: { fr: 'Mode silencieux (ALL SILENT)', en: 'All silent' },
+      label: { fr: 'Silence (ALL SILENT)', en: 'All silent' },
       options: [{ value: 'on', label: { fr: 'Activé', en: 'On' } }, { value: 'off', label: { fr: 'Désactivé', en: 'Off' } }],
       default: 'off',
     },
     // Manual: ppO2max 1.4 bar from the factory, up to 1.6 bar (from 1.2, step 0.1: assumed as on the other Mares).
     ppo2Setting(1.2, 1.6, 1.4, 'ppO2max'),
+    {
+      // §11.1 / fig. 33: each gas has its own ppO2max (G2 "ppO2 max 1.60 bar" in the figure).
+      key: 'ppo2Deco',
+      label: { fr: 'ppO2max G2 / G3', en: 'ppO2max G2 / G3' },
+      options: [1.2, 1.3, 1.4, 1.5, 1.6].map((v) => ({ value: v.toFixed(2), label: `${v.toFixed(1)} bar` })),
+      default: '1.60',
+      group: 'deco',
+    },
+    {
+      // §2.5.1 PREDICTIVE: "When set to ON, Genius will consider all gases in the decompression
+      // calculation, with switches carried out at the MOD of each gas. [...] The default value is ON."
+      key: 'predictive',
+      label: { fr: 'Multigaz PREDICTIVE', en: 'PREDICTIVE multigas' },
+      options: [{ value: 'on', label: 'ON' }, { value: 'off', label: 'OFF' }],
+      default: 'on',
+      group: 'deco',
+    },
     // §2.3 GAS INTEGRATION: "MID TANK WARNING, is the value at which Genius triggers a half tank warning
     // [...] Default values are 100bar"; "TANK RESERVE, is the value at which an alarm is triggered [...]
     // Default values are 50bar". Ranges not given: 5 bar steps offered.
@@ -151,7 +169,7 @@ export abstract class GeniusRules extends DiveComputer {
   }
 
   /** §2.2.3–2.2.5: personalization, repetitive dive and multiday reductions of the MAIN GF. */
-  decoParams(s: DiveSession): DecoParams {
+  algoParams(s: DiveSession): DecoParams {
     const p = this.baseParams();
     const step = (k: string) => (this.settings[k] === 'off' ? 0 : Number(this.settings[k]) || 0);
     let drop = this.settings.physio === 'adv' ? -5 : 10 * step('physio');
@@ -183,6 +201,8 @@ export abstract class GeniusRules extends DiveComputer {
     this.hadDeco = false;
     this.repetitive = this.lastView !== null && this.lastView.desat > 0;
     this.deep.reset();
+    this.prompt.reset();
+    this.gasMsgs.clear();
   }
 
   onDiveEnd(s: DiveSession): void {
@@ -209,6 +229,12 @@ export abstract class GeniusRules extends DiveComputer {
       this.missed.reset();
     }
 
+    // §11.2: SWITCH TO GAS G2 at its MOD during the ascent; "If you don't perform any action within 30
+    // seconds, Genius shows GAS NOT SWITCHED"; back below its MOD: INCLUDING GAS G2 AGAIN.
+    const { expired, included } = this.prompt.update(s, this.gasMods(s), 30);
+    if (expired !== null) this.notSwitched(expired);
+    if (included.length && this.settings.predictive !== 'off') this.gasMsgs.say(`INCLUDING GAS G${included[0] + 1} AGAIN`);
+
     // §2.9: deep stop at the depth where the 5th tissue (27 min) switches from ongassing to
     // offgassing, suggested as the no deco limit approaches (§9.1); 2 minutes, optional.
     this.deep.update(s, ceil, p, dt, this.settings.deepstop === 'on');
@@ -216,7 +242,42 @@ export abstract class GeniusRules extends DiveComputer {
 
 
   protected nitrox(s: DiveSession): boolean {
-    return s.gas.o2 > 0.215;
+    return s.gas.o2 > 0.215 || this.knownGases(s).length > 1;
+  }
+
+  /** §11: up to three gases, G1 to G3. */
+  get maxGases(): number {
+    return 3;
+  }
+  /** §11.2: gas switch prompt (SWITCH TO GAS G2) and its messages. */
+  protected prompt = new GasPrompt();
+  protected gasMsgs = new GasMessages();
+
+  /** ppO2max of G2 / G3: set per gas (fig. 33 shows 1.60 bar for G2); 1.2 to 1.6 bar offered. */
+  decoPpo2(): number {
+    return Number(this.settings.ppo2Deco) || 1.6;
+  }
+
+  /** §2.5.1 PREDICTIVE ON: all active gases at their MOD, except those excluded after a declined switch; OFF: the gas breathed. */
+  planGases(s: DiveSession) {
+    if (this.settings.predictive === 'off') return [];
+    return super.planGases(s).filter((g) => !this.prompt.declined.has(s.allGases.indexOf(g.gas)));
+  }
+
+  /** MOD of each programmed gas, the switch depth of G2 and G3 (§11.1). */
+  gasMods(s: DiveSession): number[] {
+    return this.knownGases(s).map((g, i) => (i === 0 ? this.modDepth(g.o2) : this.decoMod(g.o2)));
+  }
+
+  /** Only G1 has a tank module here (fig. 35 shows "-" for a gas without one). */
+  airIntegrated(s: DiveSession): boolean {
+    return super.airIntegrated(s) && s.breathing === 0;
+  }
+
+  /** §11.2: GAS NOT SWITCHED, then with PREDICTIVE ON, EXCLUDING GAS G2 before the calculation drops it. */
+  protected notSwitched(gas: number): void {
+    this.gasMsgs.say('GAS NOT SWITCHED');
+    if (this.settings.predictive !== 'off') this.gasMsgs.say(`EXCLUDING GAS G${gas + 1}`);
   }
 
   protected ttsPlus(v: ComputerView, s: DiveSession, x: number): number {
@@ -247,6 +308,14 @@ export abstract class GeniusRules extends DiveComputer {
   }
 
   alertCues(v: ComputerView): AlertCue[] {
+    if (this.prompt.offer !== null && this.settings.silent !== 'on' && v.inDive) {
+      // §11.2: "Genius sounds an audible signal" with SWITCH TO GAS G2.
+      return [...this.cues(v), { key: `switch-${this.prompt.offer}`, kind: 'beep', level: 'info', until: 'once' }];
+    }
+    return this.cues(v);
+  }
+
+  private cues(v: ComputerView): AlertCue[] {
     if (this.settings.silent === 'on' || !v.inDive) return [];
     const cues = maresCues(v);
     if (v.cns >= 75 && v.cns < 100) cues.push({ key: 'cns-75', kind: 'beep', level: 'info', until: 'once' });
